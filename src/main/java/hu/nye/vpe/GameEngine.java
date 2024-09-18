@@ -7,7 +7,9 @@ import java.awt.image.BufferStrategy;
 /**
  * Game class. Runnable.
  */
-public class Game implements Runnable {
+public class GameEngine implements Runnable {
+    private final String fontName = "Truly Madly Dpad";
+    private final String fontFile = "fonts/trulymadlydpad.ttf";
     public static final int FPS = 60;
     private Display display;
     public int width;
@@ -19,18 +21,25 @@ public class Game implements Runnable {
     private Graphics2D graphics2D;
     private final Starfield starField;
     private final Stack stack = new Stack();
+    private final TimeTicker tickDown;
+    private final TimeTicker tickControl;
+    private final TimeTicker tickBackground;
+    private final Audio audio = new Audio();
 
-    public Game(String title, int width, int height) {
+    public GameEngine(String title, int width, int height) {
         this.width = width;
         this.height = height;
         this.title = title;
         starField = new Starfield(width, height);
         starField.setColorPalette(ColorPalette.getInstance().getCurrentPalette());
+        tickControl = new TimeTicker(10);
+        tickDown = new TimeTicker(10);
+        tickBackground = new TimeTicker(60);
     }
 
     private void init() {
         display = new Display(title, width, height);
-        //display.getFrame().addKeyListener(keyManager);
+        audio.musicBackgroundPlay();
     }
 
     /**
@@ -60,9 +69,14 @@ public class Game implements Runnable {
         }
     }
 
-    private void tick() {
+    private void update() {
         stack.update();
-        starField.update();
+        if (tickBackground.tick()) {
+            starField.update();
+        }
+        if (tickControl.tick()) {
+            input();
+        }
     }
 
     private void render() {
@@ -75,12 +89,16 @@ public class Game implements Runnable {
         graphics2D.setColor(Color.BLACK);
         graphics2D.clearRect(0, 0, width, height);
         graphics2D.fillRect(0, 0, width, height);
-        // Render game elements
+        // Render game elements.
         starField.render(graphics2D);
         stack.render(graphics2D);
-        // End render game elements
+        // End render game elements.
         bs.show();
         graphics2D.dispose();
+    }
+
+    private void input() {
+
     }
 
     @Override
@@ -98,7 +116,7 @@ public class Game implements Runnable {
             timer += now - lastTime;
             lastTime = now;
             if (delta >= 1) {
-                tick();
+                update();
                 render();
                 ticks++;
                 delta--;
@@ -109,5 +127,9 @@ public class Game implements Runnable {
             }
         }
         stop();
+    }
+
+    public String getFontName() {
+        return FONT_NAME;
     }
 }

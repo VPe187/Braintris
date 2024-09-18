@@ -6,7 +6,7 @@ package hu.nye.vpe;
 public class Launcher {
 
     public static void main(String[] args) {
-        Game game = new Game("TetBrain - NYE - Varga Péter", 800, 780);
+        GameEngine game = new GameEngine("TetBrain - NYE - Varga Péter", 800, 780);
         game.start();
     }
 

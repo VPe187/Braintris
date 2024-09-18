@@ -18,6 +18,8 @@ public class Stack implements GameElement {
     private final int blockSize = 30;
     private final int cols = 12;
     private final int rows = 24;
+    private Cell[][] stackArea;
+    private Shape currentShape = null;
 
     public Stack() {
         stackX = 2 * this.blockSize;
@@ -56,6 +58,26 @@ public class Stack implements GameElement {
                     blockSize, blockSize,
                     true
             );
+        }
+    }
+
+
+    /**
+     * putShape method.
+     */
+    public void putShape() {
+        for (int i = 0; i < currentShape.getPixels().length; i++) {
+            for (int j = 0; j < currentShape.getPixels()[i].length; j++) {
+                if (currentShape.getPixels()[i][j] != 0) {
+                    stackArea[currentShape.getStackRow() + i][currentShape.getStackCol() + j] =
+                            new Cell(currentShape.getId(), currentShape.getColor());
+                    if (currentShape.getPixels()[i][j] == 2) {
+                        stackArea[currentShape.getStackRow() + i][currentShape.getStackCol() + j].setBonus(Cell.BonusType.BOMB);
+                    } else {
+                        stackArea[currentShape.getStackRow() + i][currentShape.getStackCol() + j].setBonus(Cell.BonusType.NONE);
+                    }
+                }
+            }
         }
     }
 
