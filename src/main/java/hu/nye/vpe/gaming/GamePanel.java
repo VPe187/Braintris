@@ -1,4 +1,4 @@
-package hu.nye.vpe;
+package hu.nye.vpe.gaming;
 
 import java.awt.Color;
 import java.awt.Font;

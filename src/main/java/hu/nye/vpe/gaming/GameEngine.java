@@ -1,4 +1,6 @@
-package hu.nye.vpe;
+package hu.nye.vpe.gaming;
+
+import hu.nye.vpe.Tetris;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -11,7 +13,7 @@ public class GameEngine implements Runnable {
     private final String fontName = "Truly Madly Dpad";
     private final String fontFile = "fonts/trulymadlydpad.ttf";
     public static final int FPS = 60;
-    private Display display;
+    private GameDisplay gameDisplay;
     public int width;
     public int height;
     public String title;
@@ -19,27 +21,14 @@ public class GameEngine implements Runnable {
     private Thread thread;
     private BufferStrategy bs;
     private Graphics2D graphics2D;
-    private final Starfield starField;
-    private final Stack stack = new Stack();
-    private final TimeTicker tickDown;
-    private final TimeTicker tickControl;
-    private final TimeTicker tickBackground;
-    private final Audio audio = new Audio();
+    private final Tetris tetris;
 
     public GameEngine(String title, int width, int height) {
         this.width = width;
         this.height = height;
         this.title = title;
-        starField = new Starfield(width, height);
-        starField.setColorPalette(ColorPalette.getInstance().getCurrentPalette());
-        tickControl = new TimeTicker(10);
-        tickDown = new TimeTicker(10);
-        tickBackground = new TimeTicker(60);
-    }
-
-    private void init() {
-        display = new Display(title, width, height);
-        audio.musicBackgroundPlay();
+        gameDisplay = new GameDisplay(title, width, height);
+        tetris = new Tetris(width, height, gameDisplay.getInput());
     }
 
     /**
@@ -52,6 +41,8 @@ public class GameEngine implements Runnable {
         running = true;
         thread = new Thread(this);
         thread.start();
+        tetris.start();
+        gameDisplay.getCanvas().requestFocus();
     }
 
     /**
@@ -70,40 +61,26 @@ public class GameEngine implements Runnable {
     }
 
     private void update() {
-        stack.update();
-        if (tickBackground.tick()) {
-            starField.update();
-        }
-        if (tickControl.tick()) {
-            input();
-        }
+        tetris.update();
     }
 
     private void render() {
-        bs = display.getCanvas().getBufferStrategy();
+        bs = gameDisplay.getCanvas().getBufferStrategy();
         if (bs == null) {
-            display.getCanvas().createBufferStrategy(3);
+            gameDisplay.getCanvas().createBufferStrategy(3);
             return;
         }
         graphics2D = (Graphics2D) bs.getDrawGraphics();
         graphics2D.setColor(Color.BLACK);
         graphics2D.clearRect(0, 0, width, height);
         graphics2D.fillRect(0, 0, width, height);
-        // Render game elements.
-        starField.render(graphics2D);
-        stack.render(graphics2D);
-        // End render game elements.
+        tetris.render(graphics2D);
         bs.show();
         graphics2D.dispose();
     }
 
-    private void input() {
-
-    }
-
     @Override
     public void run() {
-        init();
         double timePerTick = 1000000000 / FPS;
         double delta = 0;
         long now;
@@ -130,6 +107,6 @@ public class GameEngine implements Runnable {
     }
 
     public String getFontName() {
-        return FONT_NAME;
+        return fontName;
     }
 }

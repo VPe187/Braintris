@@ -1,4 +1,4 @@
-package hu.nye.vpe;
+package hu.nye.vpe.gaming;
 
 import java.awt.Canvas;
 import java.awt.Dimension;
@@ -7,15 +7,16 @@ import javax.swing.JFrame;
 /**
  * Display class.
  */
-public class Display {
+public class GameDisplay {
 
     private JFrame frame;
     private Canvas canvas;
     private String title;
     private int width;
     private int height;
+    private GameInput gameInput;
 
-    public Display(String title, int width, int height) {
+    public GameDisplay(String title, int width, int height) {
         this.title = title;
         this.width = width;
         this.height = height;
@@ -29,13 +30,17 @@ public class Display {
         frame.setResizable(false);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+        JFrame.setDefaultLookAndFeelDecorated(true);
         canvas = new Canvas();
         canvas.setPreferredSize(new Dimension(width, height));
         canvas.setMaximumSize(new Dimension(width, height));
         canvas.setMinimumSize(new Dimension(width, height));
-        canvas.setFocusable(false);
+        canvas.setFocusable(true);
+        gameInput = new GameInput();
+        canvas.addKeyListener(gameInput);
         frame.add(canvas);
         frame.pack();
+        canvas.requestFocus();
     }
 
     public Canvas getCanvas() {
@@ -46,4 +51,7 @@ public class Display {
         return frame;
     }
 
+    public GameInput getInput() {
+        return gameInput;
+    }
 }

@@ -1,5 +1,7 @@
 package hu.nye.vpe;
 
+import hu.nye.vpe.gaming.GameColorPalette;
+
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Random;
@@ -31,7 +33,7 @@ public class ShapeFactory {
     private final int[][] pixelsLoaded = new int[][]{{1, 1, 1}, {1, 1, 1}, {1, 1, 1} };
     private final Shape shapeLoaded = new Shape(90, 120, new Color(60, 60, 60), 1, pixelsLoaded);
     private final ArrayList<Shape> shapeArray = new ArrayList<Shape>();
-    private final ColorPalette palette = ColorPalette.getInstance();
+    private final GameColorPalette palette = GameColorPalette.getInstance();
     Random rnd = new Random();
 
     private ShapeFactory() {

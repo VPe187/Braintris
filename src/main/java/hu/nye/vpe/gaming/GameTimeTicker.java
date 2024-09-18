@@ -1,14 +1,14 @@
-package hu.nye.vpe;
+package hu.nye.vpe.gaming;
 
 /**
  * Time ticker class.
  */
-public class TimeTicker {
+public class GameTimeTicker {
 
     private long periodMilliSecond;
     private long lastTime;
 
-    public TimeTicker(long periodMilliSecond) {
+    public GameTimeTicker(long periodMilliSecond) {
         this.periodMilliSecond = periodMilliSecond;
         lastTime = System.currentTimeMillis();
     }

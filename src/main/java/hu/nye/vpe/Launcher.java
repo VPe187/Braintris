@@ -1,5 +1,7 @@
 package hu.nye.vpe;
 
+import hu.nye.vpe.gaming.GameEngine;
+
 /**
  * Main launcher.
  */

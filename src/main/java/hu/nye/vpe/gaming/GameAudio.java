@@ -1,4 +1,4 @@
-package hu.nye.vpe;
+package hu.nye.vpe.gaming;
 
 import java.io.IOException;
 import javax.sound.sampled.AudioInputStream;
@@ -10,7 +10,7 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 /**
  * Audio class.
  */
-public class Audio {
+public class GameAudio {
 
     private final Clip clipBackground;
     private final Clip clipDown;
@@ -19,7 +19,7 @@ public class Audio {
     private final Clip clipPenalty;
     private final Clip clipNextLevel;
 
-    public Audio() {
+    public GameAudio() {
         this.clipBackground = open("sounds/background.wav");
         this.clipPenalty = open("sounds/penalty.wav");
         this.clipDown = open("sounds/down.wav");

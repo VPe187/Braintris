@@ -1,4 +1,4 @@
-package hu.nye.vpe;
+package hu.nye.vpe.gaming;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -8,7 +8,7 @@ import java.util.Random;
 /**
  * Starfield class.
  */
-public class Starfield implements GameElement {
+public class GameStarfield implements GameElement {
 
     private final int width;
     private final int height;
@@ -20,7 +20,7 @@ public class Starfield implements GameElement {
             Color.decode("#CC4778"), Color.decode("#7C2749")
     };
 
-    public Starfield(int width, int height) {
+    public GameStarfield(int width, int height) {
         this.width = width;
         this.height = height;
         stars = new ArrayList(maxStars);

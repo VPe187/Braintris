@@ -1,4 +1,4 @@
-package hu.nye.vpe;
+package hu.nye.vpe.gaming;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -9,11 +9,11 @@ import javax.swing.Timer;
 /**
  * Keyboard input class.
  */
-public class Input implements KeyListener, ActionListener {
+public class GameInput implements KeyListener, ActionListener {
     private final boolean[] keys = new boolean[600];
     private final Timer repeatTimer;
 
-    public Input() {
+    public GameInput() {
         repeatTimer = new Timer(5, this);
         repeatTimer.start();
     }
@@ -122,7 +122,6 @@ public class Input implements KeyListener, ActionListener {
 
     @Override
     public void keyTyped(KeyEvent keyEvent) {
-
     }
 
     @Override

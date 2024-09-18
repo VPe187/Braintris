@@ -1,4 +1,4 @@
-package hu.nye.vpe;
+package hu.nye.vpe.gaming;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -8,9 +8,9 @@ import java.util.Random;
 /**
  * Color palette.
  */
-public class ColorPalette {
+public class GameColorPalette {
 
-    private static final ColorPalette gameColorPalette = new ColorPalette();
+    private static final GameColorPalette gameColorPalette = new GameColorPalette();
     private final int palettesNumber = 20;
     private static int currentPaletteNumber;
     private static Color[] currentPalette;
@@ -143,11 +143,11 @@ public class ColorPalette {
 
     private final ArrayList<Color[]> paletteArray = new ArrayList<Color[]>();
 
-    private ColorPalette() {
+    private GameColorPalette() {
         init();
     }
 
-    public static ColorPalette getInstance() {
+    public static GameColorPalette getInstance() {
         return gameColorPalette;
     }
 
