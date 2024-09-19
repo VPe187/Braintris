@@ -1,10 +1,10 @@
 package hu.nye.vpe;
 
-import hu.nye.vpe.gaming.GameColorPalette;
-
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Random;
+
+import hu.nye.vpe.gaming.GameColorPalette;
 
 /**
  * Shape factory class.

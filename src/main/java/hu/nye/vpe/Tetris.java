@@ -1,15 +1,18 @@
 package hu.nye.vpe;
 
+import java.awt.Graphics2D;
+
 import hu.nye.vpe.gaming.GameAudio;
 import hu.nye.vpe.gaming.GameColorPalette;
 import hu.nye.vpe.gaming.GameInput;
 import hu.nye.vpe.gaming.GameStarfield;
 import hu.nye.vpe.gaming.GameTimeTicker;
 
-import java.awt.*;
-
+/**
+ * Tetris class.
+ */
 public class Tetris {
-    private final long SPEED_ACCELERATION = 50L;
+    private final long speedAcceleration = 50L;
     private boolean stateRunning;
     private Shape currentShape;
     private Shape nextShape = null;
@@ -24,6 +27,8 @@ public class Tetris {
     private final GameStarfield starField;
     private final GameAudio gameAudio = new GameAudio();
     private final GameInput gameInput;
+    private final long dropSpeed = 10L;
+    private final long startSpeed = 1000L;
 
     public Tetris(int width, int height, GameInput gameInput) {
         tickDown = new GameTimeTicker(1000);
@@ -34,6 +39,9 @@ public class Tetris {
         this.gameInput = gameInput;
     }
 
+    /**
+     * Tetris start.
+     */
     public void start() {
         stack = new Stack();
         stack.reset();
@@ -44,7 +52,7 @@ public class Tetris {
         nextShape();
     }
 
-    public void nextShape() {
+    private void nextShape() {
         currentShape = nextShape;
         nextShape = createNextShape();
         stack.addShapes(currentShape, nextShape);
@@ -54,21 +62,43 @@ public class Tetris {
     private Shape createNextShape() {
         Shape nb = sf.getRandomShape();
         if (nb != null) {
-            nb.setColPosition((cols/2)-2);
+            nb.setColPosition((cols / 2) - 2);
             nb.setRowPosition(0);
             nb.rotateRight();
         }
         return nb;
     }
 
+    /**
+     * Update.
+     */
     public void update() {
         if (tickBackground.tick()) {
             starField.update();
         }
         if (tickControl.tick()) {
+            if (gameInput.left()) {
+                stack.moveShapeLeft();
+            }
+            if (gameInput.right()) {
+                stack.moveShapeRight();
+            }
+            if (gameInput.space()) {
+                stack.rotateShapeRight();
+            }
+            if (gameInput.downRepeat()) {
+                tickDown.setPeriodMilliSecond(dropSpeed);
+            } else {
+                tickDown.setPeriodMilliSecond(1000);
+            }
+
         }
         if (tickDown.tick()) {
-            stack.moveShapeDown();
+            if (stack.getCurrentShape() == null) {
+                nextShape();
+            } else {
+                stack.moveShapeDown();
+            }
         }
     }
 

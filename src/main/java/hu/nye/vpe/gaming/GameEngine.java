@@ -1,10 +1,10 @@
 package hu.nye.vpe.gaming;
 
-import hu.nye.vpe.Tetris;
-
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferStrategy;
+
+import hu.nye.vpe.Tetris;
 
 /**
  * Game class. Runnable.
