@@ -10,8 +10,6 @@ import hu.nye.vpe.Tetris;
  * Game class. Runnable.
  */
 public class GameEngine implements Runnable {
-    private final String fontName = "Truly Madly Dpad";
-    private final String fontFile = "fonts/trulymadlydpad.ttf";
     public static final int FPS = 60;
     private GameDisplay gameDisplay;
     public int width;
@@ -104,9 +102,5 @@ public class GameEngine implements Runnable {
             }
         }
         stop();
-    }
-
-    public String getFontName() {
-        return fontName;
     }
 }

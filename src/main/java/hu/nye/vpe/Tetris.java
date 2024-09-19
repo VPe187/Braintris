@@ -13,7 +13,6 @@ import hu.nye.vpe.gaming.GameTimeTicker;
  */
 public class Tetris {
     private final long speedAcceleration = 50L;
-    private boolean stateRunning;
     private Shape currentShape;
     private Shape nextShape = null;
     private final ShapeFactory sf = ShapeFactory.getInstance();
@@ -24,16 +23,20 @@ public class Tetris {
     private final GameTimeTicker tickDown;
     private final GameTimeTicker tickBackground;
     private final GameTimeTicker tickControl;
+    private final GameTimeTicker tickAnim;
     private final GameStarfield starField;
     private final GameAudio gameAudio = new GameAudio();
     private final GameInput gameInput;
     private final long dropSpeed = 10L;
     private final long startSpeed = 1000L;
+    private long currentSpeed = 1000L;
+    private boolean musicOn = true;
 
     public Tetris(int width, int height, GameInput gameInput) {
         tickDown = new GameTimeTicker(1000);
         tickBackground = new GameTimeTicker(60);
         tickControl = new GameTimeTicker(10);
+        tickAnim = new GameTimeTicker(20);
         starField = new GameStarfield(width, height);
         starField.setColorPalette(GameColorPalette.getInstance().getCurrentPalette());
         this.gameInput = gameInput;
@@ -44,18 +47,19 @@ public class Tetris {
      */
     public void start() {
         stack = new Stack();
-        stack.reset();
+        stack.start();
         nextShape = createNextShape();
         startTime = System.currentTimeMillis();
         gameAudio.musicBackgroundPlay();
-        stateRunning = true;
+        musicOn = true;
+        currentSpeed = startSpeed;
         nextShape();
     }
 
     private void nextShape() {
         currentShape = nextShape;
         nextShape = createNextShape();
-        stack.addShapes(currentShape, nextShape);
+        stack.setShapes(currentShape, nextShape);
         stack.putShape();
     }
 
@@ -77,6 +81,34 @@ public class Tetris {
             starField.update();
         }
         if (tickControl.tick()) {
+            handleInput();
+        }
+        if (tickDown.tick()) {
+            if (stack.getState() != State.DELETINGROWS) {
+                if (stack.getLevel() == 0) {
+                    stack.nextLevel();
+                }
+                if (stack.getState() != State.GAMEOVER && stack.getState() != State.PAUSED) {
+                    if (stack.getCurrentShape() == null) {
+                        nextShape();
+                    } else {
+                        stack.moveShapeDown();
+                    }
+                }
+            }
+        }
+    }
+
+    private void handleInput() {
+        if (gameInput.letterP()) {
+            if (stack.getState() == State.RUNNING) {
+                stack.setState(State.PAUSED);
+            } else if (stack.getState() == State.PAUSED) {
+                stack.setState(State.RUNNING);
+            }
+            return;
+        }
+        if (stack.getState() == State.RUNNING) {
             if (gameInput.left()) {
                 stack.moveShapeLeft();
             }
@@ -91,19 +123,29 @@ public class Tetris {
             } else {
                 tickDown.setPeriodMilliSecond(1000);
             }
-
-        }
-        if (tickDown.tick()) {
-            if (stack.getCurrentShape() == null) {
-                nextShape();
-            } else {
-                stack.moveShapeDown();
+            if (gameInput.letterM()) {
+                if (musicOn) {
+                    gameAudio.musicBackgroundStop();
+                    musicOn = false;
+                } else {
+                    gameAudio.musicBackgroundPlay();
+                    musicOn = true;
+                }
             }
+        } else {
+            gameInput.clearBuffer();
+            tickDown.setPeriodMilliSecond(currentSpeed);
         }
     }
 
+    /**
+     * Render.
+     *
+     * @param g2d Graphics2D
+     */
     public void render(Graphics2D g2d) {
         starField.render(g2d);
+        stack.setTickAnim(tickAnim.tick());
         stack.render(g2d);
     }
 }
