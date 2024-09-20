@@ -48,7 +48,6 @@ public class Stack implements GameElement {
     private final int levelChangeRows = 4;
     private final long startSpeed = 1000L;
     private final long speedAcceleration = 50L;
-    private final long dropSpeed = 10L;
     private long currentSpeed;
     private int levelTextAlpha = 200;
     private long startTime;
@@ -70,6 +69,7 @@ public class Stack implements GameElement {
         allFullRows = 0;
         state = State.RUNNING;
         startTime = System.currentTimeMillis();
+        currentSpeed = startSpeed;
     }
 
     private void emptyStack() {
@@ -790,5 +790,13 @@ public class Stack implements GameElement {
     protected void setShapes(Shape currentShape, Shape nextShape) {
         this.currentShape = currentShape;
         this.nextShape = nextShape;
+    }
+
+    protected long getCurrentSpeed() {
+        return currentSpeed;
+    }
+
+    protected int getGameScore () {
+        return gameScore;
     }
 }

@@ -20,7 +20,7 @@ public class Tetris {
     private final int cols = 12;
     private long startTime;
     private Stack stack;
-    private final GameTimeTicker tickDown;
+    private GameTimeTicker tickDown;
     private final GameTimeTicker tickBackground;
     private final GameTimeTicker tickControl;
     private final GameTimeTicker tickAnim;
@@ -33,7 +33,6 @@ public class Tetris {
     private boolean musicOn = true;
 
     public Tetris(int width, int height, GameInput gameInput) {
-        tickDown = new GameTimeTicker(1000);
         tickBackground = new GameTimeTicker(60);
         tickControl = new GameTimeTicker(10);
         tickAnim = new GameTimeTicker(20);
@@ -47,12 +46,12 @@ public class Tetris {
      */
     public void start() {
         stack = new Stack();
+        tickDown = new GameTimeTicker(stack.getCurrentSpeed());
         stack.start();
         nextShape = createNextShape();
         startTime = System.currentTimeMillis();
         gameAudio.musicBackgroundPlay();
         musicOn = true;
-        currentSpeed = startSpeed;
         nextShape();
     }
 
@@ -88,7 +87,7 @@ public class Tetris {
                 if (stack.getLevel() == 0) {
                     stack.nextLevel();
                 }
-                if (stack.getState() != State.GAMEOVER && stack.getState() != State.PAUSED) {
+                if (stack.getState() != State.GAMEOVER && stack.getState() != State.PAUSED && stack.getState() != State.CHANGINGLEVEL) {
                     if (stack.getCurrentShape() == null) {
                         nextShape();
                     } else {
@@ -96,6 +95,9 @@ public class Tetris {
                     }
                 }
             }
+        }
+        if (stack.getState() == State.GAMEOVER) {
+            System.out.println(stack.getGameScore());
         }
     }
 
@@ -106,6 +108,10 @@ public class Tetris {
             } else if (stack.getState() == State.PAUSED) {
                 stack.setState(State.RUNNING);
             }
+            return;
+        }
+        if (gameInput.letterR()) {
+            start();
             return;
         }
         if (stack.getState() == State.RUNNING) {
@@ -121,7 +127,7 @@ public class Tetris {
             if (gameInput.downRepeat()) {
                 tickDown.setPeriodMilliSecond(dropSpeed);
             } else {
-                tickDown.setPeriodMilliSecond(1000);
+                tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
             }
             if (gameInput.letterM()) {
                 if (musicOn) {

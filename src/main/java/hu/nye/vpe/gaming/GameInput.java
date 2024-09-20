@@ -121,6 +121,17 @@ public class GameInput implements KeyListener, ActionListener {
         return key;
     }
 
+    /**
+     * R (restart).
+     *
+     * @return boolean
+     */
+    public boolean letterR() {
+        boolean key = keys[KeyEvent.VK_R];
+        keys[KeyEvent.VK_R] = false;
+        return key;
+    }
+
     public void clearBuffer() {
         Arrays.fill(keys, false);
     }
