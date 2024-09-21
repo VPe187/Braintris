@@ -18,7 +18,7 @@ public class Stack implements GameElement {
     private final String fontName = "Truly Madly Dpad";
     private final Color colorStackBackground = new Color(15, 15, 15);
     private final Color colorStackBorder = new Color(100, 100, 100, 100);
-    private final Color helperColor = new Color(25, 25, 25, 90);
+    private final Color helperColor = new Color(55, 55, 55, 20);
     private final Color helperLineColor = new Color(40, 40, 40, 40);
     private State state;
     private final int penaltyNoFullrows = 12;
@@ -46,7 +46,7 @@ public class Stack implements GameElement {
     private int allFullRows;
     private final int rowScore = 100;
     private final int levelChangeRows = 4;
-    private final long startSpeed = 1000L;
+    private final long startSpeed = 100L;
     private final long speedAcceleration = 50L;
     private long currentSpeed;
     private int levelTextAlpha = 200;
@@ -339,7 +339,7 @@ public class Stack implements GameElement {
         }
         putShape();
     }
-    
+
     private boolean shapeIsDownAfter(int p) {
         for (int i = 0; i < currentShape.getPixels().length; i++) {
             for (int j = 0; j < currentShape.getPixels()[i].length; j++) {
@@ -470,7 +470,7 @@ public class Stack implements GameElement {
                                         }
                                     }
                                 }
-                            // Inserted penalty blocks
+                                // Inserted penalty blocks
                             } else if (stackArea[i][j].getShapeId() == Shape.ShapeType.LOADED.getShapeTypeId()) {
                                 g2D.setColor(Color.DARK_GRAY);
                                 if (upSideDown) {
@@ -479,7 +479,7 @@ public class Stack implements GameElement {
                                     g2D.fill3DRect(stackX + j * blockSize, stackY + (i - rowOffset) * blockSize,
                                             blockSize, blockSize, true);
                                 }
-                            // Ordinary blocks
+                                // Ordinary blocks
                             } else {
                                 g2D.setColor(stackArea[i][j].getColor());
                                 if (upSideDown) {
@@ -594,7 +594,7 @@ public class Stack implements GameElement {
         int textWidth;
         g2D.setFont(new Font(fontName, Font.BOLD, blockSize * 2));
         textWidth = g2D.getFontMetrics().stringWidth(text);
-        g2D.setColor(new Color(250, 250, 250,  230));
+        g2D.setColor(new Color(250, 250, 250, 230));
         g2D.drawString(text, stackX + (stackW / 2 - textWidth / 2), stackY + (stackH / 2 - textWidth / 2));
     }
 
@@ -710,7 +710,6 @@ public class Stack implements GameElement {
     }
 
 
-
     private void renderInfoPanel(Graphics2D g2D) {
         int panelX = stackW + 4 * blockSize;
         int panelY = blockSize;
@@ -796,7 +795,20 @@ public class Stack implements GameElement {
         return currentSpeed;
     }
 
-    protected int getGameScore () {
+    protected int getGameScore() {
         return gameScore;
     }
+
+    protected Cell[][] getStackArea() {
+        return stackArea;
+    }
+
+    protected int getNoFullRows() {
+        return noFullRows;
+    }
+
+    public int getGameLevel() {
+        return gameLevel;
+    }
 }
+

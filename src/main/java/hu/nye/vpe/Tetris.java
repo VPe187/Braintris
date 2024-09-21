@@ -7,6 +7,7 @@ import hu.nye.vpe.gaming.GameColorPalette;
 import hu.nye.vpe.gaming.GameInput;
 import hu.nye.vpe.gaming.GameStarfield;
 import hu.nye.vpe.gaming.GameTimeTicker;
+import hu.nye.vpe.nn.NeuralNetwork;
 
 /**
  * Tetris class.
@@ -28,9 +29,9 @@ public class Tetris {
     private final GameAudio gameAudio = new GameAudio();
     private final GameInput gameInput;
     private final long dropSpeed = 10L;
-    private final long startSpeed = 1000L;
     private long currentSpeed = 1000L;
     private boolean musicOn = true;
+    private NeuralNetwork brain;
 
     public Tetris(int width, int height, GameInput gameInput) {
         tickBackground = new GameTimeTicker(60);
@@ -39,6 +40,7 @@ public class Tetris {
         starField = new GameStarfield(width, height);
         starField.setColorPalette(GameColorPalette.getInstance().getCurrentPalette());
         this.gameInput = gameInput;
+        this.brain = new NeuralNetwork(rows * cols + 5, 10, 4);
     }
 
     /**
@@ -59,7 +61,6 @@ public class Tetris {
         currentShape = nextShape;
         nextShape = createNextShape();
         stack.setShapes(currentShape, nextShape);
-        stack.putShape();
     }
 
     private Shape createNextShape() {
@@ -97,7 +98,8 @@ public class Tetris {
             }
         }
         if (stack.getState() == State.GAMEOVER) {
-            System.out.println(stack.getGameScore());
+            brain.evolve(stack.getGameScore(), 0.1, 0.2);
+            start();
         }
     }
 
@@ -114,7 +116,26 @@ public class Tetris {
             start();
             return;
         }
-        if (stack.getState() == State.RUNNING) {
+        if (stack.getState() == State.RUNNING && stack.getCurrentShape() != null) {
+            int move = interpretOutput(brain.feedForward(getFeedData()));
+            switch (move) {
+                case 0:
+                    stack.moveShapeLeft();
+                    break;
+                case 1:
+                    stack.moveShapeRight();
+                    break;
+                case 2:
+                    stack.rotateShapeRight();
+                    break;
+                case 3:
+                    tickDown.setPeriodMilliSecond(dropSpeed);
+                    break;
+                default:
+                    tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
+                    break;
+            }
+
             if (gameInput.left()) {
                 stack.moveShapeLeft();
             }
@@ -153,5 +174,47 @@ public class Tetris {
         starField.render(g2d);
         stack.setTickAnim(tickAnim.tick());
         stack.render(g2d);
+    }
+
+    private double[] getFeedData() {
+        Cell[][] stackArea = stack.getStackArea();
+        double[] feedData = new double[rows * cols + 5];
+        int k = 0;
+        for (int i = 0; i < stackArea.length; i++) {
+            for (int j = 0; j < stackArea[i].length; j++) {
+                feedData[k] = stackArea[i][j].getShapeId();
+                k++;
+            }
+        }
+        if (currentShape != null) {
+            feedData[k] = currentShape.getId();
+        } else {
+            feedData[k] = 0;
+        }
+        k++;
+        if (nextShape != null) {
+            feedData[k] = nextShape.getId();
+        } else {
+            feedData[k] = 0.0;
+        }
+        k++;
+        feedData[k] = stack.getNoFullRows();
+        k++;
+        feedData[k] = stack.getGameScore();
+        k++;
+        feedData[k] = stack.getGameLevel();
+        return feedData;
+    }
+
+    private int interpretOutput(double[] output) {
+        int bestMove = 0;
+        double maxValue = output[0];
+        for (int i = 1; i < output.length; i++) {
+            if (output[i] > maxValue) {
+                maxValue = output[i];
+                bestMove = i;
+            }
+        }
+        return bestMove;
     }
 }
