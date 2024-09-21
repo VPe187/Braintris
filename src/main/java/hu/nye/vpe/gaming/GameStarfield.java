@@ -9,11 +9,10 @@ import java.util.Random;
  * Starfield class.
  */
 public class GameStarfield implements GameElement {
-
+    private static final int MAX_STARS = 500;
     private final int width;
     private final int height;
     private final ArrayList<int[]> stars;
-    private final int maxStars = 500;
     private Color[] colorPalette = {
             Color.decode("#374570"), Color.decode("#11678F"), Color.decode("#08B7D6"), Color.decode("#89F1F5"),
             Color.decode("#FFFFFF"), Color.decode("#FFDCC1"), Color.decode("#F9A361"), Color.decode("#FB7292"),
@@ -23,9 +22,9 @@ public class GameStarfield implements GameElement {
     public GameStarfield(int width, int height) {
         this.width = width;
         this.height = height;
-        stars = new ArrayList(maxStars);
+        stars = new ArrayList(MAX_STARS);
         Random r = new Random();
-        for (int i = 0; i < maxStars; i++) {
+        for (int i = 0; i < MAX_STARS; i++) {
             int[] star = {r.nextInt(this.width), r.nextInt(this.height), 1 + r.nextInt(3), r.nextInt(9)};
             stars.add(star);
         }

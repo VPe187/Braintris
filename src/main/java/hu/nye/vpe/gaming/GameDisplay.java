@@ -14,7 +14,7 @@ import javax.swing.JFrame;
  * Display class.
  */
 public class GameDisplay {
-    private final String fontFile = "fonts/trulymadlydpad.ttf";
+    private static final String FONT_FILE = "fonts/trulymadlydpad.ttf";
     private JFrame frame;
     private Canvas canvas;
     private String title;
@@ -23,7 +23,7 @@ public class GameDisplay {
     private GameInput gameInput;
 
     public GameDisplay(String title, int width, int height) {
-        loadFont(fontFile);
+        loadFont(FONT_FILE);
         this.title = title;
         this.width = width;
         this.height = height;

@@ -13,12 +13,14 @@ import hu.nye.vpe.nn.NeuralNetwork;
  * Tetris class.
  */
 public class Tetris {
-    private final long speedAcceleration = 50L;
+    private static final double INITIAL_MUTATION_STRENGTH = 0.2;
+    private static final int ROWS = 24;
+    private static final int COLS = 12;
+    private static final long DROP_SPEED = 10L;
+    private long currentSpeed = 1000L;
     private Shape currentShape;
     private Shape nextShape = null;
     private final ShapeFactory sf = ShapeFactory.getInstance();
-    private final int rows = 24;
-    private final int cols = 12;
     private long startTime;
     private Stack stack;
     private GameTimeTicker tickDown;
@@ -28,8 +30,6 @@ public class Tetris {
     private final GameStarfield starField;
     private final GameAudio gameAudio = new GameAudio();
     private final GameInput gameInput;
-    private final long dropSpeed = 10L;
-    private long currentSpeed = 1000L;
     private boolean musicOn = true;
     private NeuralNetwork brain;
 
@@ -38,9 +38,8 @@ public class Tetris {
         tickControl = new GameTimeTicker(10);
         tickAnim = new GameTimeTicker(20);
         starField = new GameStarfield(width, height);
-        starField.setColorPalette(GameColorPalette.getInstance().getCurrentPalette());
         this.gameInput = gameInput;
-        this.brain = new NeuralNetwork(rows * cols + 5, 10, 4);
+        this.brain = new NeuralNetwork(ROWS * COLS + 5, 140, 4);
     }
 
     /**
@@ -48,6 +47,8 @@ public class Tetris {
      */
     public void start() {
         stack = new Stack();
+        GameColorPalette.getInstance().setRandomPalette();
+        starField.setColorPalette(GameColorPalette.getInstance().getCurrentPalette());
         tickDown = new GameTimeTicker(stack.getCurrentSpeed());
         stack.start();
         nextShape = createNextShape();
@@ -66,7 +67,7 @@ public class Tetris {
     private Shape createNextShape() {
         Shape nb = sf.getRandomShape();
         if (nb != null) {
-            nb.setColPosition((cols / 2) - 2);
+            nb.setColPosition((COLS / 2) - 2);
             nb.setRowPosition(0);
             nb.rotateRight();
         }
@@ -98,7 +99,12 @@ public class Tetris {
             }
         }
         if (stack.getState() == State.GAMEOVER) {
-            brain.evolve(stack.getGameScore(), 0.1, 0.2);
+            double score = stack.getGameScore();
+            int clearedLines = stack.getAllFullRows();
+            int holes = stack.countHoles();
+            int maxHeight = stack.calculateMaxHeight();
+            double bumpiness = stack.calculateBumpiness();
+            brain.evolve(score, clearedLines, holes, maxHeight, bumpiness, INITIAL_MUTATION_STRENGTH);
             start();
         }
     }
@@ -129,7 +135,7 @@ public class Tetris {
                     stack.rotateShapeRight();
                     break;
                 case 3:
-                    tickDown.setPeriodMilliSecond(dropSpeed);
+                    tickDown.setPeriodMilliSecond(DROP_SPEED);
                     break;
                 default:
                     tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
@@ -146,7 +152,7 @@ public class Tetris {
                 stack.rotateShapeRight();
             }
             if (gameInput.downRepeat()) {
-                tickDown.setPeriodMilliSecond(dropSpeed);
+                tickDown.setPeriodMilliSecond(DROP_SPEED);
             } else {
                 tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
             }
@@ -178,7 +184,7 @@ public class Tetris {
 
     private double[] getFeedData() {
         Cell[][] stackArea = stack.getStackArea();
-        double[] feedData = new double[rows * cols + 5];
+        double[] feedData = new double[ROWS * COLS + 5];
         int k = 0;
         for (int i = 0; i < stackArea.length; i++) {
             for (int j = 0; j < stackArea[i].length; j++) {
