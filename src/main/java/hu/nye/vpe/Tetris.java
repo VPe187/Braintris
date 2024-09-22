@@ -13,10 +13,11 @@ import hu.nye.vpe.nn.NeuralNetwork;
  * Tetris class.
  */
 public class Tetris {
-    private static final double INITIAL_MUTATION_STRENGTH = 0.2;
     private static final int ROWS = 24;
     private static final int COLS = 12;
     private static final long DROP_SPEED = 10L;
+    private static final int SHAPE_SIZE = 4 * 4;
+    private static final int FEED_DATA_SIZE = ROWS * COLS + SHAPE_SIZE + SHAPE_SIZE + 3;
     private long speed = 1000L;
     private long learningSpeed = 20L;
     private Shape currentShape;
@@ -43,7 +44,7 @@ public class Tetris {
         this.gameInput = gameInput;
         this.learning = learning;
         if (this.learning) {
-            this.brain = new NeuralNetwork(ROWS * COLS + 5, 140, 70, 4);
+            this.brain = new NeuralNetwork(FEED_DATA_SIZE, 140, 70, 4);
         }
     }
 
@@ -202,7 +203,7 @@ public class Tetris {
 
     private double[] getFeedData() {
         Cell[][] stackArea = stack.getStackArea();
-        double[] feedData = new double[ROWS * COLS + 5];
+        double[] feedData = new double[FEED_DATA_SIZE];
         stack.removeShape();
         int k = 0;
         for (int i = 0; i < stackArea.length; i++) {
@@ -212,23 +213,16 @@ public class Tetris {
             }
         }
         stack.putShape();
-
-        
-        double shapeData[] = ShapeFactory.getInstance().shapeToArray(stack.getCurrentShape());
-
-
-        if (currentShape != null) {
-            feedData[k] = currentShape.getId();
-        } else {
-            feedData[k] = 0;
+        double currentShapeData[] = ShapeFactory.getInstance().shapeToArray(stack.getCurrentShape());
+        for (int i = 0; i < currentShapeData.length; i++) {
+            feedData[k] = currentShapeData[i];
+            k++;
         }
-        k++;
-        if (nextShape != null) {
-            feedData[k] = nextShape.getId();
-        } else {
-            feedData[k] = 0.0;
+        double nextShapeData[] = ShapeFactory.getInstance().shapeToArray(nextShape);
+        for (int i = 0; i < nextShapeData.length; i++) {
+            feedData[k] = nextShapeData[i];
+            k++;
         }
-        k++;
         feedData[k] = stack.getNoFullRows();
         k++;
         feedData[k] = stack.getGameScore();
