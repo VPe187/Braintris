@@ -16,12 +16,14 @@ import java.util.Random;
  */
 public class NeuralNetwork implements Serializable, Cloneable {
     private static final long serialVersionUID = 2L;
-    private static final double INITIAL_LEARNING_RATE = 0.01;
+    private static final double INITIAL_LEARNING_RATE = 0.1;
     private static final double INITIAL_MOMENTUM = 0.9;
-    private static final int POPULATION_SIZE = 100;
-    private static final double MUTATION_RATE = 0.2;
-    private static final double CROSSOVER_RATE = 0.7;
-    private static final double MUTATION_STRENGTH = 0.5;
+    private static final int POPULATION_SIZE = 160;
+    private static final double MUTATION_RATE = 0.3;
+    private static final double CROSSOVER_RATE = 0.8;
+    private static final double MUTATION_STRENGTH = 0.7;
+    private static final int GENERATION_WITHOUT_IMPROVED = 30;
+    private static final int ELITE_SIZE_DIVIDER = 5;
     private final int inputNodes;
     private final int hiddenNodes1;
     private final int hiddenNodes2;
@@ -187,7 +189,7 @@ public class NeuralNetwork implements Serializable, Cloneable {
         this.holes = holes;
         this.maxHeight = maxHeight;
         this.bumpiness = bumpiness;
-        this.fitness = score * 10 + (clearedLines * 1000) - (holes * 20) - (maxHeight * 10) - (bumpiness * 30);
+        this.fitness = score * 5 + (clearedLines * 1000) - (holes * 20) - (maxHeight * 10) - (bumpiness * 30);
     }
 
     /**
@@ -325,8 +327,11 @@ public class NeuralNetwork implements Serializable, Cloneable {
         this.generationsWithoutImprovement = other.generationsWithoutImprovement;
     }
 
+    /**
+     * Random reinitialization.
+     */
     public void randomReinitialization() {
-        if (generationsWithoutImprovement > 50) {
+        if (generationsWithoutImprovement > GENERATION_WITHOUT_IMPROVED) {
             initialize();
             generationsWithoutImprovement = 0;
             System.out.println("Network randomly re-initialised.");
@@ -335,16 +340,19 @@ public class NeuralNetwork implements Serializable, Cloneable {
 
     private List<NeuralNetwork> evolvePopulation(List<NeuralNetwork> population) {
         List<NeuralNetwork> newPopulation = new ArrayList<>();
-        int eliteSize = POPULATION_SIZE / 10;
+        int eliteSize = POPULATION_SIZE / ELITE_SIZE_DIVIDER;
         population.sort((a, b) -> Double.compare(b.getFitness(), a.getFitness()));
         newPopulation.addAll(population.subList(0, eliteSize));
-        while (newPopulation.size() < POPULATION_SIZE) {
-            NeuralNetwork parent1 = tournamentSelection(population);
-            NeuralNetwork parent2 = tournamentSelection(population);
+        List<NeuralNetwork> parents = stochasticUniversalSampling(population, POPULATION_SIZE - eliteSize);
+
+        for (int i = 0; i < parents.size(); i += 2) {
+            NeuralNetwork parent1 = parents.get(i);
+            NeuralNetwork parent2 = (i + 1 < parents.size()) ? parents.get(i + 1) : parents.get(0);
+
             if (Math.random() < CROSSOVER_RATE) {
                 NeuralNetwork child = parent1.crossover(parent2);
                 if (Math.random() < MUTATION_RATE) {
-                    child.mutate(0.1, 0.2);
+                    child.mutate(adaptiveLearningRate.getLearningRate(), MUTATION_STRENGTH);
                 }
                 newPopulation.add(child);
             } else {
@@ -352,18 +360,6 @@ public class NeuralNetwork implements Serializable, Cloneable {
             }
         }
         return newPopulation;
-    }
-
-    private NeuralNetwork tournamentSelection(List<NeuralNetwork> population) {
-        int tournamentSize = 5;
-        NeuralNetwork best = null;
-        for (int i = 0; i < tournamentSize; i++) {
-            NeuralNetwork contestant = population.get(random.nextInt(population.size()));
-            if (best == null || contestant.getFitness() > best.getFitness()) {
-                best = contestant;
-            }
-        }
-        return best;
     }
 
     private List<NeuralNetwork> stochasticUniversalSampling(List<NeuralNetwork> population, int numSelect) {

@@ -203,6 +203,7 @@ public class Tetris {
     private double[] getFeedData() {
         Cell[][] stackArea = stack.getStackArea();
         double[] feedData = new double[ROWS * COLS + 5];
+        stack.removeShape();
         int k = 0;
         for (int i = 0; i < stackArea.length; i++) {
             for (int j = 0; j < stackArea[i].length; j++) {
@@ -210,6 +211,12 @@ public class Tetris {
                 k++;
             }
         }
+        stack.putShape();
+
+        
+        double shapeData[] = ShapeFactory.getInstance().shapeToArray(stack.getCurrentShape());
+
+
         if (currentShape != null) {
             feedData[k] = currentShape.getId();
         } else {

@@ -10,6 +10,8 @@ import hu.nye.vpe.gaming.GameColorPalette;
  * Shape factory class.
  */
 public class ShapeFactory {
+    private static final int MAX_SHAPE_WIDTH = 4;
+    private static final int MAX_SHAPE_HEIGHT = 4;
     private static final ShapeFactory shapeFactory = new ShapeFactory();
     private final int shapeNum = 7;
     private final int[][] pixelsI = new int[][]{{1}, {1}, {1}, {1}};
@@ -150,4 +152,25 @@ public class ShapeFactory {
         }
     }
 
+    /**
+     * Konvertálja a shape-et double tömbbé, ahol 1.0 jelzi a pixelt, 0.0 az üres helyet.
+     * @param shape A konvertálandó alakzat
+     * @return Double tömb a shape pixeleivel
+     */
+    public double[] shapeToArray(Shape shape) {
+        double[] output = new double[MAX_SHAPE_WIDTH * MAX_SHAPE_HEIGHT];
+        int[][] pixels = shape.getPixels();
+
+        for (int i = 0; i < MAX_SHAPE_HEIGHT; i++) {
+            for (int j = 0; j < MAX_SHAPE_WIDTH; j++) {
+                if (i < pixels.length && j < pixels[i].length) {
+                    output[i * MAX_SHAPE_WIDTH + j] = pixels[i][j] == 1 ? 1.0 : 0.0;
+                } else {
+                    output[i * MAX_SHAPE_WIDTH + j] = 0.0;
+                }
+            }
+        }
+
+        return output;
+    }
 }
