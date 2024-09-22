@@ -7,8 +7,10 @@ import hu.nye.vpe.gaming.GameEngine;
  */
 public class Launcher {
 
+    public static final boolean LEARNING = true;
+
     public static void main(String[] args) {
-        GameEngine game = new GameEngine("TetBrain - NYE - Varga Péter", 690, 780);
+        GameEngine game = new GameEngine("TetBrain - NYE - Varga Péter", 690, 780, LEARNING);
         game.start();
     }
 

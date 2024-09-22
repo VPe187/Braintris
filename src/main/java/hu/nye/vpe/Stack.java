@@ -29,9 +29,9 @@ public class Stack implements GameElement {
     private static final int LEVEL_BONUS = 20;
     private static final int ROW_SCORE = 100;
     private static final int LEVEL_CHANGE_ROWS = 4;
-    private static final long START_SPEED = 10L;
-    //private static final long SPEED_ACCELERATION = 50L;
-    private static final long SPEED_ACCELERATION = 0L;
+    private static final long START_SPEED = 1000L;
+    private static final long LEARNING_START_SPEED = 20L;
+    private static final long SPEED_ACCELERATION = 50L;
     private final int stackX;
     private final int stackY;
     private final int stackW;
@@ -52,8 +52,10 @@ public class Stack implements GameElement {
     private long currentSpeed;
     private int levelTextAlpha = 200;
     private long startTime;
+    private final boolean learning;
 
-    public Stack() {
+    public Stack(boolean learning) {
+        this.learning = learning;
         stackX = 2 * this.BLOCK_SIZE;
         stackY = 2 * this.BLOCK_SIZE;
         stackW = (this.COLS * this.BLOCK_SIZE);
@@ -70,7 +72,11 @@ public class Stack implements GameElement {
         allFullRows = 0;
         state = State.RUNNING;
         startTime = System.currentTimeMillis();
-        currentSpeed = START_SPEED;
+        if (learning) {
+            currentSpeed = LEARNING_START_SPEED;
+        } else {
+            currentSpeed = START_SPEED;
+        }
     }
 
     private void emptyStack() {
@@ -206,9 +212,11 @@ public class Stack implements GameElement {
         }
         gameLevel++;
         noFullRows = 0;
-        audio.soundNextLevel();
-        state = State.CHANGINGLEVEL;
-        //upSideDown = gameLevel % 2 != 1;
+        if (!learning) {
+            audio.soundNextLevel();
+            state = State.CHANGINGLEVEL;
+            //upSideDown = gameLevel % 2 != 1;
+        }
     }
 
     protected void flagFullRows() {
@@ -402,10 +410,10 @@ public class Stack implements GameElement {
     }
 
     /**
-     * Megszámolja a lukakat a játéktérben.
-     * Egy luk olyan üres cella, ami felett nem üres cella található.
+     * Count the holes in the playing field.
+     * A hole is an empty cell with a non-empty cell above it.
      *
-     * @return A lukak száma a játéktérben
+     * @return Number of holes in the playing field.
      */
     public int countHoles() {
         int holes = 0;
@@ -415,7 +423,7 @@ public class Stack implements GameElement {
                 if (stackArea[row][col].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
                     blockFound = true;
                 } else if (blockFound) {
-                    // Ha már találtunk blokkot ebben az oszlopban, és most üres cellát találunk, az egy luk
+                    // If we have already found a block in this column and now find an empty cell, it is a hole.
                     holes++;
                 }
             }
@@ -424,15 +432,14 @@ public class Stack implements GameElement {
     }
 
     /**
-     * Kiszámolja a játéktér egyenetlenségét (bumpiness).
-     * A bumpiness az egymás melletti oszlopok magasságkülönbségeinek összege.
+     * Calculates the bumpiness of the playing field.
+     * Bumpiness is the sum of the height differences between adjacent columns.
      *
-     * @return A játéktér egyenetlensége (bumpiness)
+     * @return Bumpiness of the playing field.
      */
     public double calculateBumpiness() {
         int[] columnHeights = new int[COLS];
-
-        // Oszlopmagasságok kiszámítása
+        // Calculate columns height.
         for (int col = 0; col < COLS; col++) {
             for (int row = 0; row < ROWS; row++) {
                 if (stackArea[row][col].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
@@ -441,20 +448,18 @@ public class Stack implements GameElement {
                 }
             }
         }
-
-        // Bumpiness kiszámítása
+        // Calculate bumpiness
         double bumpiness = 0;
         for (int i = 0; i < COLS - 1; i++) {
             bumpiness += Math.abs(columnHeights[i] - columnHeights[i + 1]);
         }
-
         return bumpiness;
     }
 
     /**
-     * Kiszámolja a játéktér maximális magasságát.
+     * Calculate the maximum height of the playing field.
      *
-     * @return A játéktér maximális magassága
+     * @return Maximum height of the playing field.
      */
     public int calculateMaxHeight() {
         int maxHeight = 0;
@@ -923,5 +928,9 @@ public class Stack implements GameElement {
     protected void setShapes(Shape currentShape, Shape nextShape) {
         this.currentShape = currentShape;
         this.nextShape = nextShape;
+    }
+
+    public void setCurrentSpeed(long currentSpeed) {
+        this.currentSpeed = currentSpeed;
     }
 }

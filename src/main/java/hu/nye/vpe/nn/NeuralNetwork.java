@@ -14,54 +14,58 @@ import java.util.Random;
 /**
  * Neural network class.
  */
-public class NeuralNetwork implements Serializable {
-    private static final long serialVersionUID = 3L;
-    private static final double INITIAL_MUTATION_RATE = 0.1;
-    private static final double MIN_MUTATION_RATE = 0.001;
-    private static final double MAX_MUTATION_RATE = 0.5;
-    private static final double MUTATION_RATE_CHANGE_FACTOR = 1.05;
+public class NeuralNetwork implements Serializable, Cloneable {
+    private static final long serialVersionUID = 2L;
+    private static final double INITIAL_LEARNING_RATE = 0.01;
+    private static final double INITIAL_MOMENTUM = 0.9;
     private static final int POPULATION_SIZE = 100;
-    private static final double MUTATION_RATE = 0.1;
+    private static final double MUTATION_RATE = 0.2;
     private static final double CROSSOVER_RATE = 0.7;
+    private static final double MUTATION_STRENGTH = 0.5;
     private final int inputNodes;
-    private final int hiddenNodes;
+    private final int hiddenNodes1;
+    private final int hiddenNodes2;
     private final int outputNodes;
-    private double[][] weightsInputHidden;
-    private double[][] weightsHiddenOutput;
-    private double[] biasHidden;
+    private double[][] weightsInputHidden1;
+    private double[][] weightsHidden1Hidden2;
+    private double[][] weightsHidden2Output;
+    private double[] biasHidden1;
+    private double[] biasHidden2;
     private double[] biasOutput;
     private final Random random;
     private double fitness;
-    private double bestScore = Double.NEGATIVE_INFINITY;
+    private double bestFitness = Double.NEGATIVE_INFINITY;
     private NeuralNetwork bestNetwork;
     private int clearedLines;
     private int holes;
     private double score;
     private int maxHeight;
     private double bumpiness;
-    private double currentMutationRate;
-    private double previousBestFitness;
     private int generationsWithoutImprovement;
+    private AdaptiveLearningRate adaptiveLearningRate;
 
-    public NeuralNetwork(final int inputNodes, final int hiddenNodes, final int outputNodes) {
-        this(inputNodes, hiddenNodes, outputNodes, true);
+    public NeuralNetwork(final int inputNodes, final int hiddenNodes1, final int hiddenNodes2, final int outputNodes) {
+        this(inputNodes, hiddenNodes1, hiddenNodes2, outputNodes, true);
     }
 
-    private NeuralNetwork(final int inputNodes, final int hiddenNodes, final int outputNodes, boolean initialize) {
+    private NeuralNetwork(final int inputNodes, final int hiddenNodes1, final int hiddenNodes2, final int outputNodes, boolean initialize) {
         this.inputNodes = inputNodes;
-        this.hiddenNodes = hiddenNodes;
+        this.hiddenNodes1 = hiddenNodes1;
+        this.hiddenNodes2 = hiddenNodes2;
         this.outputNodes = outputNodes;
         this.random = new Random();
-        this.weightsInputHidden = new double[inputNodes][hiddenNodes];
-        this.weightsHiddenOutput = new double[hiddenNodes][outputNodes];
-        this.biasHidden = new double[hiddenNodes];
+        this.weightsInputHidden1 = new double[inputNodes][this.hiddenNodes1];
+        this.weightsHidden1Hidden2 = new double[hiddenNodes1][hiddenNodes2];
+        this.weightsHidden2Output = new double[this.hiddenNodes2][outputNodes];
+        this.biasHidden1 = new double[this.hiddenNodes1];
+        this.biasHidden2 = new double[this.hiddenNodes2];
         this.biasOutput = new double[outputNodes];
-        this.currentMutationRate = INITIAL_MUTATION_RATE;
-        this.previousBestFitness = Double.NEGATIVE_INFINITY;
+        this.adaptiveLearningRate = new AdaptiveLearningRate(INITIAL_LEARNING_RATE, INITIAL_MOMENTUM);
         this.generationsWithoutImprovement = 0;
         if (initialize) {
             loadOrInitialize();
         }
+        this.bestFitness = 0;
     }
 
     private void loadOrInitialize() {
@@ -69,13 +73,12 @@ public class NeuralNetwork implements Serializable {
             NeuralNetwork loadedNetwork = loadFromFile("best_network.dat");
             if (loadedNetwork != null &&
                     loadedNetwork.inputNodes == this.inputNodes &&
-                    loadedNetwork.hiddenNodes == this.hiddenNodes &&
+                    loadedNetwork.hiddenNodes1 == this.hiddenNodes1 &&
                     loadedNetwork.outputNodes == this.outputNodes) {
-                this.weightsInputHidden = loadedNetwork.weightsInputHidden;
-                this.weightsHiddenOutput = loadedNetwork.weightsHiddenOutput;
-                this.biasHidden = loadedNetwork.biasHidden;
+                this.weightsInputHidden1 = loadedNetwork.weightsInputHidden1;
+                this.weightsHidden2Output = loadedNetwork.weightsHidden2Output;
+                this.biasHidden1 = loadedNetwork.biasHidden1;
                 this.biasOutput = loadedNetwork.biasOutput;
-                this.bestScore = loadedNetwork.bestScore;
                 System.out.println("Saved network loaded succesfully.");
             } else {
                 initialize();
@@ -89,24 +92,27 @@ public class NeuralNetwork implements Serializable {
     }
 
     private void initialize() {
-        weightsInputHidden = new double[ inputNodes ][ hiddenNodes ];
-        weightsHiddenOutput = new double[hiddenNodes][outputNodes];
-        biasHidden = new double[hiddenNodes];
-        biasOutput = new double[outputNodes];
-
         // Xavier initialization for weights
         double inputScale = Math.sqrt(2.0 / inputNodes);
-        double hiddenScale = Math.sqrt(2.0 / hiddenNodes);
+        double hidden1Scale = Math.sqrt(2.0 / hiddenNodes1);
+        double hidden2Scale = Math.sqrt(2.0 / hiddenNodes2);
+
         for (int i = 0; i < inputNodes; i++) {
-            for (int j = 0; j < hiddenNodes; j++) {
-                weightsInputHidden[i][j] = random.nextGaussian() * inputScale;
+            for (int j = 0; j < hiddenNodes1; j++) {
+                weightsInputHidden1[i][j] = random.nextGaussian() * inputScale;
             }
         }
-        for (int i = 0; i < hiddenNodes; i++) {
-            for (int j = 0; j < outputNodes; j++) {
-                weightsHiddenOutput[i][j] = random.nextGaussian() * hiddenScale;
+        for (int i = 0; i < hiddenNodes1; i++) {
+            for (int j = 0; j < hiddenNodes2; j++) {
+                weightsHidden1Hidden2[i][j] = random.nextGaussian() * hidden1Scale;
             }
-            biasHidden[i] = random.nextGaussian();
+            biasHidden1[i] = random.nextGaussian();
+        }
+        for (int i = 0; i < hiddenNodes2; i++) {
+            for (int j = 0; j < outputNodes; j++) {
+                weightsHidden2Output[i][j] = random.nextGaussian() * hidden2Scale;
+            }
+            biasHidden2[i] = random.nextGaussian();
         }
         for (int i = 0; i < outputNodes; i++) {
             biasOutput[i] = random.nextGaussian();
@@ -124,45 +130,44 @@ public class NeuralNetwork implements Serializable {
         if (inputs.length != inputNodes) {
             throw new IllegalArgumentException("Input size does not match network input nodes");
         }
-        // Calculate hidden layer activations
-        double[] hiddenLayer = new double[hiddenNodes];
-        for (int i = 0; i < hiddenNodes; i++) {
+        // Calculate first hidden layer activations
+        double[] hiddenLayer1 = new double[hiddenNodes1];
+        for (int i = 0; i < hiddenNodes1; i++) {
             double sum = 0;
             for (int j = 0; j < inputNodes; j++) {
-                sum += inputs[j] * weightsInputHidden[j][i];
+                sum += inputs[j] * weightsInputHidden1[j][i];
             }
-            hiddenLayer[i] = activate(sum + biasHidden[i]);
+            hiddenLayer1[i] = activate(sum + biasHidden1[i]);
         }
+
+        // Calculate second hidden layer activations
+        double[] hiddenLayer2 = new double[hiddenNodes2];
+        for (int i = 0; i < hiddenNodes2; i++) {
+            double sum = 0;
+            for (int j = 0; j < hiddenNodes1; j++) {
+                sum += hiddenLayer1[j] * weightsHidden1Hidden2[j][i];
+            }
+            hiddenLayer2[i] = activate(sum + biasHidden2[i]);
+        }
+
         // Calculate output layer activations
         double[] outputs = new double[outputNodes];
         for (int i = 0; i < outputNodes; i++) {
             double sum = 0;
-            for (int j = 0; j < hiddenNodes; j++) {
-                sum += hiddenLayer[j] * weightsHiddenOutput[j][i];
+            for (int j = 0; j < hiddenNodes2; j++) {
+                sum += hiddenLayer2[j] * weightsHidden2Output[j][i];
             }
             outputs[i] = activate(sum + biasOutput[i]);
         }
+
         return outputs;
     }
 
     private double activate(double x) {
         // ReLU activation function
-        return Math.max(0, x);
-    }
-
-    /**
-     * Adaptively adjust the mutation rate based on performance.
-     */
-    private void adjustMutationRate() {
-        if (fitness > previousBestFitness) {
-            currentMutationRate /= MUTATION_RATE_CHANGE_FACTOR;
-            generationsWithoutImprovement = 0;
-        } else {
-            currentMutationRate *= MUTATION_RATE_CHANGE_FACTOR;
-            generationsWithoutImprovement++;
-        }
-        currentMutationRate = Math.max(MIN_MUTATION_RATE, Math.min(currentMutationRate, MAX_MUTATION_RATE));
-        previousBestFitness = Math.max(previousBestFitness, fitness);
+        //return Math.max(0, x);
+        // Leaky ReLU
+        return x > 0 ? x : 0.01 * x;
     }
 
     private double lerp(double variableA, double variableB, double variablet) {
@@ -182,7 +187,7 @@ public class NeuralNetwork implements Serializable {
         this.holes = holes;
         this.maxHeight = maxHeight;
         this.bumpiness = bumpiness;
-        this.fitness = score + (clearedLines * 100) - (holes * 10) - (maxHeight * 5) - (bumpiness * 2);
+        this.fitness = score * 10 + (clearedLines * 1000) - (holes * 20) - (maxHeight * 10) - (bumpiness * 30);
     }
 
     /**
@@ -193,40 +198,30 @@ public class NeuralNetwork implements Serializable {
      */
     public void mutate(double mutationRate, double mutationStrength) {
         Random rand = new Random();
+        mutateWeights(weightsInputHidden1, mutationRate, mutationStrength, rand);
+        mutateWeights(weightsHidden1Hidden2, mutationRate, mutationStrength, rand);
+        mutateWeights(weightsHidden2Output, mutationRate, mutationStrength, rand);
+        mutateBiases(biasHidden1, mutationRate, mutationStrength, rand);
+        mutateBiases(biasHidden2, mutationRate, mutationStrength, rand);
+        mutateBiases(biasOutput, mutationRate, mutationStrength, rand);
+    }
 
-        // Mutate weights from input to hidden layer
-        for (int i = 0; i < inputNodes; i++) {
-            for (int j = 0; j < hiddenNodes; j++) {
+    private void mutateWeights(double[][] weights, double mutationRate, double mutationStrength, Random rand) {
+        for (int i = 0; i < weights.length; i++) {
+            for (int j = 0; j < weights[i].length; j++) {
                 if (rand.nextDouble() < mutationRate) {
                     double change = (rand.nextDouble() * 2 - 1) * mutationStrength;
-                    weightsInputHidden[i][j] = lerp(weightsInputHidden[i][j], weightsInputHidden[i][j] + change, rand.nextDouble());
+                    weights[i][j] = lerp(weights[i][j], weights[i][j] + change, rand.nextDouble());
                 }
             }
         }
+    }
 
-        // Mutate weights from hidden to output layer
-        for (int i = 0; i < hiddenNodes; i++) {
-            for (int j = 0; j < outputNodes; j++) {
-                if (rand.nextDouble() < mutationRate) {
-                    double change = (rand.nextDouble() * 2 - 1) * mutationStrength;
-                    weightsHiddenOutput[i][j] = lerp(weightsHiddenOutput[i][j], weightsHiddenOutput[i][j] + change, rand.nextDouble());
-                }
-            }
-        }
-
-        // Mutate biases for hidden layer
-        for (int i = 0; i < hiddenNodes; i++) {
+    private void mutateBiases(double[] biases, double mutationRate, double mutationStrength, Random rand) {
+        for (int i = 0; i < biases.length; i++) {
             if (rand.nextDouble() < mutationRate) {
                 double change = (rand.nextDouble() * 2 - 1) * mutationStrength;
-                biasHidden[i] = lerp(biasHidden[i], biasHidden[i] + change, rand.nextDouble());
-            }
-        }
-
-        // Mutate biases for output layer
-        for (int i = 0; i < outputNodes; i++) {
-            if (rand.nextDouble() < mutationRate) {
-                double change = (rand.nextDouble() * 2 - 1) * mutationStrength;
-                biasOutput[i] = lerp(biasOutput[i], biasOutput[i] + change, rand.nextDouble());
+                biases[i] = lerp(biases[i], biases[i] + change, rand.nextDouble());
             }
         }
     }
@@ -239,29 +234,32 @@ public class NeuralNetwork implements Serializable {
      * @return NN
      */
     public NeuralNetwork crossover(NeuralNetwork other) {
-        NeuralNetwork child = new NeuralNetwork(inputNodes, hiddenNodes, outputNodes, false);
-
-        for (int i = 0; i < weightsInputHidden.length; i++) {
-            for (int j = 0; j < weightsInputHidden[i].length; j++) {
-                child.weightsInputHidden[i][j] = random.nextBoolean() ? this.weightsInputHidden[i][j] : other.weightsInputHidden[i][j];
-            }
-        }
-
-        for (int i = 0; i < weightsHiddenOutput.length; i++) {
-            for (int j = 0; j < weightsHiddenOutput[i].length; j++) {
-                child.weightsHiddenOutput[i][j] = random.nextBoolean() ? this.weightsHiddenOutput[i][j] : other.weightsHiddenOutput[i][j];
-            }
-        }
-
-        for (int i = 0; i < biasHidden.length; i++) {
-            child.biasHidden[i] = random.nextBoolean() ? this.biasHidden[i] : other.biasHidden[i];
-        }
-
-        for (int i = 0; i < biasOutput.length; i++) {
-            child.biasOutput[i] = random.nextBoolean() ? this.biasOutput[i] : other.biasOutput[i];
-        }
-
+        NeuralNetwork child = new NeuralNetwork(inputNodes, hiddenNodes1, hiddenNodes1, outputNodes, false);
+        child.weightsInputHidden1 = crossoverWeights(this.weightsInputHidden1, other.weightsInputHidden1);
+        child.weightsHidden1Hidden2 = crossoverWeights(this.weightsHidden1Hidden2, other.weightsHidden1Hidden2);
+        child.weightsHidden2Output = crossoverWeights(this.weightsHidden2Output, other.weightsHidden2Output);
+        child.biasHidden1 = crossoverBiases(this.biasHidden1, other.biasHidden1);
+        child.biasHidden2 = crossoverBiases(this.biasHidden2, other.biasHidden2);
+        child.biasOutput = crossoverBiases(this.biasOutput, other.biasOutput);
         return child;
+    }
+
+    private double[][] crossoverWeights(double[][] weights1, double[][] weights2) {
+        double[][] childWeights = new double[weights1.length][weights1[0].length];
+        for (int i = 0; i < weights1.length; i++) {
+            for (int j = 0; j < weights1[i].length; j++) {
+                childWeights[i][j] = random.nextBoolean() ? weights1[i][j] : weights2[i][j];
+            }
+        }
+        return childWeights;
+    }
+
+    private double[] crossoverBiases(double[] biases1, double[] biases2) {
+        double[] childBiases = new double[biases1.length];
+        for (int i = 0; i < biases1.length; i++) {
+            childBiases[i] = random.nextBoolean() ? biases1[i] : biases2[i];
+        }
+        return childBiases;
     }
 
     /**
@@ -272,43 +270,66 @@ public class NeuralNetwork implements Serializable {
      * @param holes Number of holes in the game state
      * @param maxHeight Maximum height of the game board
      * @param bumpiness Measure of unevenness of the game board
-     * @param mutationStrength The strength of mutation if the network is to be mutated
      */
-    public void evolve(double score, int clearedLines, int holes, int maxHeight, double bumpiness,
-                       double mutationStrength) {
+    public void evolve(double score, int clearedLines, int holes, int maxHeight, double bumpiness) {
         calculateFitness(score, clearedLines, holes, maxHeight, bumpiness);
-        adjustMutationRate();
+        double newLearningRate = adaptiveLearningRate.updateLearningRate(fitness, bestFitness);
         List<NeuralNetwork> population = new ArrayList<>();
         population.add(this);
         for (int i = 1; i < POPULATION_SIZE; i++) {
             NeuralNetwork mutatedNetwork = this.clone();
-            mutatedNetwork.mutate(currentMutationRate, mutationStrength);
+            mutatedNetwork.mutate(newLearningRate, MUTATION_STRENGTH);
             population.add(mutatedNetwork);
         }
         List<NeuralNetwork> evolvedPopulation = evolvePopulation(population);
         NeuralNetwork newBestNetwork = evolvedPopulation.get(0);
-        if (newBestNetwork.getFitness() > bestScore) {
-            bestScore = newBestNetwork.getFitness();
-            bestNetwork = newBestNetwork;
-            this.weightsInputHidden = newBestNetwork.weightsInputHidden;
-            this.weightsHiddenOutput = newBestNetwork.weightsHiddenOutput;
-            this.biasHidden = newBestNetwork.biasHidden;
-            this.biasOutput = newBestNetwork.biasOutput;
-            System.out.println("Új rekord fitness: " + bestScore +
-                    " (Pontszám: " + newBestNetwork.getScore() +
-                    ", Törölt sorok: " + newBestNetwork.getClearedLines() +
-                    ", Lukak: " + newBestNetwork.getHoles() +
-                    ", Max magasság: " + newBestNetwork.getMaxHeight() +
-                    ", Egyenetlenség: " + newBestNetwork.getBumpiness() +
-                    ", Mutációs ráta: " + currentMutationRate + ")");
+        if (newBestNetwork.getFitness() > bestFitness) {
+            this.bestFitness = newBestNetwork.getFitness();
+            this.score = newBestNetwork.getScore();
+            this.copyFrom(newBestNetwork);
+            System.out.println("New best network =  " + this.bestFitness +
+                    " (Score: " + newBestNetwork.getScore() +
+                    ", Deleted rows: " + newBestNetwork.getClearedLines() +
+                    ", Holes: " + newBestNetwork.getHoles() +
+                    ", Max height: " + newBestNetwork.getMaxHeight() +
+                    ", Bumpiness: " + newBestNetwork.getBumpiness() +
+                    ", Learning rate: " + newLearningRate + ")");
             try {
                 saveBestToFile("best_network.dat");
             } catch (IOException e) {
-                System.err.println("Hiba a hálózat mentése során: " + e.getMessage());
+                System.err.println("Error during saving network: " + e.getMessage());
             }
+            generationsWithoutImprovement = 0;
         } else {
-            System.out.println("Nem sikerült javítani a legjobb fitness-t. Jelenlegi legjobb: " + bestScore +
-                    ", Mutációs ráta: " + currentMutationRate);
+            this.mutate(newLearningRate * 2, MUTATION_STRENGTH * 2);
+            System.out.println("Failing to improve the best fitness. Current best fitness: " + this.bestFitness +
+                    ", Learning rate: " + newLearningRate);
+            generationsWithoutImprovement++;
+        }
+        randomReinitialization();
+    }
+
+    private void copyFrom(NeuralNetwork other) {
+        this.weightsInputHidden1 = deepCopyMatrix(other.weightsInputHidden1);
+        this.weightsHidden1Hidden2 = deepCopyMatrix(other.weightsHidden1Hidden2);
+        this.weightsHidden2Output = deepCopyMatrix(other.weightsHidden2Output);
+        this.biasHidden1 = other.biasHidden1.clone();
+        this.biasHidden2 = other.biasHidden2.clone();
+        this.biasOutput = other.biasOutput.clone();
+        this.fitness = other.fitness;
+        this.score = other.score;
+        this.clearedLines = other.clearedLines;
+        this.holes = other.holes;
+        this.maxHeight = other.maxHeight;
+        this.bumpiness = other.bumpiness;
+        this.generationsWithoutImprovement = other.generationsWithoutImprovement;
+    }
+
+    public void randomReinitialization() {
+        if (generationsWithoutImprovement > 50) {
+            initialize();
+            generationsWithoutImprovement = 0;
+            System.out.println("Network randomly re-initialised.");
         }
     }
 
@@ -345,6 +366,27 @@ public class NeuralNetwork implements Serializable {
         return best;
     }
 
+    private List<NeuralNetwork> stochasticUniversalSampling(List<NeuralNetwork> population, int numSelect) {
+        double totalFitness = population.stream().mapToDouble(NeuralNetwork::getFitness).sum();
+        double step = totalFitness / numSelect;
+        double start = Math.random() * step;
+
+        List<NeuralNetwork> selected = new ArrayList<>();
+        double currentSum = 0;
+        int currentIndex = 0;
+
+        for (int i = 0; i < numSelect; i++) {
+            double pointer = start + i * step;
+            while (currentSum < pointer) {
+                currentSum += population.get(currentIndex).getFitness();
+                currentIndex = (currentIndex + 1) % population.size();
+            }
+            selected.add(population.get(currentIndex));
+        }
+
+        return selected;
+    }
+
     /**
      * Clones the current neural network.
      *
@@ -352,23 +394,20 @@ public class NeuralNetwork implements Serializable {
      */
     @Override
     public NeuralNetwork clone() {
-        NeuralNetwork clone = new NeuralNetwork(inputNodes, hiddenNodes, outputNodes, false);
-        clone.weightsInputHidden = deepCopyMatrix(this.weightsInputHidden);
-        clone.weightsHiddenOutput = deepCopyMatrix(this.weightsHiddenOutput);
-        clone.biasHidden = this.biasHidden.clone();
-        clone.biasOutput = this.biasOutput.clone();
-        clone.bestScore = this.bestScore;
-        clone.fitness = this.fitness;
-        clone.score = this.score;
-        clone.clearedLines = this.clearedLines;
-        clone.holes = this.holes;
-        clone.bestNetwork = this;
-        clone.maxHeight = this.maxHeight;
-        clone.bumpiness = this.bumpiness;
-        clone.currentMutationRate = this.currentMutationRate;
-        clone.previousBestFitness = this.previousBestFitness;
-        clone.generationsWithoutImprovement = this.generationsWithoutImprovement;
-        return clone;
+        try {
+            NeuralNetwork clone = (NeuralNetwork) super.clone();
+            clone.weightsInputHidden1 = deepCopyMatrix(this.weightsInputHidden1);
+            clone.weightsHidden1Hidden2 = deepCopyMatrix(this.weightsHidden1Hidden2);
+            clone.weightsHidden2Output = deepCopyMatrix(this.weightsHidden2Output);
+            clone.biasHidden1 = this.biasHidden1.clone();
+            clone.biasHidden2 = this.biasHidden2.clone();
+            clone.biasOutput = this.biasOutput.clone();
+            clone.adaptiveLearningRate = this.adaptiveLearningRate.clone();
+            clone.bestNetwork = this;
+            return clone;
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError(); // Can't happen
+        }
     }
 
     private double[][] deepCopyMatrix(double[][] matrix) {
@@ -398,7 +437,7 @@ public class NeuralNetwork implements Serializable {
     public static NeuralNetwork loadFromFile(String fileName) throws IOException, ClassNotFoundException {
         File file = new File(fileName);
         if (!file.exists()) {
-            System.out.println("A mentett fájl nem létezik, új hálózat lesz inicializálva.");
+            System.out.println("The saved file does not exist, a new network will be initialized.");
             return null;
         }
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
@@ -434,16 +473,16 @@ public class NeuralNetwork implements Serializable {
         return holes;
     }
 
-    public double[][] getWeightsInputHidden() {
-        return weightsInputHidden;
+    public double[][] getWeightsInputHidden1() {
+        return weightsInputHidden1;
     }
 
-    public double[][] getWeightsHiddenOutput() {
-        return weightsHiddenOutput;
+    public double[][] getWeightsHidden2Output() {
+        return weightsHidden2Output;
     }
 
-    public double[] getBiasHidden() {
-        return biasHidden;
+    public double[] getBiasHidden1() {
+        return biasHidden1;
     }
 
     public double[] getBiasOutput() {
@@ -458,10 +497,6 @@ public class NeuralNetwork implements Serializable {
         return bumpiness;
     }
 
-    public double getCurrentMutationRate() {
-        return currentMutationRate;
-    }
-
     /**
      * Setters.
      */
@@ -469,16 +504,16 @@ public class NeuralNetwork implements Serializable {
         this.fitness = fitness;
     }
 
-    public void setWeightsInputHidden(double[][] weights) {
-        this.weightsInputHidden = weights;
+    public void setWeightsInputHidden1(double[][] weights) {
+        this.weightsInputHidden1 = weights;
     }
 
-    public void setWeightsHiddenOutput(double[][] weights) {
-        this.weightsHiddenOutput = weights;
+    public void setWeightsHidden2Output(double[][] weights) {
+        this.weightsHidden2Output = weights;
     }
 
-    public void setBiasHidden(double[] bias) {
-        this.biasHidden = bias;
+    public void setBiasHidden1(double[] bias) {
+        this.biasHidden1 = bias;
     }
 
     public void setBiasOutput(double[] bias) {

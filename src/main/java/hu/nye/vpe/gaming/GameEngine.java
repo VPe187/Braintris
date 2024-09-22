@@ -21,12 +21,12 @@ public class GameEngine implements Runnable {
     private Graphics2D graphics2D;
     private final Tetris tetris;
 
-    public GameEngine(String title, int width, int height) {
+    public GameEngine(String title, int width, int height, boolean learning) {
         this.width = width;
         this.height = height;
         this.title = title;
         gameDisplay = new GameDisplay(title, width, height);
-        tetris = new Tetris(width, height, gameDisplay.getInput());
+        tetris = new Tetris(width, height, gameDisplay.getInput(), learning);
     }
 
     /**

@@ -17,7 +17,8 @@ public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
     private static final long DROP_SPEED = 10L;
-    private long currentSpeed = 1000L;
+    private long speed = 1000L;
+    private long learningSpeed = 20L;
     private Shape currentShape;
     private Shape nextShape = null;
     private final ShapeFactory sf = ShapeFactory.getInstance();
@@ -32,21 +33,30 @@ public class Tetris {
     private final GameInput gameInput;
     private boolean musicOn = true;
     private NeuralNetwork brain;
+    private boolean learning;
 
-    public Tetris(int width, int height, GameInput gameInput) {
+    public Tetris(int width, int height, GameInput gameInput, boolean learning) {
         tickBackground = new GameTimeTicker(60);
         tickControl = new GameTimeTicker(10);
         tickAnim = new GameTimeTicker(20);
         starField = new GameStarfield(width, height);
         this.gameInput = gameInput;
-        this.brain = new NeuralNetwork(ROWS * COLS + 5, 140, 4);
+        this.learning = learning;
+        if (this.learning) {
+            this.brain = new NeuralNetwork(ROWS * COLS + 5, 140, 70, 4);
+        }
     }
 
     /**
      * Tetris start.
      */
     public void start() {
-        stack = new Stack();
+        stack = new Stack(learning);
+        if (learning) {
+            stack.setCurrentSpeed(learningSpeed);
+        } else {
+            stack.setCurrentSpeed(speed);
+        }
         GameColorPalette.getInstance().setRandomPalette();
         starField.setColorPalette(GameColorPalette.getInstance().getCurrentPalette());
         tickDown = new GameTimeTicker(stack.getCurrentSpeed());
@@ -99,13 +109,15 @@ public class Tetris {
             }
         }
         if (stack.getState() == State.GAMEOVER) {
-            double score = stack.getGameScore();
-            int clearedLines = stack.getAllFullRows();
-            int holes = stack.countHoles();
-            int maxHeight = stack.calculateMaxHeight();
-            double bumpiness = stack.calculateBumpiness();
-            brain.evolve(score, clearedLines, holes, maxHeight, bumpiness, INITIAL_MUTATION_STRENGTH);
-            start();
+            if (learning) {
+                double score = stack.getGameScore();
+                int clearedLines = stack.getAllFullRows();
+                int holes = stack.countHoles();
+                int maxHeight = stack.calculateMaxHeight();
+                double bumpiness = stack.calculateBumpiness();
+                brain.evolve(score, clearedLines, holes, maxHeight, bumpiness);
+                start();
+            }
         }
     }
 
@@ -123,51 +135,57 @@ public class Tetris {
             return;
         }
         if (stack.getState() == State.RUNNING && stack.getCurrentShape() != null) {
-            int move = interpretOutput(brain.feedForward(getFeedData()));
-            switch (move) {
-                case 0:
-                    stack.moveShapeLeft();
-                    break;
-                case 1:
-                    stack.moveShapeRight();
-                    break;
-                case 2:
-                    stack.rotateShapeRight();
-                    break;
-                case 3:
-                    tickDown.setPeriodMilliSecond(DROP_SPEED);
-                    break;
-                default:
-                    tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
-                    break;
-            }
-
-            if (gameInput.left()) {
-                stack.moveShapeLeft();
-            }
-            if (gameInput.right()) {
-                stack.moveShapeRight();
-            }
-            if (gameInput.space()) {
-                stack.rotateShapeRight();
-            }
-            if (gameInput.downRepeat()) {
-                tickDown.setPeriodMilliSecond(DROP_SPEED);
+            if (learning) {
+                int move = interpretOutput(brain.feedForward(getFeedData()));
+                switch (move) {
+                    case 0:
+                        stack.moveShapeLeft();
+                        break;
+                    case 1:
+                        stack.moveShapeRight();
+                        break;
+                    case 2:
+                        stack.rotateShapeRight();
+                        break;
+                    case 3:
+                        tickDown.setPeriodMilliSecond(DROP_SPEED);
+                        break;
+                    default:
+                        tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
+                        break;
+                }
             } else {
-                tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
-            }
-            if (gameInput.letterM()) {
-                if (musicOn) {
-                    gameAudio.musicBackgroundStop();
-                    musicOn = false;
+                if (gameInput.left()) {
+                    stack.moveShapeLeft();
+                }
+                if (gameInput.right()) {
+                    stack.moveShapeRight();
+                }
+                if (gameInput.space()) {
+                    stack.rotateShapeRight();
+                }
+                if (gameInput.downRepeat()) {
+                    tickDown.setPeriodMilliSecond(DROP_SPEED);
                 } else {
-                    gameAudio.musicBackgroundPlay();
-                    musicOn = true;
+                    tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
+                }
+                if (gameInput.letterM()) {
+                    if (musicOn) {
+                        gameAudio.musicBackgroundStop();
+                        musicOn = false;
+                    } else {
+                        gameAudio.musicBackgroundPlay();
+                        musicOn = true;
+                    }
                 }
             }
         } else {
             gameInput.clearBuffer();
-            tickDown.setPeriodMilliSecond(currentSpeed);
+            if (learning) {
+                tickDown.setPeriodMilliSecond(learningSpeed);
+            } else {
+                tickDown.setPeriodMilliSecond(speed);
+            }
         }
     }
 
