@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,7 @@ import java.util.Random;
  * Neural network class.
  */
 public class NeuralNetwork implements Serializable, Cloneable {
+    @Serial
     private static final long serialVersionUID = 2L;
     private static final double INITIAL_LEARNING_RATE = 0.1;
     private static final double INITIAL_MOMENTUM = 0.9;
@@ -43,6 +45,7 @@ public class NeuralNetwork implements Serializable, Cloneable {
     private double score;
     private int maxHeight;
     private double bumpiness;
+    private double playTime;
     private int generationsWithoutImprovement;
     private AdaptiveLearningRate adaptiveLearningRate;
 
@@ -94,37 +97,34 @@ public class NeuralNetwork implements Serializable, Cloneable {
     }
 
     private void initialize() {
-        // Xavier initialization for weights
-        double inputScale = Math.sqrt(2.0 / inputNodes);
-        double hidden1Scale = Math.sqrt(2.0 / hiddenNodes1);
-        double hidden2Scale = Math.sqrt(2.0 / hiddenNodes2);
+        initializeWeights(weightsInputHidden1, inputNodes);
+        initializeWeights(weightsHidden1Hidden2, hiddenNodes1);
+        initializeWeights(weightsHidden2Output, hiddenNodes2);
 
-        for (int i = 0; i < inputNodes; i++) {
-            for (int j = 0; j < hiddenNodes1; j++) {
-                weightsInputHidden1[i][j] = random.nextGaussian() * inputScale;
+        initializeBiases(biasHidden1);
+        initializeBiases(biasHidden2);
+        initializeBiases(biasOutput);
+    }
+
+    private void initializeWeights(double[][] weights, int fanIn) {
+        double scale = Math.sqrt(2.0 / fanIn);
+        for (double[] layer : weights) {
+            for (int j = 0; j < layer.length; j++) {
+                layer[j] = random.nextGaussian() * scale;
             }
         }
-        for (int i = 0; i < hiddenNodes1; i++) {
-            for (int j = 0; j < hiddenNodes2; j++) {
-                weightsHidden1Hidden2[i][j] = random.nextGaussian() * hidden1Scale;
-            }
-            biasHidden1[i] = random.nextGaussian();
-        }
-        for (int i = 0; i < hiddenNodes2; i++) {
-            for (int j = 0; j < outputNodes; j++) {
-                weightsHidden2Output[i][j] = random.nextGaussian() * hidden2Scale;
-            }
-            biasHidden2[i] = random.nextGaussian();
-        }
-        for (int i = 0; i < outputNodes; i++) {
-            biasOutput[i] = random.nextGaussian();
+    }
+
+    private void initializeBiases(double[] biases) {
+        for (int i = 0; i < biases.length; i++) {
+            biases[i] = random.nextGaussian();
         }
     }
 
     /**
      * Feed method.
      *
-     * @param inputs
+     * @param inputs inputArray
      *
      * @return outputs double
      */
@@ -132,36 +132,20 @@ public class NeuralNetwork implements Serializable, Cloneable {
         if (inputs.length != inputNodes) {
             throw new IllegalArgumentException("Input size does not match network input nodes");
         }
-        // Calculate first hidden layer activations
-        double[] hiddenLayer1 = new double[hiddenNodes1];
-        for (int i = 0; i < hiddenNodes1; i++) {
-            double sum = 0;
-            for (int j = 0; j < inputNodes; j++) {
-                sum += inputs[j] * weightsInputHidden1[j][i];
-            }
-            hiddenLayer1[i] = activate(sum + biasHidden1[i]);
-        }
+        double[] hiddenLayer1 = calculateLayerOutputs(inputs, weightsInputHidden1, biasHidden1, hiddenNodes1);
+        double[] hiddenLayer2 = calculateLayerOutputs(hiddenLayer1, weightsHidden1Hidden2, biasHidden2, hiddenNodes2);
+        return calculateLayerOutputs(hiddenLayer2, weightsHidden2Output, biasOutput, outputNodes);
+    }
 
-        // Calculate second hidden layer activations
-        double[] hiddenLayer2 = new double[hiddenNodes2];
-        for (int i = 0; i < hiddenNodes2; i++) {
+    private double[] calculateLayerOutputs(double[] inputs, double[][] weights, double[] biases, int numNodes) {
+        double[] outputs = new double[numNodes];
+        for (int i = 0; i < numNodes; i++) {
             double sum = 0;
-            for (int j = 0; j < hiddenNodes1; j++) {
-                sum += hiddenLayer1[j] * weightsHidden1Hidden2[j][i];
+            for (int j = 0; j < inputs.length; j++) {
+                sum += inputs[j] * weights[j][i];
             }
-            hiddenLayer2[i] = activate(sum + biasHidden2[i]);
+            outputs[i] = activate(sum + biases[i]);
         }
-
-        // Calculate output layer activations
-        double[] outputs = new double[outputNodes];
-        for (int i = 0; i < outputNodes; i++) {
-            double sum = 0;
-            for (int j = 0; j < hiddenNodes2; j++) {
-                sum += hiddenLayer2[j] * weightsHidden2Output[j][i];
-            }
-            outputs[i] = activate(sum + biasOutput[i]);
-        }
-
         return outputs;
     }
 
@@ -169,7 +153,9 @@ public class NeuralNetwork implements Serializable, Cloneable {
         // ReLU activation function
         //return Math.max(0, x);
         // Leaky ReLU
-        return x > 0 ? x : 0.01 * x;
+        // return x > 0 ? x : 0.01 * x;
+        // Sigmoid
+        return 1 / (1 + Math.exp(-x));
     }
 
     private double lerp(double variableA, double variableB, double variablet) {
@@ -183,13 +169,14 @@ public class NeuralNetwork implements Serializable, Cloneable {
      * @param clearedLines Number of cleared lines
      * @param holes Number of holes in the game state
      */
-    public void calculateFitness(double score, int clearedLines, int holes, int maxHeight, double bumpiness) {
+    public void calculateFitness(double score, int clearedLines, int holes, int maxHeight, double bumpiness, double playTime) {
         this.score = score;
         this.clearedLines = clearedLines;
         this.holes = holes;
         this.maxHeight = maxHeight;
         this.bumpiness = bumpiness;
-        this.fitness = score * 5 + (clearedLines * 1000) - (holes * 20) - (maxHeight * 10) - (bumpiness * 30);
+        this.playTime = playTime / 1000;
+        this.fitness = score * 5 + (clearedLines * 1000) + playTime - (holes * 20) - (maxHeight * 10) - (bumpiness * 30);
     }
 
     /**
@@ -231,7 +218,7 @@ public class NeuralNetwork implements Serializable, Cloneable {
     /**
      * Crossover two NN.
      *
-     * @param other
+     * @param other another NN
      *
      * @return NN
      */
@@ -273,8 +260,8 @@ public class NeuralNetwork implements Serializable, Cloneable {
      * @param maxHeight Maximum height of the game board
      * @param bumpiness Measure of unevenness of the game board
      */
-    public void evolve(double score, int clearedLines, int holes, int maxHeight, double bumpiness) {
-        calculateFitness(score, clearedLines, holes, maxHeight, bumpiness);
+    public void evolve(double score, int clearedLines, int holes, int maxHeight, double bumpiness, double playTime) {
+        calculateFitness(score, clearedLines, holes, maxHeight, bumpiness, playTime);
         double newLearningRate = adaptiveLearningRate.updateLearningRate(fitness, bestFitness);
         List<NeuralNetwork> population = new ArrayList<>();
         population.add(this);
@@ -295,6 +282,7 @@ public class NeuralNetwork implements Serializable, Cloneable {
                     ", Holes: " + newBestNetwork.getHoles() +
                     ", Max height: " + newBestNetwork.getMaxHeight() +
                     ", Bumpiness: " + newBestNetwork.getBumpiness() +
+                    ", Playtime: " + newBestNetwork.getPlayTime() +
                     ", Learning rate: " + newLearningRate + ")");
             try {
                 saveBestToFile("best_network.dat");
@@ -324,6 +312,7 @@ public class NeuralNetwork implements Serializable, Cloneable {
         this.holes = other.holes;
         this.maxHeight = other.maxHeight;
         this.bumpiness = other.bumpiness;
+        this.playTime = other.playTime;
         this.generationsWithoutImprovement = other.generationsWithoutImprovement;
     }
 
@@ -339,10 +328,9 @@ public class NeuralNetwork implements Serializable, Cloneable {
     }
 
     private List<NeuralNetwork> evolvePopulation(List<NeuralNetwork> population) {
-        List<NeuralNetwork> newPopulation = new ArrayList<>();
         int eliteSize = POPULATION_SIZE / ELITE_SIZE_DIVIDER;
         population.sort((a, b) -> Double.compare(b.getFitness(), a.getFitness()));
-        newPopulation.addAll(population.subList(0, eliteSize));
+        List<NeuralNetwork> newPopulation = new ArrayList<>(population.subList(0, eliteSize));
         List<NeuralNetwork> parents = stochasticUniversalSampling(population, POPULATION_SIZE - eliteSize);
 
         for (int i = 0; i < parents.size(); i += 2) {
@@ -491,6 +479,10 @@ public class NeuralNetwork implements Serializable, Cloneable {
 
     public double getBumpiness() {
         return bumpiness;
+    }
+
+    public double getPlayTime() {
+        return playTime;
     }
 
     /**

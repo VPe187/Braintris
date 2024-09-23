@@ -153,9 +153,11 @@ public class ShapeFactory {
     }
 
     /**
-     * Konvertálja a shape-et double tömbbé, ahol 1.0 jelzi a pixelt, 0.0 az üres helyet.
-     * @param shape A konvertálandó alakzat
-     * @return Double tömb a shape pixeleivel
+     * Convert shape to double array, where 1.0 pixel on, 0,0 pixel off.
+     *
+     * @param shape shape which convert to.
+     *
+     * @return double selected shape array
      */
     public double[] shapeToArray(Shape shape) {
         double[] output = new double[MAX_SHAPE_WIDTH * MAX_SHAPE_HEIGHT];

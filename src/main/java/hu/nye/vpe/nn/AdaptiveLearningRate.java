@@ -7,50 +7,47 @@ import java.io.Serializable;
  */
 public class AdaptiveLearningRate implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
-    private static final double MAX_LEARNING_RATE = 1.0;
-    private static final double MIN_LEARNING_RATE = 0.0001;
-    private static final double MAX_STAGNANT_EPOCH = 10;
-        private double learningRate;
+    private double learningRate;
     private double momentum;
-    private double previousDelta;
-    private int stagnantEpochs;
+    private double previousFitnessDifference;
+    private static final double INCREASE_FACTOR = 1.05;
+    private static final double DECREASE_FACTOR = 0.95;
+    private static final double MIN_LEARNING_RATE = 0.00001;
+    private static final double MAX_LEARNING_RATE = 0.1;
 
     public AdaptiveLearningRate(double initialLearningRate, double initialMomentum) {
         this.learningRate = initialLearningRate;
         this.momentum = initialMomentum;
-        this.previousDelta = 0;
-        this.stagnantEpochs = 0;
+        this.previousFitnessDifference = 0;
     }
 
     /**
      * Update learning rate.
      *
-     * @param currentFitness current fitness
-     * @param previousFitness previous fitness
+     * @param currentFitness actual fitness
+     * @param previousBestFitness previous best fitness
      *
-     * @return learningRate
+     * @return new learning rate
      */
-    public double updateLearningRate(double currentFitness, double previousFitness) {
-        double delta = currentFitness - previousFitness;
-        if (delta > 0) {
-            learningRate *= 0.95;
-            stagnantEpochs = 0;
-        } else {
-            learningRate *= 1.05;
-            stagnantEpochs++;
+    public double updateLearningRate(double currentFitness, double previousBestFitness) {
+        double fitnessDifference = currentFitness - previousBestFitness;
+
+        if (fitnessDifference > previousFitnessDifference) {
+            learningRate = Math.min(learningRate * INCREASE_FACTOR, MAX_LEARNING_RATE);
+        } else if (fitnessDifference < previousFitnessDifference) {
+            learningRate = Math.max(learningRate * DECREASE_FACTOR, MIN_LEARNING_RATE);
         }
-        double momentumTerm = momentum * previousDelta;
-        double newDelta = (1 - momentum) * delta + momentumTerm;
-        if (stagnantEpochs > MAX_STAGNANT_EPOCH) {
-            learningRate = Math.min(learningRate * 2, MAX_LEARNING_RATE);
-            stagnantEpochs = 0;
-        }
-        previousDelta = newDelta;
-        return Math.max(MIN_LEARNING_RATE, Math.min(learningRate, MAX_LEARNING_RATE));
+
+        previousFitnessDifference = fitnessDifference;
+        return learningRate;
     }
 
     public double getLearningRate() {
         return learningRate;
+    }
+
+    public double getMomentum() {
+        return momentum;
     }
 
     @Override
@@ -58,7 +55,7 @@ public class AdaptiveLearningRate implements Serializable, Cloneable {
         try {
             return (AdaptiveLearningRate) super.clone();
         } catch (CloneNotSupportedException e) {
-            throw new InternalError(e);
+            throw new AssertionError();
         }
     }
 }

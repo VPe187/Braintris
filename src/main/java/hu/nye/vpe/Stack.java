@@ -56,10 +56,10 @@ public class Stack implements GameElement {
 
     public Stack(boolean learning) {
         this.learning = learning;
-        stackX = 2 * this.BLOCK_SIZE;
-        stackY = 2 * this.BLOCK_SIZE;
-        stackW = (this.COLS * this.BLOCK_SIZE);
-        stackH = ((this.ROWS - ROW_OFFSET) * this.BLOCK_SIZE);
+        stackX = 2 * BLOCK_SIZE;
+        stackY = 2 * BLOCK_SIZE;
+        stackW = (COLS * BLOCK_SIZE);
+        stackH = ((ROWS - ROW_OFFSET) * BLOCK_SIZE);
     }
 
     protected void start() {
@@ -163,6 +163,7 @@ public class Stack implements GameElement {
             for (Cell cell : cells) {
                 if (cell.getShapeId() == 0) {
                     isFull = false;
+                    break;
                 }
             }
             if (isFull) {
@@ -228,6 +229,7 @@ public class Stack implements GameElement {
             for (Cell cell : cells) {
                 if (cell.getShapeId() == 0) {
                     rowFull = false;
+                    break;
                 }
             }
             if (rowFull) {
@@ -388,6 +390,7 @@ public class Stack implements GameElement {
             for (Cell cell : stackArea[i]) {
                 if (cell.getShapeId() != Shape.ShapeType.ERASED.getShapeTypeId()) {
                     rowFull = false;
+                    break;
                 }
             }
             if (rowFull) {
@@ -726,7 +729,7 @@ public class Stack implements GameElement {
     }
 
     private void renderNextShapePanel(Graphics2D g2D) {
-        int panelWidth = 6 * this.BLOCK_SIZE;
+        int panelWidth = 6 * BLOCK_SIZE;
         int panelHeight = 4 * BLOCK_SIZE;
         int panelBorderWidth = 5;
         Color panelColor = new Color(30, 30, 30, 100);
@@ -757,7 +760,7 @@ public class Stack implements GameElement {
         int panelY = BLOCK_SIZE;
         int penaltyPanelOffsetY = BLOCK_SIZE * 6;
         int penaltyPanelHeight = BLOCK_SIZE;
-        int panelWidth = 6 * this.BLOCK_SIZE;
+        int panelWidth = 6 * BLOCK_SIZE;
         int panelBorderWidth = 5;
         Color panelColor = new Color(30, 30, 30, 100);
         GamePanel penaltyPanel = new GamePanel(panelX, panelY + penaltyPanelOffsetY, panelWidth,
@@ -778,7 +781,7 @@ public class Stack implements GameElement {
         int panelX = stackW + 4 * BLOCK_SIZE;
         int panelY = BLOCK_SIZE;
         int scorePanelOffsetY = BLOCK_SIZE * 9;
-        int panelWidth = 6 * this.BLOCK_SIZE;
+        int panelWidth = 6 * BLOCK_SIZE;
         int panelHeight = 2 * BLOCK_SIZE;
         int panelBorderWidth = 5;
         Color panelColor = new Color(30, 30, 30, 100);
@@ -800,7 +803,7 @@ public class Stack implements GameElement {
         int panelY = BLOCK_SIZE;
         int levelPanelOffsetY = BLOCK_SIZE * 13;
         int levelPanelHeight = BLOCK_SIZE;
-        int panelWidth = 6 * this.BLOCK_SIZE;
+        int panelWidth = 6 * BLOCK_SIZE;
         int panelBorderWidth = 5;
         Color panelColor = new Color(30, 30, 30, 100);
         GamePanel levelPanel = new GamePanel(panelX, panelY + levelPanelOffsetY, panelWidth, levelPanelHeight,
@@ -824,7 +827,7 @@ public class Stack implements GameElement {
         int panelY = BLOCK_SIZE;
         int infoPanelOffsetY = BLOCK_SIZE * 16;
         int infoPanelHeight = 3 * BLOCK_SIZE;
-        int panelWidth = 6 * this.BLOCK_SIZE;
+        int panelWidth = 6 * BLOCK_SIZE;
         int panelBorderWidth = 5;
         Color panelColor = new Color(30, 30, 30, 100);
         GamePanel infoPanel = new GamePanel(panelX, panelY + infoPanelOffsetY, panelWidth, infoPanelHeight,
@@ -850,14 +853,14 @@ public class Stack implements GameElement {
         int panelY = BLOCK_SIZE;
         int statPanelOffsetY = BLOCK_SIZE * 21;
         int statPanelHeight = 2 * BLOCK_SIZE;
-        int panelWidth = 6 * this.BLOCK_SIZE;
+        int panelWidth = 6 * BLOCK_SIZE;
         int panelBorderWidth = 5;
         Color panelColor = new Color(30, 30, 30, 100);
         GamePanel statPanel = new GamePanel(panelX, panelY + statPanelOffsetY, panelWidth, statPanelHeight,
                 panelBorderWidth, panelColor, BLOCK_SIZE, "Stat", FONT_NAME);
         statPanel.render(g2D);
         String allRowsStr = "Rows: " + allFullRows;
-        String timeStr = "Time: " + getEllapsedTime();
+        String timeStr = "Time: " + getElapsedTime();
         int stringHeight = BLOCK_SIZE - 14;
         g2D.setFont(new Font(FONT_NAME, Font.PLAIN, stringHeight));
         g2D.setColor(Color.GRAY);
@@ -870,7 +873,7 @@ public class Stack implements GameElement {
     /**
      * Getters.
      */
-    private String getEllapsedTime() {
+    private String getElapsedTime() {
         long et = System.currentTimeMillis() - startTime;
         final long hr = TimeUnit.MILLISECONDS.toHours(et);
         final long min = TimeUnit.MILLISECONDS.toMinutes(et - TimeUnit.HOURS.toMillis(hr));

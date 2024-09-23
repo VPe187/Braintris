@@ -13,13 +13,14 @@ import hu.nye.vpe.nn.NeuralNetwork;
  * Tetris class.
  */
 public class Tetris {
+    private static final double INITIAL_MUTATION_STRENGTH = 0.2;
     private static final int ROWS = 24;
     private static final int COLS = 12;
-    private static final long DROP_SPEED = 10L;
+    private static final int FEED_DATA_SIZE = ROWS * COLS + 32 + 5;
     private static final int SHAPE_SIZE = 4 * 4;
-    private static final int FEED_DATA_SIZE = ROWS * COLS + SHAPE_SIZE + SHAPE_SIZE + 3;
-    private long speed = 1000L;
-    private long learningSpeed = 20L;
+    private static final long DROP_SPEED = 10L;
+    private final long speed = 1000L;
+    private final long learningSpeed = 20L;
     private Shape currentShape;
     private Shape nextShape = null;
     private final ShapeFactory sf = ShapeFactory.getInstance();
@@ -34,7 +35,7 @@ public class Tetris {
     private final GameInput gameInput;
     private boolean musicOn = true;
     private NeuralNetwork brain;
-    private boolean learning;
+    private final boolean learning;
 
     public Tetris(int width, int height, GameInput gameInput, boolean learning) {
         tickBackground = new GameTimeTicker(60);
@@ -116,7 +117,8 @@ public class Tetris {
                 int holes = stack.countHoles();
                 int maxHeight = stack.calculateMaxHeight();
                 double bumpiness = stack.calculateBumpiness();
-                brain.evolve(score, clearedLines, holes, maxHeight, bumpiness);
+                double playTime = System.currentTimeMillis() - startTime;
+                brain.evolve(score, clearedLines, holes, maxHeight, bumpiness, playTime);
                 start();
             }
         }
@@ -206,20 +208,20 @@ public class Tetris {
         double[] feedData = new double[FEED_DATA_SIZE];
         stack.removeShape();
         int k = 0;
-        for (int i = 0; i < stackArea.length; i++) {
-            for (int j = 0; j < stackArea[i].length; j++) {
-                feedData[k] = stackArea[i][j].getShapeId();
+        for (Cell[] cells : stackArea) {
+            for (Cell cell : cells) {
+                feedData[k] = cell.getShapeId();
                 k++;
             }
         }
         stack.putShape();
-        double currentShapeData[] = ShapeFactory.getInstance().shapeToArray(stack.getCurrentShape());
-        for (int i = 0; i < currentShapeData.length; i++) {
+        double[] currentShapeData = ShapeFactory.getInstance().shapeToArray(stack.getCurrentShape());
+        double[] nextShapeData = ShapeFactory.getInstance().shapeToArray(nextShape);
+        for (int i = 0; i < SHAPE_SIZE; i++) {
             feedData[k] = currentShapeData[i];
             k++;
         }
-        double nextShapeData[] = ShapeFactory.getInstance().shapeToArray(nextShape);
-        for (int i = 0; i < nextShapeData.length; i++) {
+        for (int i = 0; i < SHAPE_SIZE; i++) {
             feedData[k] = nextShapeData[i];
             k++;
         }
