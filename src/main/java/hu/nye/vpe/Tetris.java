@@ -7,6 +7,7 @@ import hu.nye.vpe.gaming.GameColorPalette;
 import hu.nye.vpe.gaming.GameInput;
 import hu.nye.vpe.gaming.GameStarfield;
 import hu.nye.vpe.gaming.GameTimeTicker;
+import hu.nye.vpe.nn.InputNormalizer;
 import hu.nye.vpe.nn.NeuralNetwork;
 
 /**
@@ -48,7 +49,6 @@ public class Tetris {
         this.learning = learning;
         if (this.learning) {
             if (brain == null) {
-                //brain = new NeuralNetwork(FEED_DATA_SIZE, 192, 96, 4);
                 brain = new NeuralNetwork(FEED_DATA_SIZE, HIDDEN_NODES1, HIDDEN_NODES2, OUTPUT_NODES, true);
             }
         }
@@ -59,6 +59,7 @@ public class Tetris {
      */
     public void start() {
         stack.start();
+        stack.nextIteration();
         if (learning) {
             stack.setCurrentSpeed(learningSpeed);
         } else {
@@ -250,7 +251,9 @@ public class Tetris {
         feedData[k] = stack.calculateMaxHeight();
         k++;
         feedData[k] = stack.calculateBumpiness();
-        return feedData;
+
+        InputNormalizer normalizer = new InputNormalizer(FEED_DATA_SIZE);
+        return normalizer.normalizeAutomatically (feedData);
     }
 
     private int interpretOutput(double[] output) {

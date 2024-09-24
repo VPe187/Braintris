@@ -33,6 +33,8 @@ public class Stack implements GameElement {
     private static final long START_SPEED = 1000L;
     private static final long LEARNING_START_SPEED = 20L;
     private static final long SPEED_ACCELERATION = 50L;
+
+    private static int iteration;
     private final int stackX;
     private final int stackY;
     private final int stackW;
@@ -62,6 +64,7 @@ public class Stack implements GameElement {
 
     public Stack(boolean learning) {
         this.learning = learning;
+        this.iteration = 0;
         stackX = 2 * BLOCK_SIZE;
         stackY = 2 * BLOCK_SIZE;
         stackW = (COLS * BLOCK_SIZE);
@@ -892,13 +895,21 @@ public class Stack implements GameElement {
 
     private void renderInfoPanel(Graphics2D g2D) {
         infoPanel.render(g2D);
-        //String infoStrM = "M: Music On/Off";
-        String infoStrM = "Height: " + calculateMaxHeight();
-        //String infoStrP = "P: Pause/Resume";
-        String infoStrP = "Holes: " + countHoles();
-        //String infoStrC = "Arrows: Move";
-        String infoStrC = "Bumpiness: " + calculateBumpiness();
-        String infoStrR = "Space: Rotate";
+        String infoStrM;
+        String infoStrP;
+        String infoStrC;
+        String infoStrR;
+        if (learning) {
+            infoStrM = "Height: " + calculateMaxHeight();
+            infoStrP = "Holes: " + countHoles();
+            infoStrC = "Bumpiness: " + calculateBumpiness();
+            infoStrR = "Iteration: " + this.iteration;
+        } else {
+            infoStrM = "M: Music On/Off";
+            infoStrP = "P: Pause/Resume";
+            infoStrC = "Arrows: Move";
+            infoStrR = "Space: Rotate";
+        }
         int stringHeight = BLOCK_SIZE - 14;
         g2D.setFont(new Font(FONT_NAME, Font.PLAIN, stringHeight));
         g2D.setColor(Color.GRAY);
@@ -988,5 +999,9 @@ public class Stack implements GameElement {
 
     public void setCurrentSpeed(long currentSpeed) {
         this.currentSpeed = currentSpeed;
+    }
+
+    public void nextIteration() {
+        this.iteration++;
     }
 }

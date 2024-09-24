@@ -9,6 +9,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -35,6 +36,12 @@ public class NeuralNetwork implements Serializable, Cloneable {
     private double[][] weightsInputHidden1;
     private double[][] weightsHidden1Hidden2;
     private double[][] weightsHidden2Output;
+    private double[][] velocityInputHidden1;
+    private double[][] velocityHidden1Hidden2;
+    private double[][] velocityHidden2Output;
+    private double[] velocityBiasHidden1;
+    private double[] velocityBiasHidden2;
+    private double[] velocityBiasOutput;
     private double[] biasHidden1;
     private double[] biasHidden2;
     private double[] biasOutput;
@@ -68,82 +75,18 @@ public class NeuralNetwork implements Serializable, Cloneable {
         this.biasHidden1 = new double[this.hiddenNodes1];
         this.biasHidden2 = new double[this.hiddenNodes2];
         this.biasOutput = new double[outputNodes];
+        this.velocityInputHidden1 = new double[inputNodes][hiddenNodes1];
+        this.velocityHidden1Hidden2 = new double[hiddenNodes1][hiddenNodes2];
+        this.velocityHidden2Output = new double[hiddenNodes2][outputNodes];
+        this.velocityBiasHidden1 = new double[hiddenNodes1];
+        this.velocityBiasHidden2 = new double[hiddenNodes2];
+        this.velocityBiasOutput = new double[outputNodes];
         this.adaptiveLearningRate = new AdaptiveLearningRate(INITIAL_LEARNING_RATE, INITIAL_MOMENTUM);
         this.generationsWithoutImprovement = 0;
         if (initialize) {
             loadOrInitialize();
         }
         this.bestFitness = 0;
-    }
-
-    /**
-     * Initialize pool.
-     *
-     * @param poolSize poolSize
-     * @param inputNodes inputNodes
-     * @param hiddenNodes1 hiddenNodes1
-     * @param hiddenNodes2 hiddenNodes2
-     * @param outputNodes outputNodes
-     */
-    public static void initializePool(int poolSize, int inputNodes, int hiddenNodes1, int hiddenNodes2, int outputNodes) {
-        if (pool == null) {
-            pool = new NeuralNetworkPool(poolSize, inputNodes, hiddenNodes1, hiddenNodes2, outputNodes);
-            isPoolInitialized = true;
-            System.out.println("Neural Network pool initialized with size: " + poolSize);
-        } else if (!isPoolInitialized) {
-            System.out.println("Neural Network pool already exists but was not properly initialized. Reinitializing...");
-            pool = new NeuralNetworkPool(poolSize, inputNodes, hiddenNodes1, hiddenNodes2, outputNodes);
-            isPoolInitialized = true;
-        }
-    }
-
-    /**
-     * Aquire from pool.
-     *
-     * @return NeuralNetwork
-     *
-     */
-    public static NeuralNetwork acquireFromPool(int inputNodes, int hiddenNodes1, int hiddenNodes2, int outputNodes) {
-        if (pool == null || !isPoolInitialized) {
-            initializePool(DEFAULT_POOL_SIZE, inputNodes, hiddenNodes1, hiddenNodes2, outputNodes);
-        }
-        NeuralNetwork network = pool.acquire();
-        if (network.inputNodes != inputNodes ||
-                network.hiddenNodes1 != hiddenNodes1 ||
-                network.hiddenNodes2 != hiddenNodes2 ||
-                network.outputNodes != outputNodes) {
-            network = new NeuralNetwork(inputNodes, hiddenNodes1, hiddenNodes2, outputNodes, true);
-        }
-        return network;
-    }
-
-    /**
-     * Release to pool.
-     *
-     * @param network
-     *
-     */
-    public static void releaseToPool(NeuralNetwork network) {
-        if (pool != null) {
-            pool.release(network);
-        }
-    }
-
-    /**
-     * Reset network.
-     */
-    public void reset() {
-        initializeNodes();
-        this.fitness = 0;
-        this.bestFitness = Double.NEGATIVE_INFINITY;
-        this.bestNetwork = null;
-        this.clearedLines = 0;
-        this.holes = 0;
-        this.score = 0;
-        this.maxHeight = 0;
-        this.bumpiness = 0;
-        this.playTime = 0;
-        this.generationsWithoutImprovement = 0;
     }
 
     private void loadOrInitialize() {
@@ -182,6 +125,8 @@ public class NeuralNetwork implements Serializable, Cloneable {
             initializeNodes();
             this.bestNetwork = this.clone();
         }
+
+
     }
 
     private void initializeNodes() {
@@ -191,6 +136,22 @@ public class NeuralNetwork implements Serializable, Cloneable {
         initializeBiases(biasHidden1);
         initializeBiases(biasHidden2);
         initializeBiases(biasOutput);
+        initializeVelocities(velocityInputHidden1);
+        initializeVelocities(velocityHidden1Hidden2);
+        initializeVelocities(velocityHidden2Output);
+        initializeVelocities(velocityBiasHidden1);
+        initializeVelocities(velocityBiasHidden2);
+        initializeVelocities(velocityBiasOutput);
+    }
+
+    private void initializeVelocities(double[][] velocities) {
+        for (double[] layer : velocities) {
+            Arrays.fill(layer, 0);
+        }
+    }
+
+    private void initializeVelocities(double[] velocities) {
+        Arrays.fill(velocities, 0);
     }
 
     private void initializeWeights(double[][] weights, int fanIn) {
@@ -206,6 +167,55 @@ public class NeuralNetwork implements Serializable, Cloneable {
         for (int i = 0; i < biases.length; i++) {
             biases[i] = random.nextGaussian();
         }
+    }
+
+    private static void initializePool(int poolSize, int inputNodes, int hiddenNodes1, int hiddenNodes2, int outputNodes) {
+        if (pool == null) {
+            pool = new NeuralNetworkPool(poolSize, inputNodes, hiddenNodes1, hiddenNodes2, outputNodes);
+            isPoolInitialized = true;
+            System.out.println("Neural Network pool initialized with size: " + poolSize);
+        } else if (!isPoolInitialized) {
+            System.out.println("Neural Network pool already exists but was not properly initialized. Reinitializing...");
+            pool = new NeuralNetworkPool(poolSize, inputNodes, hiddenNodes1, hiddenNodes2, outputNodes);
+            isPoolInitialized = true;
+        }
+    }
+
+    private static NeuralNetwork acquireFromPool(int inputNodes, int hiddenNodes1, int hiddenNodes2, int outputNodes) {
+        if (pool == null || !isPoolInitialized) {
+            initializePool(DEFAULT_POOL_SIZE, inputNodes, hiddenNodes1, hiddenNodes2, outputNodes);
+        }
+        NeuralNetwork network = pool.acquire();
+        if (network.inputNodes != inputNodes ||
+                network.hiddenNodes1 != hiddenNodes1 ||
+                network.hiddenNodes2 != hiddenNodes2 ||
+                network.outputNodes != outputNodes) {
+            network = new NeuralNetwork(inputNodes, hiddenNodes1, hiddenNodes2, outputNodes, true);
+        }
+        return network;
+    }
+
+    private static void releaseToPool(NeuralNetwork network) {
+        if (pool != null) {
+            pool.release(network);
+        }
+    }
+
+    /**
+     * Reset network.
+     */
+    public void reset() {
+        initializeNodes();
+        this.fitness = 0;
+        this.bestFitness = Double.NEGATIVE_INFINITY;
+        this.bestNetwork = null;
+        this.clearedLines = 0;
+        this.holes = 0;
+        this.score = 0;
+        this.maxHeight = 0;
+        this.bumpiness = 0;
+        this.playTime = 0;
+        this.generationsWithoutImprovement = 0;
     }
 
     /**
@@ -237,7 +247,6 @@ public class NeuralNetwork implements Serializable, Cloneable {
     }
 
     private double[] calculateLayerOutputs(double[] inputs, double[][] weights, double[] biases, int numNodes) {
-        double[] rawOutputs = new double[numNodes];
         double[] outputs = new double[numNodes];
         for (int i = 0; i < numNodes; i++) {
             double sum = biases[i];
@@ -265,14 +274,7 @@ public class NeuralNetwork implements Serializable, Cloneable {
         return variableA + (variableB - variableA) * variablet;
     }
 
-    /**
-     * Calculates the fitness of the network based on score, cleared lines, and holes.
-     *
-     * @param score The game score
-     * @param clearedLines Number of cleared lines
-     * @param holes Number of holes in the game state
-     */
-    public void calculateFitness(double score, int clearedLines, int holes, int maxHeight, double bumpiness, double playTime) {
+    private void calculateFitness(double score, int clearedLines, int holes, int maxHeight, double bumpiness, double playTime) {
         this.score = score;
         this.clearedLines = clearedLines;
         this.holes = holes;
@@ -286,13 +288,7 @@ public class NeuralNetwork implements Serializable, Cloneable {
         this.fitness = a * maxHeight + b * clearedLines + c * holes + d * bumpiness;
     }
 
-    /**
-     * Mutates the neural network's weights and biases.
-     *
-     * @param mutationRate The probability of each weight/bias being mutated
-     * @param mutationStrength The maximum amount of change during mutation
-     */
-    public void mutate(double mutationRate, double mutationStrength) {
+    private void mutate(double mutationRate, double mutationStrength) {
         Random rand = new Random();
         mutateWeights(weightsInputHidden1, mutationRate, mutationStrength, rand);
         mutateWeights(weightsHidden1Hidden2, mutationRate, mutationStrength, rand);
@@ -322,18 +318,13 @@ public class NeuralNetwork implements Serializable, Cloneable {
         }
     }
 
-    /**
-     * Mutates the neural network's weights and biases using Evolúciós Stratégiák (ES).
-     *
-     * @param sigma The mutation strength (standard deviation of Gaussian distribution)
-     */
-    public void mutateWithES(double sigma) {
+    private void mutateWithES(double sigma) {
         mutateWeightsWithES(weightsInputHidden1, sigma);
         mutateWeightsWithES(weightsHidden1Hidden2, sigma);
         mutateWeightsWithES(weightsHidden2Output, sigma);
-        mutateBiasesWithES(biasHidden1, sigma);
-        mutateBiasesWithES(biasHidden2, sigma);
-        mutateBiasesWithES(biasOutput, sigma);
+        mutateBiasesWithES(biasHidden1, velocityBiasHidden1, sigma);
+        mutateBiasesWithES(biasHidden2, velocityBiasHidden2, sigma);
+        mutateBiasesWithES(biasOutput, velocityBiasOutput, sigma);
     }
 
     private void mutateWeightsWithES(double[][] weights, double sigma) {
@@ -344,16 +335,16 @@ public class NeuralNetwork implements Serializable, Cloneable {
         }
     }
 
-    private void mutateBiasesWithES(double[] biases, double sigma) {
+    private void mutateBiasesWithES(double[] biases, double[] velocities, double sigma) {
+        double momentum = adaptiveLearningRate.getMomentum();
         for (int i = 0; i < biases.length; i++) {
-            biases[i] += random.nextGaussian() * sigma * MUTATION_STRENGTH;  // Gaussian mutation
+            double gaussianNoise = random.nextGaussian() * sigma * MUTATION_STRENGTH;
+            velocities[i] = momentum * velocities[i] + (1 - momentum) * gaussianNoise;
+            biases[i] += velocities[i];
         }
     }
 
-    /**
-     * Crossover two NN.
-     */
-    public void crossover(NeuralNetwork parent1, NeuralNetwork parent2) {
+    private void crossover(NeuralNetwork parent1, NeuralNetwork parent2) {
         this.weightsInputHidden1 = crossoverWeights(parent1.weightsInputHidden1, parent2.weightsInputHidden1);
         this.weightsHidden1Hidden2 = crossoverWeights(parent1.weightsHidden1Hidden2, parent2.weightsHidden1Hidden2);
         this.weightsHidden2Output = crossoverWeights(parent1.weightsHidden2Output, parent2.weightsHidden2Output);
@@ -427,7 +418,7 @@ public class NeuralNetwork implements Serializable, Cloneable {
         } else {
             //this.mutate(newLearningRate * 2, MUTATION_STRENGTH * 2);
             this.mutateWithES(newLearningRate);
-            System.out.println("Failing to improve the best fitness. Current best fitness: " + this.globalBestFitness +
+            System.out.println("Failing to improve the best fitness (" + this.fitness + "). Current best fitness: " + this.globalBestFitness +
                     ", Learning rate: " + newLearningRate);
             generationsWithoutImprovement++;
         }
@@ -464,6 +455,24 @@ public class NeuralNetwork implements Serializable, Cloneable {
         return newPopulation;
     }
 
+    private List<NeuralNetwork> stochasticUniversalSampling(List<NeuralNetwork> population, int numSelect) {
+        double totalFitness = population.stream().mapToDouble(NeuralNetwork::getFitness).sum();
+        double step = totalFitness / numSelect;
+        double start = Math.random() * step;
+        List<NeuralNetwork> selected = new ArrayList<>();
+        double currentSum = 0;
+        int currentIndex = 0;
+        for (int i = 0; i < numSelect; i++) {
+            double pointer = start + i * step;
+            while (currentSum < pointer) {
+                currentSum += population.get(currentIndex).getFitness();
+                currentIndex = (currentIndex + 1) % population.size();
+            }
+            selected.add(population.get(currentIndex));
+        }
+        return selected;
+    }
+
     private void copyFrom(NeuralNetwork other) {
         this.weightsInputHidden1 = deepCopyMatrix(other.weightsInputHidden1);
         this.weightsHidden1Hidden2 = deepCopyMatrix(other.weightsHidden1Hidden2);
@@ -481,33 +490,12 @@ public class NeuralNetwork implements Serializable, Cloneable {
         this.generationsWithoutImprovement = other.generationsWithoutImprovement;
     }
 
-    /**
-     * Random reinitialization.
-     */
-    public void randomReinitialization() {
+    private void randomReinitialization() {
         if (generationsWithoutImprovement > GENERATION_WITHOUT_IMPROVED) {
             initializeNodes();
             generationsWithoutImprovement = 0;
             System.out.println("Network randomly re-initialised.");
         }
-    }
-
-    private List<NeuralNetwork> stochasticUniversalSampling(List<NeuralNetwork> population, int numSelect) {
-        double totalFitness = population.stream().mapToDouble(NeuralNetwork::getFitness).sum();
-        double step = totalFitness / numSelect;
-        double start = Math.random() * step;
-        List<NeuralNetwork> selected = new ArrayList<>();
-        double currentSum = 0;
-        int currentIndex = 0;
-        for (int i = 0; i < numSelect; i++) {
-            double pointer = start + i * step;
-            while (currentSum < pointer) {
-                currentSum += population.get(currentIndex).getFitness();
-                currentIndex = (currentIndex + 1) % population.size();
-            }
-            selected.add(population.get(currentIndex));
-        }
-        return selected;
     }
 
     /**
@@ -527,6 +515,12 @@ public class NeuralNetwork implements Serializable, Cloneable {
             clone.biasOutput = this.biasOutput.clone();
             clone.adaptiveLearningRate = this.adaptiveLearningRate.clone();
             clone.bestNetwork = this;
+            clone.velocityInputHidden1 = deepCopyMatrix(this.velocityInputHidden1);
+            clone.velocityHidden1Hidden2 = deepCopyMatrix(this.velocityHidden1Hidden2);
+            clone.velocityHidden2Output = deepCopyMatrix(this.velocityHidden2Output);
+            clone.velocityBiasHidden1 = this.velocityBiasHidden1.clone();
+            clone.velocityBiasHidden2 = this.velocityBiasHidden2.clone();
+            clone.velocityBiasOutput = this.velocityBiasOutput.clone();
             return clone;
         } catch (CloneNotSupportedException e) {
             throw new AssertionError(); // Can't happen
@@ -537,27 +531,13 @@ public class NeuralNetwork implements Serializable, Cloneable {
         return java.util.Arrays.stream(matrix).map(double[]::clone).toArray(double[][]::new);
     }
 
-    /**
-     * Saves the best network to a file.
-     *
-     * @param fileName The name of the file to save the network to
-     * @throws IOException If an I/O error occurs
-     */
-    public void saveBestToFile(String fileName) throws IOException {
+    private void saveBestToFile(String fileName) throws IOException {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(fileName))) {
             oos.writeObject(globalBestNetwork);
         }
     }
 
-    /**
-     * Loads a network from a file.
-     *
-     * @param fileName The name of the file to load the network from
-     * @return The loaded NeuralNetwork
-     * @throws IOException If an I/O error occurs
-     * @throws ClassNotFoundException If the class of a serialized object cannot be found
-     */
-    public static NeuralNetwork loadFromFile(String fileName) throws IOException, ClassNotFoundException {
+    private static NeuralNetwork loadFromFile(String fileName) throws IOException, ClassNotFoundException {
         File file = new File(fileName);
         if (!file.exists()) {
             System.out.println("The saved file does not exist, a new network will be initialized.");
@@ -568,9 +548,6 @@ public class NeuralNetwork implements Serializable, Cloneable {
         }
     }
 
-    /**
-     * Getters.
-     */
     public double getFitness() {
         return fitness;
     }
@@ -598,5 +575,4 @@ public class NeuralNetwork implements Serializable, Cloneable {
     public double getPlayTime() {
         return playTime;
     }
-
 }

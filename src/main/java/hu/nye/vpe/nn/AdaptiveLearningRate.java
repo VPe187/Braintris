@@ -14,6 +14,8 @@ public class AdaptiveLearningRate implements Serializable, Cloneable {
     private static final double DECREASE_FACTOR = 0.95;
     private static final double MIN_LEARNING_RATE = 0.00001;
     private static final double MAX_LEARNING_RATE = 0.1;
+    private static final double MIN_MOMENTUM = 0.1;
+    private static final double MAX_MOMENTUM = 0.9;
 
     public AdaptiveLearningRate(double initialLearningRate, double initialMomentum) {
         this.learningRate = initialLearningRate;
@@ -34,10 +36,11 @@ public class AdaptiveLearningRate implements Serializable, Cloneable {
 
         if (fitnessDifference > previousFitnessDifference) {
             learningRate = Math.min(learningRate * INCREASE_FACTOR, MAX_LEARNING_RATE);
+            momentum = Math.min(momentum * INCREASE_FACTOR, MAX_MOMENTUM);
         } else if (fitnessDifference < previousFitnessDifference) {
             learningRate = Math.max(learningRate * DECREASE_FACTOR, MIN_LEARNING_RATE);
+            momentum = Math.max(momentum * DECREASE_FACTOR, MIN_MOMENTUM);
         }
-
         previousFitnessDifference = fitnessDifference;
         return learningRate;
     }
