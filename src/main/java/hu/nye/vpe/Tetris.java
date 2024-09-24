@@ -13,39 +13,44 @@ import hu.nye.vpe.nn.NeuralNetwork;
  * Tetris class.
  */
 public class Tetris {
-    private static final double INITIAL_MUTATION_STRENGTH = 0.2;
     private static final int ROWS = 24;
     private static final int COLS = 12;
-    private static final int FEED_DATA_SIZE = ROWS * COLS + 32 + 5;
+    private static final int FEED_DATA_SIZE = ROWS * COLS + 32 + 11;
+    private static final int HIDDEN_NODES1 = 32;
+    private static final int HIDDEN_NODES2 = 16;
+    private static final int OUTPUT_NODES = 4;
     private static final int SHAPE_SIZE = 4 * 4;
     private static final long DROP_SPEED = 10L;
     private final long speed = 1000L;
-    private final long learningSpeed = 20L;
-    private Shape currentShape;
+    private final long learningSpeed = 10L;
     private Shape nextShape = null;
-    private final ShapeFactory sf = ShapeFactory.getInstance();
+    private static final ShapeFactory sf = ShapeFactory.getInstance();
     private long startTime;
-    private Stack stack;
+    private final Stack stack;
     private GameTimeTicker tickDown;
     private final GameTimeTicker tickBackground;
     private final GameTimeTicker tickControl;
     private final GameTimeTicker tickAnim;
     private final GameStarfield starField;
-    private final GameAudio gameAudio = new GameAudio();
+    private static final GameAudio gameAudio = new GameAudio();
     private final GameInput gameInput;
     private boolean musicOn = true;
     private NeuralNetwork brain;
     private final boolean learning;
 
     public Tetris(int width, int height, GameInput gameInput, boolean learning) {
-        tickBackground = new GameTimeTicker(60);
+        stack = new Stack(learning);
+        tickBackground = new GameTimeTicker(80);
         tickControl = new GameTimeTicker(10);
         tickAnim = new GameTimeTicker(20);
         starField = new GameStarfield(width, height);
         this.gameInput = gameInput;
         this.learning = learning;
         if (this.learning) {
-            this.brain = new NeuralNetwork(FEED_DATA_SIZE, 140, 70, 4);
+            if (brain == null) {
+                //brain = new NeuralNetwork(FEED_DATA_SIZE, 192, 96, 4);
+                brain = new NeuralNetwork(FEED_DATA_SIZE, HIDDEN_NODES1, HIDDEN_NODES2, OUTPUT_NODES, true);
+            }
         }
     }
 
@@ -53,7 +58,7 @@ public class Tetris {
      * Tetris start.
      */
     public void start() {
-        stack = new Stack(learning);
+        stack.start();
         if (learning) {
             stack.setCurrentSpeed(learningSpeed);
         } else {
@@ -65,13 +70,15 @@ public class Tetris {
         stack.start();
         nextShape = createNextShape();
         startTime = System.currentTimeMillis();
-        gameAudio.musicBackgroundPlay();
+        if (!learning) {
+            gameAudio.musicBackgroundPlay();
+        }
         musicOn = true;
         nextShape();
     }
 
     private void nextShape() {
-        currentShape = nextShape;
+        Shape currentShape = nextShape;
         nextShape = createNextShape();
         stack.setShapes(currentShape, nextShape);
     }
@@ -210,11 +217,16 @@ public class Tetris {
         int k = 0;
         for (Cell[] cells : stackArea) {
             for (Cell cell : cells) {
-                feedData[k] = cell.getShapeId();
+                feedData[k] = cell.getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId() ? 1.0 : 0.0;
+                //feedData[k] = cell.getShapeId();
                 k++;
             }
         }
         stack.putShape();
+        feedData[k] = stack.getCurrentShape().getStackRow();
+        k++;
+        feedData[k] = stack.getCurrentShape().getStackCol();
+        k++;
         double[] currentShapeData = ShapeFactory.getInstance().shapeToArray(stack.getCurrentShape());
         double[] nextShapeData = ShapeFactory.getInstance().shapeToArray(nextShape);
         for (int i = 0; i < SHAPE_SIZE; i++) {
@@ -230,6 +242,14 @@ public class Tetris {
         feedData[k] = stack.getGameScore();
         k++;
         feedData[k] = stack.getGameLevel();
+        k++;
+        feedData[k] = stack.getAllFullRows();
+        k++;
+        feedData[k] = stack.countHoles();
+        k++;
+        feedData[k] = stack.calculateMaxHeight();
+        k++;
+        feedData[k] = stack.calculateBumpiness();
         return feedData;
     }
 

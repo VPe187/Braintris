@@ -16,7 +16,7 @@ public class GamePanel implements GameElement {
     private final int borderWidth;
     private final Color backColor;
     private final int titleHeight;
-    private final String title;
+    private String title;
 
     public GamePanel(int panelX, int panelY, int panelWidth, int panelHeight, int borderWidth, Color backColor,
                      int titleHeight, String title, String fontName) {
@@ -54,5 +54,45 @@ public class GamePanel implements GameElement {
         g2D.setColor(new Color(backColor.getRed(), backColor.getGreen(), backColor.getBlue(), 100));
         g2D.fillRect(panelX + borderWidth, panelY + titleHeight + borderWidth,
                 panelWidth - (borderWidth * 2), panelHeight - (borderWidth * 2));
+    }
+
+    public String getFontName() {
+        return fontName;
+    }
+
+    public int getPanelX() {
+        return panelX;
+    }
+
+    public int getPanelY() {
+        return panelY;
+    }
+
+    public int getPanelWidth() {
+        return panelWidth;
+    }
+
+    public int getPanelHeight() {
+        return panelHeight;
+    }
+
+    public int getBorderWidth() {
+        return borderWidth;
+    }
+
+    public Color getBackColor() {
+        return backColor;
+    }
+
+    public int getTitleHeight() {
+        return titleHeight;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 }

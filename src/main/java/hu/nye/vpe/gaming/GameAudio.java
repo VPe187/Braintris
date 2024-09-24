@@ -1,6 +1,7 @@
 package hu.nye.vpe.gaming;
 
 import java.io.IOException;
+import java.util.Objects;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
@@ -31,7 +32,7 @@ public class GameAudio {
     /**
      * Open audio file.
      *
-     * @param audioFile
+     * @param audioFile Audio file
      *
      * @return Clip
      */
@@ -39,7 +40,7 @@ public class GameAudio {
         Clip clip = null;
         AudioInputStream audioIn;
         try {
-            audioIn = AudioSystem.getAudioInputStream(this.getClass().getClassLoader().getResource(audioFile));
+            audioIn = AudioSystem.getAudioInputStream(Objects.requireNonNull(this.getClass().getClassLoader().getResource(audioFile)));
             clip = AudioSystem.getClip();
             clip.open(audioIn);
         } catch (IOException | LineUnavailableException | UnsupportedAudioFileException e) {
@@ -66,6 +67,7 @@ public class GameAudio {
 
     public void stop(Clip clip) {
         clip.stop();
+        clip.close();
     }
 
     public void soundDown() {

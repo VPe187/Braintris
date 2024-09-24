@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="Braintris:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Braintris_jar</output-path>
+    <root id="archive" name="Braintris.jar">
+      <element id="module-output" name="Braintris" />
+    </root>
+  </artifact>
+</component>
