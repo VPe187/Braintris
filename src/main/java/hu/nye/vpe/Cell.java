@@ -8,14 +8,8 @@ import java.awt.Color;
 public class Cell {
 
     private Color color;
-    private int shapeId;
+    private final int shapeId;
     private int score;
-
-    /***
-     * Bonus types.
-     */
-    protected enum BonusType { NONE, DBSC, RMVCLR, BOMB, UPSDWN
-    }
 
     private BonusType bonus;
 
@@ -36,16 +30,8 @@ public class Cell {
         return this.score;
     }
 
-    public void setScore(int score) {
-        this.score = score;
-    }
-
     public int getShapeId() {
         return this.shapeId;
-    }
-
-    public void setShapeId(int shapeId) {
-        this.shapeId = shapeId;
     }
 
     public BonusType getBonus() {

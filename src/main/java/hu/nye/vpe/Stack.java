@@ -64,7 +64,7 @@ public class Stack implements GameElement {
 
     public Stack(boolean learning) {
         this.learning = learning;
-        this.iteration = 0;
+        iteration = 0;
         stackX = 2 * BLOCK_SIZE;
         stackY = 2 * BLOCK_SIZE;
         stackW = (COLS * BLOCK_SIZE);
@@ -191,9 +191,9 @@ public class Stack implements GameElement {
                     stackArea[currentShape.getStackRow() + i][currentShape.getStackCol() + j] =
                             new Cell(currentShape.getId(), currentShape.getColor());
                     if (currentShape.getPixels()[i][j] == 2) {
-                        stackArea[currentShape.getStackRow() + i][currentShape.getStackCol() + j].setBonus(Cell.BonusType.BOMB);
+                        stackArea[currentShape.getStackRow() + i][currentShape.getStackCol() + j].setBonus(BonusType.BOMB);
                     } else {
-                        stackArea[currentShape.getStackRow() + i][currentShape.getStackCol() + j].setBonus(Cell.BonusType.NONE);
+                        stackArea[currentShape.getStackRow() + i][currentShape.getStackCol() + j].setBonus(BonusType.NONE);
                     }
                 }
             }
@@ -218,13 +218,15 @@ public class Stack implements GameElement {
     /**
      * moveShapwDown method.
      */
-    protected void moveShapeDown() {
+    protected boolean moveShapeDown() {
         removeShape();
         if (!checkShapeIsDown()) {
             currentShape.setRowPosition(currentShape.getStackRow() + 1);
             putShape();
+            return false;
         } else {
             itemFalled();
+            return true;
         }
     }
 
@@ -492,7 +494,7 @@ public class Stack implements GameElement {
         }
         gameScore += fullRows * ROW_SCORE;
         allFullRows += fullRows;
-        noFullRows = Math.max(0, noFullRows -= fullRows * 2);
+        noFullRows = Math.max(0, noFullRows - (fullRows * 2));
         if (allFullRows >= gameLevel * LEVEL_CHANGE_ROWS) {
             nextLevel();
         }
@@ -582,6 +584,141 @@ public class Stack implements GameElement {
             putShape();
         }
         return maxHeight;
+    }
+
+    /**
+     * Counts the number of rows that are nearly full (e.g., have only 1 or 2 empty cells).
+     *
+     * @return Number of nearly full rows.
+     */
+    public int countNearlyFullRows() {
+        int nearlyFullRows = 0;
+        for (int i = 0; i < ROWS; i++) {
+            int emptyCells = 0;
+            for (int j = 0; j < COLS; j++) {
+                if (stackArea[i][j].getShapeId() == Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    emptyCells++;
+                    if (emptyCells > 2) { // Tetszőleges küszöb, itt 2
+                        break;
+                    }
+                }
+            }
+            if (emptyCells > 0 && emptyCells <= 2) { // Csak 1 vagy 2 üres cella
+                nearlyFullRows++;
+            }
+        }
+        return nearlyFullRows;
+    }
+
+    /**
+     * Counts the number of blocked rows.
+     * A blocked row is a row that has at least one hole beneath it.
+     *
+     * @return Number of blocked rows.
+     */
+    public int countBlockedRows() {
+        int blockedRows = 0;
+        boolean hasHoleBelow;
+        for (int i = 0; i < ROWS; i++) {
+            for (int j = 0; j < COLS; j++) {
+                if (stackArea[i][j].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    // Ellenőrzi, hogy van-e lyuk a jelenlegi cella alatt
+                    for (int k = i + 1; k < ROWS; k++) {
+                        if (stackArea[k][j].getShapeId() == Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                            blockedRows++;
+                            break;
+                        }
+                    }
+                    if (blockedRows > 0) {
+                        break; // Egy sor blokkoltságát elég egyszer számolni
+                    }
+                }
+            }
+        }
+        return blockedRows;
+    }
+
+    /**
+     * Calculates the heights of each column in the stack.
+     *
+     * @return An array containing the height of each column.
+     */
+    public int[] calculateColumnHeights() {
+        int[] columnHeights = new int[COLS];
+        for (int j = 0; j < COLS; j++) {
+            for (int i = 0; i < ROWS; i++) {
+                if (stackArea[i][j].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    columnHeights[j] = ROWS - i;
+                    break;
+                }
+            }
+        }
+        return columnHeights;
+    }
+
+    /**
+     * Calculates the height differences between adjacent columns.
+     *
+     * @return An array containing the height differences between adjacent columns.
+     */
+    public int[] calculateHeightDifferences() {
+        int[] columnHeights = calculateColumnHeights();
+        int[] heightDifferences = new int[COLS - 1];
+        for (int j = 0; j < COLS - 1; j++) {
+            heightDifferences[j] = Math.abs(columnHeights[j] - columnHeights[j + 1]);
+        }
+        return heightDifferences;
+    }
+
+    /**
+     * Calculates the surroundings of holes.
+     * For simplicity, this method counts the number of blocks adjacent to holes.
+     *
+     * @return Number of blocks adjacent to holes.
+     */
+    public int calculateHolesSurroundings() {
+        int surroundings = 0;
+        for (int j = 0; j < COLS; j++) {
+            boolean blockAbove = false;
+            for (int i = 0; i < ROWS; i++) {
+                if (stackArea[i][j].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    blockAbove = true;
+                } else if (blockAbove) {
+                    // Lyuk felfedezése
+                    // Ellenőrzi a szomszédos cellákat (balra és jobbra)
+                    if (j > 0 && stackArea[i][j - 1].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                        surroundings++;
+                    }
+                    if (j < COLS - 1 && stackArea[i][j + 1].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                        surroundings++;
+                    }
+                }
+            }
+        }
+        return surroundings;
+    }
+
+    /**
+     * Counts the number of stable rows.
+     * A stable row is a row without any holes and is fully occupied.
+     *
+     * @return Number of stable rows.
+     */
+    public int countStableRows() {
+        int stableRows = 0;
+        for (int i = 0; i < ROWS; i++) {
+            boolean isStable = true;
+            for (int j = 0; j < COLS; j++) {
+                if (stackArea[i][j].getShapeId() == Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    isStable = false;
+                    break;
+                }
+            }
+            if (isStable) {
+                stableRows++;
+            }
+        }
+        return stableRows;
     }
 
     @Override
@@ -721,7 +858,7 @@ public class Stack implements GameElement {
                                     g2D.fill3DRect(stackX + j * BLOCK_SIZE, stackY + (i - ROW_OFFSET) * BLOCK_SIZE,
                                             BLOCK_SIZE, BLOCK_SIZE, true);
                                 }
-                                if (stackArea[i][j].getBonus() != Cell.BonusType.NONE) {
+                                if (stackArea[i][j].getBonus() != BonusType.NONE) {
                                     renderBonus(g2D, i, j);
                                 }
                             }
@@ -903,7 +1040,7 @@ public class Stack implements GameElement {
             infoStrM = "Height: " + calculateMaxHeight();
             infoStrP = "Holes: " + countHoles();
             infoStrC = "Bumpiness: " + calculateBumpiness();
-            infoStrR = "Iteration: " + this.iteration;
+            infoStrR = "Iteration: " + iteration;
         } else {
             infoStrM = "M: Music On/Off";
             infoStrP = "P: Pause/Resume";
@@ -943,6 +1080,16 @@ public class Stack implements GameElement {
         final long min = TimeUnit.MILLISECONDS.toMinutes(et - TimeUnit.HOURS.toMillis(hr));
         final long sec = TimeUnit.MILLISECONDS.toSeconds(et - TimeUnit.HOURS.toMillis(hr) - TimeUnit.MINUTES.toMillis(min));
         return String.format("%02d:%02d:%02d", hr, min, sec);
+    }
+
+    /**
+     * getEllapsedTime.
+     *
+     * @return et
+     */
+    public Long getElapsedTimeLong() {
+        long et = System.currentTimeMillis() - startTime;
+        return et;
     }
 
     public Shape getCurrentShape() {
@@ -1002,6 +1149,6 @@ public class Stack implements GameElement {
     }
 
     public void nextIteration() {
-        this.iteration++;
+        iteration++;
     }
 }

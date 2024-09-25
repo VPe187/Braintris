@@ -56,10 +56,6 @@ public class GamePanel implements GameElement {
                 panelWidth - (borderWidth * 2), panelHeight - (borderWidth * 2));
     }
 
-    public String getFontName() {
-        return fontName;
-    }
-
     public int getPanelX() {
         return panelX;
     }
@@ -80,16 +76,8 @@ public class GamePanel implements GameElement {
         return borderWidth;
     }
 
-    public Color getBackColor() {
-        return backColor;
-    }
-
     public int getTitleHeight() {
         return titleHeight;
-    }
-
-    public String getTitle() {
-        return title;
     }
 
     public void setTitle(String title) {

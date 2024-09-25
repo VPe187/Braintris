@@ -11,14 +11,12 @@ import hu.nye.vpe.Tetris;
  */
 public class GameEngine implements Runnable {
     public static final int FPS = 60;
-    private GameDisplay gameDisplay;
+    private final GameDisplay gameDisplay;
     public int width;
     public int height;
     public String title;
     private boolean running = false;
     private Thread thread;
-    private BufferStrategy bs;
-    private Graphics2D graphics2D;
     private final Tetris tetris;
 
     public GameEngine(String title, int width, int height, boolean learning) {
@@ -63,12 +61,12 @@ public class GameEngine implements Runnable {
     }
 
     private void render() {
-        bs = gameDisplay.getCanvas().getBufferStrategy();
+        BufferStrategy bs = gameDisplay.getCanvas().getBufferStrategy();
         if (bs == null) {
             gameDisplay.getCanvas().createBufferStrategy(3);
             return;
         }
-        graphics2D = (Graphics2D) bs.getDrawGraphics();
+        Graphics2D graphics2D = (Graphics2D) bs.getDrawGraphics();
         graphics2D.setColor(Color.BLACK);
         graphics2D.clearRect(0, 0, width, height);
         graphics2D.fillRect(0, 0, width, height);
@@ -79,7 +77,7 @@ public class GameEngine implements Runnable {
 
     @Override
     public void run() {
-        double timePerTick = 1000000000 / FPS;
+        double timePerTick = (double) 1000000000 / FPS;
         double delta = 0;
         long now;
         long lastTime = System.nanoTime();

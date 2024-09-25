@@ -6,43 +6,55 @@ import java.io.Serializable;
  * Adaptive learning class.
  */
 public class AdaptiveLearningRate implements Serializable, Cloneable {
-    private static final long serialVersionUID = 1L;
-    private double learningRate;
-    private double momentum;
-    private double previousFitnessDifference;
+    //private static final double MAX_LEARNING_RATE = 0.1;
+    private static final double MAX_LEARNING_RATE = 0.1;
+    private static final double MIN_LEARNING_RATE = 0.00001;
     private static final double INCREASE_FACTOR = 1.05;
     private static final double DECREASE_FACTOR = 0.95;
-    private static final double MIN_LEARNING_RATE = 0.00001;
-    private static final double MAX_LEARNING_RATE = 0.1;
-    private static final double MIN_MOMENTUM = 0.1;
-    private static final double MAX_MOMENTUM = 0.9;
+    private final int PATIENCE = 10;
+    private double learningRate;
+    private final double baseLearningRate;
+    private final double improvementThreshold;
+    private int patienceCounter;
+    private double lastBestFittness;
+    private final double momentum;
+    private double velocity;
 
-    public AdaptiveLearningRate(double initialLearningRate, double initialMomentum) {
+
+    public AdaptiveLearningRate(double initialLearningRate, double improvementThreshold, double initialMomentum) {
+        this.baseLearningRate = initialLearningRate;
         this.learningRate = initialLearningRate;
+        this.improvementThreshold = improvementThreshold;
         this.momentum = initialMomentum;
-        this.previousFitnessDifference = 0;
+        this.patienceCounter = 0;
+        this.lastBestFittness = Double.NEGATIVE_INFINITY;
+        this.velocity = 0.0;
     }
 
     /**
      * Update learning rate.
      *
      * @param currentFitness actual fitness
-     * @param previousBestFitness previous best fitness
-     *
-     * @return new learning rate
+     * @param gradient gradient
      */
-    public double updateLearningRate(double currentFitness, double previousBestFitness) {
-        double fitnessDifference = currentFitness - previousBestFitness;
-
-        if (fitnessDifference > previousFitnessDifference) {
+    public void updateLearningRate(double currentFitness, double gradient) {
+        if (currentFitness > lastBestFittness + improvementThreshold) {
+            // Javulás történt
+            lastBestFittness = currentFitness;
+            patienceCounter = 0; // Reset patience counter
+            // Növeljük a tanulási rátát, de ne lépjük túl a max értéket
             learningRate = Math.min(learningRate * INCREASE_FACTOR, MAX_LEARNING_RATE);
-            momentum = Math.min(momentum * INCREASE_FACTOR, MAX_MOMENTUM);
-        } else if (fitnessDifference < previousFitnessDifference) {
-            learningRate = Math.max(learningRate * DECREASE_FACTOR, MIN_LEARNING_RATE);
-            momentum = Math.max(momentum * DECREASE_FACTOR, MIN_MOMENTUM);
+        } else {
+            // Nincs javulás
+            patienceCounter++;
+            if (patienceCounter >= PATIENCE) {
+                // Csökkentsük a tanulási rátát, ha nincs javulás egy ideig
+                learningRate = Math.max(learningRate * DECREASE_FACTOR, MIN_LEARNING_RATE);
+                patienceCounter = 0; // Reset patience counter
+            }
         }
-        previousFitnessDifference = fitnessDifference;
-        return learningRate;
+        // Momentum alkalmazása a súlyfrissítéseknél
+        velocity = momentum * velocity - learningRate * gradient; // Aktualizált sebesség
     }
 
     public double getLearningRate() {
@@ -51,6 +63,16 @@ public class AdaptiveLearningRate implements Serializable, Cloneable {
 
     public double getMomentum() {
         return momentum;
+    }
+
+    public double getVelocity() {
+        return velocity;
+    }
+
+    public void resetLearningRate() {
+        this.learningRate = baseLearningRate;
+        this.velocity = 0.0; // Reset momentum
+        this.patienceCounter = 0;
     }
 
     @Override

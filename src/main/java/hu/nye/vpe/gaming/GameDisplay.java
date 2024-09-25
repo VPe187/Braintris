@@ -7,6 +7,7 @@ import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 
@@ -15,15 +16,14 @@ import javax.swing.JFrame;
  */
 public class GameDisplay {
     private static final String FONT_FILE = "fonts/trulymadlydpad.ttf";
-    private JFrame frame;
     private Canvas canvas;
-    private String title;
-    private int width;
-    private int height;
+    private final String title;
+    private final int width;
+    private final int height;
     private GameInput gameInput;
 
     public GameDisplay(String title, int width, int height) {
-        loadFont(FONT_FILE);
+        loadFont();
         this.title = title;
         this.width = width;
         this.height = height;
@@ -31,14 +31,14 @@ public class GameDisplay {
     }
 
     private void createDisplay() {
-        frame = new JFrame(title);
+        JFrame frame = new JFrame(title);
         frame.setSize(width, height);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setResizable(false);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
         JFrame.setDefaultLookAndFeelDecorated(true);
-        ImageIcon img = new ImageIcon(this.getClass().getClassLoader().getResource("images/tetris_ico.png"));
+        ImageIcon img = new ImageIcon(Objects.requireNonNull(this.getClass().getClassLoader().getResource("images/tetris_ico.png")));
         frame.setIconImage(img.getImage());
         canvas = new Canvas();
         canvas.setPreferredSize(new Dimension(width, height));
@@ -60,10 +60,10 @@ public class GameDisplay {
         return gameInput;
     }
 
-    private void loadFont(String fontFile) {
+    private void loadFont() {
         try {
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-            InputStream stream = ClassLoader.getSystemClassLoader().getResourceAsStream(fontFile);
+            InputStream stream = ClassLoader.getSystemClassLoader().getResourceAsStream(GameDisplay.FONT_FILE);
             if (stream != null) {
                 ge.registerFont(Font.createFont(Font.TRUETYPE_FONT, stream));
             }

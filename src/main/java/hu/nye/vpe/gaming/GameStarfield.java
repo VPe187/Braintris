@@ -22,7 +22,7 @@ public class GameStarfield implements GameElement {
     public GameStarfield(int width, int height) {
         this.width = width;
         this.height = height;
-        stars = new ArrayList(MAX_STARS);
+        stars = new ArrayList<>(MAX_STARS);
         Random r = new Random();
         for (int i = 0; i < MAX_STARS; i++) {
             int[] star = {r.nextInt(this.width), r.nextInt(this.height), 1 + r.nextInt(3), r.nextInt(9)};
@@ -33,7 +33,7 @@ public class GameStarfield implements GameElement {
     /**
      * Render method.
      *
-     * @param g2D
+     * @param g2D Graphics2D
      *
      */
     public void render(Graphics2D g2D) {

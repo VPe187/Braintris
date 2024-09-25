@@ -12,7 +12,7 @@ public class GameColorPalette {
 
     private static final int PALETTES_NUMBER = 20;
     private static final GameColorPalette gameColorPalette = new GameColorPalette();
-    private static int currentPaletteNumber;
+    private int currentPaletteNumber;
     private static Color[] currentPalette;
 
     private final Color[] palette00 = {
@@ -181,7 +181,7 @@ public class GameColorPalette {
      */
     public void setRandomPalette() {
         Random r = new Random();
-        this.currentPaletteNumber = r.nextInt(PALETTES_NUMBER);
+        int currentPaletteNumber = r.nextInt(PALETTES_NUMBER);
         this.currentPalette = paletteArray.get(currentPaletteNumber);
         Collections.shuffle(Collections.singletonList(this.currentPalette));
     }

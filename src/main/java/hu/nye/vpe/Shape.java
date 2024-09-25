@@ -7,7 +7,7 @@ import java.awt.Color;
  */
 public class Shape {
 
-    private int[][] pixels = null;
+    private int[][] pixels;
     private Color color;
     private final int id;
     private final int score;
@@ -70,9 +70,9 @@ public class Shape {
      */
     public int getPixelsNumber() {
         int pixelNumber = 0;
-        for (int i = 0; i < this.pixels.length; i++) {
-            for (int j = 0; j < this.pixels[i].length; j++) {
-                if (this.pixels[i][j] != 0) {
+        for (int[] pixel : this.pixels) {
+            for (int i : pixel) {
+                if (i != 0) {
                     pixelNumber++;
                 }
             }
@@ -209,14 +209,14 @@ public class Shape {
 
     @Override
     public String toString() {
-        String rs = "";
-        for (int i = 0; i < this.pixels.length; i++) {
-            for (int j = 0; j < this.pixels[i].length; j++) {
-                rs += pixels[i][j] + " ";
+        StringBuilder rs = new StringBuilder();
+        for (int[] pixel : this.pixels) {
+            for (int i : pixel) {
+                rs.append(i).append(" ");
             }
-            rs += "\n";
+            rs.append("\n");
         }
-        return rs;
+        return rs.toString();
     }
 
 }

@@ -14,22 +14,6 @@ public class ShapeFactory {
     private static final int MAX_SHAPE_HEIGHT = 4;
     private static final ShapeFactory shapeFactory = new ShapeFactory();
     private static final int shapeNum = 7;
-    /*
-    private final int[][] pixelsI = new int[][]{{1}, {1}, {1}, {1}};
-    private final Shape shapeI = new Shape(1, 10, Color.WHITE, 1, pixelsI);
-    private final int[][] pixelsJ = new int[][]{{0, 1}, {0, 1}, {1, 1}};
-    private final Shape shapeJ = new Shape(2, 20, Color.WHITE, 2, pixelsJ);
-    private final int[][] pixelsL = new int[][]{{1, 0}, {1, 0}, {1, 1}};
-    private final Shape shapeL = new Shape(3, 20, Color.WHITE, 2, pixelsL);
-    private final int[][] pixelsO = new int[][]{{1, 1}, {1, 1}};
-    private final Shape shapeO = new Shape(4, 10, Color.WHITE, 2, pixelsO);
-    private final int[][] pixelsS = new int[][]{{1, 0}, {1, 1}, {0, 1}};
-    private final Shape shapeS = new Shape(5, 30, Color.WHITE, 3, pixelsS);
-    private final int[][] pixelsT = new int[][]{{1, 0}, {1, 1}, {1, 0}};
-    private final Shape shapeT = new Shape(6, 20, Color.WHITE, 2, pixelsT);
-    private final int[][] pixelsZ = new int[][]{{0, 1}, {1, 1}, {1, 0}};
-    private final Shape shapeZ = new Shape(7, 30, Color.WHITE, 2, pixelsZ);
-     */
     private final int[][] pixelsEmpty = new int[][]{{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
     private final Shape shapeEmpty = new Shape(0, 0, Color.WHITE, 1, pixelsEmpty);
     private final int[][] pixelsErased = new int[][]{{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
@@ -50,15 +34,6 @@ public class ShapeFactory {
     }
 
     private void init() {
-        /*
-        shapeArray.add(shapeI);
-        shapeArray.add(shapeJ);
-        shapeArray.add(shapeL);
-        shapeArray.add(shapeO);
-        shapeArray.add(shapeS);
-        shapeArray.add(shapeT);
-        shapeArray.add(shapeZ);
-         */
         shapeArray.add(new Shape(1, 10, Color.WHITE, 1, new int[][]{{1}, {1}, {1}, {1}})); // Shape I
         shapeArray.add(new Shape(2, 20, Color.WHITE, 2, new int[][]{{0, 1}, {0, 1}, {1, 1}})); // Shape J
         shapeArray.add(new Shape(3, 20, Color.WHITE, 2, new int[][]{{1, 0}, {1, 0}, {1, 1}})); // Shape L

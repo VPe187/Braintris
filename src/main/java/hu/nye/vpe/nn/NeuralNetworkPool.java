@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Neural network pool class.
  */
 public class NeuralNetworkPool {
-    private final Queue<NeuralNetwork> pool;
+    private final Queue<NeuralNetworkGenetic> pool;
     private final int maxSize;
     private final int inputNodes;
     private final int hiddenNodes1;
@@ -24,7 +24,7 @@ public class NeuralNetworkPool {
 
         // Pre-populate the pool
         for (int i = 0; i < maxSize; i++) {
-            pool.offer(new NeuralNetwork(inputNodes, hiddenNodes1, hiddenNodes2, outputNodes, false));
+            pool.offer(new NeuralNetworkGenetic(inputNodes, hiddenNodes1, hiddenNodes2, outputNodes, false));
         }
     }
 
@@ -33,10 +33,10 @@ public class NeuralNetworkPool {
      *
      * @return NeuralNetwork
      */
-    public NeuralNetwork acquire() {
-        NeuralNetwork network = pool.poll();
+    public NeuralNetworkGenetic acquire() {
+        NeuralNetworkGenetic network = pool.poll();
         if (network == null) {
-            network = new NeuralNetwork(inputNodes, hiddenNodes1, hiddenNodes2, outputNodes, false);
+            network = new NeuralNetworkGenetic(inputNodes, hiddenNodes1, hiddenNodes2, outputNodes, false);
         }
         return network;
     }
@@ -46,7 +46,7 @@ public class NeuralNetworkPool {
      *
      * @param network NeuralNetwork
      */
-    public void release(NeuralNetwork network) {
+    public void release(NeuralNetworkGenetic network) {
         if (pool.size() < maxSize) {
             network.reset();
             pool.offer(network);

@@ -6,7 +6,7 @@ public class InputNormalizer {
     private double min;
     private double max;
     private boolean isFitted = false;
-    private int arraySize;
+    private final int arraySize;
 
     // Konstruktor, amely beállítja a tömb méretét
     public InputNormalizer(int arraySize) {
@@ -48,7 +48,11 @@ public class InputNormalizer {
         for (int i = 0; i < data.length; i++) {
             double value = data[i];
             if (value > 1) {
-                normalizedData[i] = (value - min) / (max - min); // Normalizálás 0 és 1 közé
+                if (max != min) {
+                    normalizedData[i] = (value - min) / (max - min); // Normalizálás 0 és 1 közé
+                } else {
+                    normalizedData[i] = 0.0; // Ha max és min azonos, minden érték 0-ra normalizálódik
+                }
             } else {
                 normalizedData[i] = value; // 1-nél kisebb vagy egyenlő értékek nem változnak
             }

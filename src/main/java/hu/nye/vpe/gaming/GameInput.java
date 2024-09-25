@@ -12,10 +12,9 @@ import javax.swing.Timer;
  */
 public class GameInput implements KeyListener, ActionListener {
     private final boolean[] keys = new boolean[600];
-    private final Timer repeatTimer;
 
     public GameInput() {
-        repeatTimer = new Timer(5, this);
+        Timer repeatTimer = new Timer(5, this);
         repeatTimer.start();
     }
 
@@ -73,8 +72,7 @@ public class GameInput implements KeyListener, ActionListener {
      * @return boolean
      */
     public boolean downRepeat() {
-        boolean key = keys[KeyEvent.VK_DOWN] || keys[KeyEvent.VK_NUMPAD2];
-        return key;
+        return keys[KeyEvent.VK_DOWN] || keys[KeyEvent.VK_NUMPAD2];
     }
 
     /**
@@ -83,8 +81,7 @@ public class GameInput implements KeyListener, ActionListener {
      * @return boolean
      */
     public boolean upRepeat() {
-        boolean key = keys[KeyEvent.VK_UP] || keys[KeyEvent.VK_NUMPAD8];
-        return key;
+        return keys[KeyEvent.VK_UP] || keys[KeyEvent.VK_NUMPAD8];
     }
 
     /**
