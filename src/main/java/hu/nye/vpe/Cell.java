@@ -34,6 +34,10 @@ public class Cell {
         return this.shapeId;
     }
 
+    public int getShapeQId() {
+        return this.getShapeQId();
+    }
+
     public BonusType getBonus() {
         return this.bonus;
     }

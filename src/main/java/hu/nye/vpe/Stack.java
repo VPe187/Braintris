@@ -44,6 +44,7 @@ public class Stack implements GameElement {
     private static Cell[][] stackArea = new Cell[ROWS][COLS];
     private Shape currentShape = null;
     private Shape nextShape = null;
+    private double shapeRotation;
     private boolean upSideDown;
     private boolean tickAnim;
     private final GameAudio audio = new GameAudio();
@@ -61,6 +62,17 @@ public class Stack implements GameElement {
     private GamePanel levelPanel;
     private GamePanel infoPanel;
     private GamePanel statPanel;
+
+    private double numberofHoles;
+    private double[] columnHeights;
+    private double avgColumnHeights;
+    private int maxHeight;
+    private double bumpiness;
+    private double nearlyFullRows;
+    private double blockedRows;
+    private double stableRows;
+    private double surroundingHoles;
+    private double droppedElements;
 
     public Stack(boolean learning) {
         this.learning = learning;
@@ -84,6 +96,8 @@ public class Stack implements GameElement {
         } else {
             currentSpeed = START_SPEED;
         }
+        droppedElements = 0;
+        calculateGameMetrics();
     }
 
     private void initGameElement() {
@@ -136,7 +150,7 @@ public class Stack implements GameElement {
     private void initInfoPanel() {
         int panelX = stackW + 4 * BLOCK_SIZE;
         int infoPanelOffsetY = BLOCK_SIZE * 16;
-        int infoPanelHeight = 3 * BLOCK_SIZE;
+        int infoPanelHeight = ((learning) ? 7 : 3) * BLOCK_SIZE;
         int panelWidth = 6 * BLOCK_SIZE;
         int panelBorderWidth = 5;
         Color panelColor = new Color(30, 30, 30, 100);
@@ -337,6 +351,7 @@ public class Stack implements GameElement {
     }
 
     private void itemFalled() {
+        calculateGameMetrics();
         putShape();
         boolean wasFullRow = getFullRowsNum() > 0;
         if (!wasFullRow) {
@@ -357,6 +372,7 @@ public class Stack implements GameElement {
             flagFullRows();
         }
         currentShape = null;
+        droppedElements++;
     }
 
     private boolean checkShapeIsLeft() {
@@ -440,6 +456,11 @@ public class Stack implements GameElement {
         removeShape();
         if (checkShapeIsRotate()) {
             currentShape.rotateRight();
+            if (shapeRotation < 0.75 ) {
+                shapeRotation+= 0.25;
+            } else {
+                shapeRotation = 0;
+            }
         }
         putShape();
     }
@@ -498,6 +519,18 @@ public class Stack implements GameElement {
         if (allFullRows >= gameLevel * LEVEL_CHANGE_ROWS) {
             nextLevel();
         }
+    }
+
+    public void calculateGameMetrics() {
+        bumpiness = calculateBumpiness();
+        maxHeight = calculateMaxHeight();
+        columnHeights = calculateColumnHeights();
+        avgColumnHeights = calculateAverageHeightDifference();
+        surroundingHoles = calculateHolesSurroundings();
+        numberofHoles = countHoles();
+        blockedRows = countBlockedRows();
+        nearlyFullRows = countNearlyFullRows();
+        stableRows = countStableRows();
     }
 
     /**
@@ -587,11 +620,37 @@ public class Stack implements GameElement {
     }
 
     /**
+     * Gets the row index of the highest occupied cell in each column.
+     *
+     * @return An array of integers where each element corresponds to the highest
+     * occupied cell (row index) in each column. If a column is empty, the value will be -1.
+     */
+    public int[] getHighestOccupiedCells() {
+        if (currentShape != null) {
+            removeShape();
+        }
+        int[] highestOccupied = new int[COLS];
+        for (int col = 0; col < COLS; col++) {
+            highestOccupied[col] = -1; // Initialize with -1 to indicate an empty column
+            for (int row = 0; row < ROWS; row++) {
+                if (stackArea[row][col].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    highestOccupied[col] = row;
+                    break; // Stop at the first occupied cell found
+                }
+            }
+        }
+        if (currentShape != null) {
+            putShape();
+        }
+        return highestOccupied;
+    }
+
+    /**
      * Counts the number of rows that are nearly full (e.g., have only 1 or 2 empty cells).
      *
      * @return Number of nearly full rows.
      */
-    public int countNearlyFullRows() {
+    public double countNearlyFullRows() {
         int nearlyFullRows = 0;
         for (int i = 0; i < ROWS; i++) {
             int emptyCells = 0;
@@ -607,7 +666,7 @@ public class Stack implements GameElement {
                 nearlyFullRows++;
             }
         }
-        return nearlyFullRows;
+        return nearlyFullRows / ROWS;
     }
 
     /**
@@ -616,9 +675,8 @@ public class Stack implements GameElement {
      *
      * @return Number of blocked rows.
      */
-    public int countBlockedRows() {
+    public double countBlockedRows() {
         int blockedRows = 0;
-        boolean hasHoleBelow;
         for (int i = 0; i < ROWS; i++) {
             for (int j = 0; j < COLS; j++) {
                 if (stackArea[i][j].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
@@ -635,7 +693,7 @@ public class Stack implements GameElement {
                 }
             }
         }
-        return blockedRows;
+        return blockedRows / ROWS;
     }
 
     /**
@@ -643,8 +701,8 @@ public class Stack implements GameElement {
      *
      * @return An array containing the height of each column.
      */
-    public int[] calculateColumnHeights() {
-        int[] columnHeights = new int[COLS];
+    public double[] calculateColumnHeights() {
+        double[] columnHeights = new double[COLS];
         for (int j = 0; j < COLS; j++) {
             for (int i = 0; i < ROWS; i++) {
                 if (stackArea[i][j].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
@@ -661,13 +719,33 @@ public class Stack implements GameElement {
      *
      * @return An array containing the height differences between adjacent columns.
      */
-    public int[] calculateHeightDifferences() {
-        int[] columnHeights = calculateColumnHeights();
-        int[] heightDifferences = new int[COLS - 1];
+    public double[] calculateHeightDifferences() {
+        double[] columnHeights = calculateColumnHeights();
+        double[] heightDifferences = new double[COLS - 1];
         for (int j = 0; j < COLS - 1; j++) {
             heightDifferences[j] = Math.abs(columnHeights[j] - columnHeights[j + 1]);
         }
         return heightDifferences;
+    }
+
+    /**
+     * Calculates the average height difference between adjacent columns, normalized.
+     *
+     * @return The normalized average height difference.
+     */
+    public double calculateAverageHeightDifference() {
+        double[] columnHeights = calculateColumnHeights();
+        double totalDifference = 0;
+        int comparisons = 0;
+        for (int i = 0; i < columnHeights.length - 1; i++) {
+            totalDifference += Math.abs(columnHeights[i] - columnHeights[i + 1]);
+            comparisons++;
+        }
+        // Calculate the average difference
+        double averageDifference = (comparisons > 0) ? totalDifference / comparisons : 0;
+        // Normalize the result
+        // The maximum possible difference is the height of the game board (ROWS)
+        return averageDifference / ROWS;
     }
 
     /**
@@ -704,7 +782,7 @@ public class Stack implements GameElement {
      *
      * @return Number of stable rows.
      */
-    public int countStableRows() {
+    public double countStableRows() {
         int stableRows = 0;
         for (int i = 0; i < ROWS; i++) {
             boolean isStable = true;
@@ -718,7 +796,7 @@ public class Stack implements GameElement {
                 stableRows++;
             }
         }
-        return stableRows;
+        return stableRows / ROWS;
     }
 
     @Override
@@ -742,7 +820,9 @@ public class Stack implements GameElement {
         renderPenaltyPanel(g2D);
         renderLevelPanel(g2D);
         renderInfoPanel(g2D);
-        renderStatisticPanel(g2D);
+        if (!learning) {
+            renderStatisticPanel(g2D);
+        }
         if (state == State.CHANGINGLEVEL) {
             renderLevelText(g2D, "L E V E L  " + gameLevel + ".");
         }
@@ -1036,26 +1116,62 @@ public class Stack implements GameElement {
         String infoStrP;
         String infoStrC;
         String infoStrR;
+        String infoStrA;
+        String infoStrN;
+        String infoStrB;
+        String infoStrS;
+        String infoStrH;
+        String infoStrO;
+        String infoStrD;
         if (learning) {
             infoStrM = "Height: " + calculateMaxHeight();
             infoStrP = "Holes: " + countHoles();
-            infoStrC = "Bumpiness: " + calculateBumpiness();
+            infoStrC = "Bumpiness: " + String.format("%.0f", bumpiness);
             infoStrR = "Iteration: " + iteration;
+            infoStrA = "Height (avg): " + String.format("%.2f", avgColumnHeights);
+            infoStrN = "Nearly full rows: " + String.format("%.0f", nearlyFullRows);
+            infoStrB = "Blocked rows: " + String.format("%.0f", blockedRows);
+            infoStrS = "Stable rows: " + String.format("%.0f", stableRows);
+            infoStrH = "Surrounding holes: " + String.format("%.0f", surroundingHoles);
+            infoStrO = "Shape rotation: " + String.format("%.2f", shapeRotation);
+            infoStrD = "Dropped elements: " + String.format("%.0f", droppedElements);
         } else {
             infoStrM = "M: Music On/Off";
             infoStrP = "P: Pause/Resume";
             infoStrC = "Arrows: Move";
             infoStrR = "Space: Rotate";
+            infoStrA = "";
+            infoStrN = "";
+            infoStrB = "";
+            infoStrS = "";
+            infoStrH = "";
+            infoStrO = "";
+            infoStrD = "";
         }
         int stringHeight = BLOCK_SIZE - 14;
         g2D.setFont(new Font(FONT_NAME, Font.PLAIN, stringHeight));
         g2D.setColor(Color.GRAY);
-        int infoX = infoPanel.getPanelX() + BLOCK_SIZE;
+        int infoX;
+        if (learning) {
+            infoX= infoPanel.getPanelX() + BLOCK_SIZE - 14;
+        } else {
+            infoX= infoPanel.getPanelX() + BLOCK_SIZE;
+        }
         int infoY = infoPanel.getPanelY() + BLOCK_SIZE + BLOCK_SIZE / 2;
+        int rowOffset = BLOCK_SIZE / 2 + 2;
         g2D.drawString(infoStrM, infoX, infoY + stringHeight - 5);
-        g2D.drawString(infoStrP, infoX, infoY + BLOCK_SIZE / 2 + stringHeight - 5);
-        g2D.drawString(infoStrC, infoX, infoY + BLOCK_SIZE + stringHeight - 5);
-        g2D.drawString(infoStrR, infoX, infoY + BLOCK_SIZE * 3 / 2 + stringHeight - 5);
+        g2D.drawString(infoStrP, infoX, infoY + rowOffset + stringHeight - 5);
+        g2D.drawString(infoStrC, infoX, infoY + rowOffset * 2 + stringHeight - 5);
+        g2D.drawString(infoStrR, infoX, infoY + rowOffset * 3 + stringHeight - 5);
+        if (learning) {
+            g2D.drawString(infoStrA, infoX, infoY + rowOffset * 4 + stringHeight - 5);
+            g2D.drawString(infoStrN, infoX, infoY + rowOffset * 5 + stringHeight - 5);
+            g2D.drawString(infoStrB, infoX, infoY + rowOffset * 6 + stringHeight - 5);
+            g2D.drawString(infoStrS, infoX, infoY + rowOffset * 7 + stringHeight - 5);
+            g2D.drawString(infoStrH, infoX, infoY + rowOffset * 8 + stringHeight - 5);
+            g2D.drawString(infoStrO, infoX, infoY + rowOffset * 9 + stringHeight - 5);
+            g2D.drawString(infoStrD, infoX, infoY + rowOffset * 10 + stringHeight - 5);
+        }
     }
 
     private void renderStatisticPanel(Graphics2D g2D) {
@@ -1128,6 +1244,50 @@ public class Stack implements GameElement {
         return allFullRows;
     }
 
+    public double getNumberofHoles() {
+        return numberofHoles;
+    }
+
+    public int getMaxHeight() {
+        return maxHeight;
+    }
+
+    public double getBumpiness() {
+        return bumpiness;
+    }
+
+    public double getNearlyFullRows() {
+        return nearlyFullRows;
+    }
+
+    public double getBlockedRows() {
+        return blockedRows;
+    }
+
+    public double getStableRows() {
+        return stableRows;
+    }
+
+    public double[] getColumnHeights() {
+        return columnHeights;
+    }
+
+    public double getAvgColumnHeights() {
+        return avgColumnHeights;
+    }
+
+    public double getSurroundingHoles() {
+        return surroundingHoles;
+    }
+
+    public double getShapeRotation() {
+        return shapeRotation;
+    }
+
+    public double getDroppedElements() {
+        return droppedElements;
+    }
+
     /**
      * Setters.
      */
@@ -1142,6 +1302,7 @@ public class Stack implements GameElement {
     protected void setShapes(Shape currentShape, Shape nextShape) {
         this.currentShape = currentShape;
         this.nextShape = nextShape;
+        shapeRotation = 0;
     }
 
     public void setCurrentSpeed(long currentSpeed) {

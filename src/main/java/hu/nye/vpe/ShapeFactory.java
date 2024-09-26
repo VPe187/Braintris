@@ -15,11 +15,11 @@ public class ShapeFactory {
     private static final ShapeFactory shapeFactory = new ShapeFactory();
     private static final int shapeNum = 7;
     private final int[][] pixelsEmpty = new int[][]{{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
-    private final Shape shapeEmpty = new Shape(0, 0, Color.WHITE, 1, pixelsEmpty);
+    private final Shape shapeEmpty = new Shape(0, 0, Color.WHITE, 1, pixelsEmpty, -0.1);
     private final int[][] pixelsErased = new int[][]{{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
-    private final Shape shapeErased = new Shape(99, 40, Color.BLACK, 1, pixelsErased);
+    private final Shape shapeErased = new Shape(99, 40, Color.BLACK, 1, pixelsErased, -0.1);
     private final int[][] pixelsLoaded = new int[][]{{1, 1, 1}, {1, 1, 1}, {1, 1, 1} };
-    private final Shape shapeLoaded = new Shape(90, 120, new Color(60, 60, 60), 1, pixelsLoaded);
+    private final Shape shapeLoaded = new Shape(90, 120, new Color(60, 60, 60), 1, pixelsLoaded, -0.1);
     private final ArrayList<Shape> shapeArray = new ArrayList<Shape>();
     private static final GameColorPalette palette = GameColorPalette.getInstance();
     private static final Random rnd = new Random();
@@ -34,13 +34,13 @@ public class ShapeFactory {
     }
 
     private void init() {
-        shapeArray.add(new Shape(1, 10, Color.WHITE, 1, new int[][]{{1}, {1}, {1}, {1}})); // Shape I
-        shapeArray.add(new Shape(2, 20, Color.WHITE, 2, new int[][]{{0, 1}, {0, 1}, {1, 1}})); // Shape J
-        shapeArray.add(new Shape(3, 20, Color.WHITE, 2, new int[][]{{1, 0}, {1, 0}, {1, 1}})); // Shape L
-        shapeArray.add(new Shape(4, 10, Color.WHITE, 2, new int[][]{{1, 1}, {1, 1}})); // Shape O
-        shapeArray.add(new Shape(5, 30, Color.WHITE, 3, new int[][]{{1, 0}, {1, 1}, {0, 1}})); // Shape S
-        shapeArray.add(new Shape(6, 20, Color.WHITE, 2, new int[][]{{1, 0}, {1, 1}, {1, 0}})); // Shape T
-        shapeArray.add(new Shape(7, 30, Color.WHITE, 2, new int[][]{{0, 1}, {1, 1}, {1, 0}})); // Shape Z
+        shapeArray.add(new Shape(1, 10, Color.WHITE, 1, new int[][]{{1}, {1}, {1}, {1}},0)); // Shape I
+        shapeArray.add(new Shape(2, 20, Color.WHITE, 2, new int[][]{{0, 1}, {0, 1}, {1, 1}}, 0.25)); // Shape J
+        shapeArray.add(new Shape(3, 20, Color.WHITE, 2, new int[][]{{1, 0}, {1, 0}, {1, 1}}, 0.5)); // Shape L
+        shapeArray.add(new Shape(4, 10, Color.WHITE, 2, new int[][]{{1, 1}, {1, 1}}, 0.75)); // Shape O
+        shapeArray.add(new Shape(5, 30, Color.WHITE, 3, new int[][]{{1, 0}, {1, 1}, {0, 1}}, 1)); // Shape S
+        shapeArray.add(new Shape(6, 20, Color.WHITE, 2, new int[][]{{1, 0}, {1, 1}, {1, 0}}, 1.25)); // Shape T
+        shapeArray.add(new Shape(7, 30, Color.WHITE, 2, new int[][]{{0, 1}, {1, 1}, {1, 0}}, 1.5)); // Shape Z
     }
 
     /**
@@ -68,7 +68,8 @@ public class ShapeFactory {
                 randomShape.getScore(),
                 palette.getCurrentPalette()[randomShape.getId()],
                 randomShape.getWeight(),
-                pixels
+                pixels,
+                randomShape.getQid()
         );
         int rn = rnd.nextInt(10);
         if (rn == 1) {
@@ -93,7 +94,8 @@ public class ShapeFactory {
                 shapeEmpty.getScore(),
                 shapeEmpty.getColor(),
                 shapeEmpty.getWeight(),
-                shapeEmpty.getPixels()
+                shapeEmpty.getPixels(),
+                shapeEmpty.getQid()
         );
     }
 
@@ -109,7 +111,8 @@ public class ShapeFactory {
                 shapeErased.getScore(),
                 shapeErased.getColor(),
                 shapeErased.getWeight(),
-                shapeErased.getPixels()
+                shapeErased.getPixels(),
+                shapeErased.getQid()
         );
     }
 
@@ -125,7 +128,8 @@ public class ShapeFactory {
                 shapeLoaded.getScore(),
                 shapeLoaded.getColor(),
                 shapeLoaded.getWeight(),
-                shapeLoaded.getPixels()
+                shapeLoaded.getPixels(),
+                shapeLoaded.getQid()
         );
     }
 

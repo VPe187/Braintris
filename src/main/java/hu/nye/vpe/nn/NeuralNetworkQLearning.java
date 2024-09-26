@@ -7,20 +7,20 @@ import java.util.Random;
 public class NeuralNetworkQLearning implements Serializable {
     @Serial
     private static final long serialVersionUID = 3L;
-    private static final double INITIAL_LEARNING_RATE = 0.05;
+    private static final double INITIAL_LEARNING_RATE = 0.006;
     private static final double LEARNING_RATE_DECAY = 0.9999;
     private static final double MIN_LEARNING_RATE = 0.0005;
 
-    private static final double INITIAL_DISCOUNT_FACTOR = 0.9;
+    private static final double INITIAL_DISCOUNT_FACTOR = 0.8;
 
-    private static final double INITIAL_EPSILON = 0.2;
-    private static final double EPSILON_DECAY = 0.9998;
+    private static final double INITIAL_EPSILON = 0.8;
+    private static final double EPSILON_DECAY = 0.9999;
     private static final double MIN_EPSILON = 0.01;
 
-    private static final double MIN_Q_VALUE = -50;
-    private static final double MAX_Q_VALUE = 50;
-    private static final double CLIP_MIN = -1;
-    private static final double CLIP_MAX = 1;
+    private static final double MIN_Q_VALUE = -500;
+    private static final double MAX_Q_VALUE = 500;
+    private static final double CLIP_MIN = -10;
+    private static final double CLIP_MAX = 10;
     private static final String FILENAME = "brain.dat";
 
     private final int inputNodes;
@@ -192,12 +192,21 @@ public class NeuralNetworkQLearning implements Serializable {
     }
 
     public int selectAction(double[] state) {
+
         if (random.nextDouble() < epsilon) {
             return random.nextInt(outputNodes);
         } else {
             double[] qValues = getQValues(state);
             return argmax(qValues);
         }
+        /*
+        double[] qValues = getQValues(state);
+        for (int i = 0; i < qValues.length; i++) {
+            System.out.print(qValues[i] + " ");
+        }
+        System.out.println();
+        return 1;
+        */
     }
 
     private int argmax(double[] array) {
@@ -213,35 +222,46 @@ public class NeuralNetworkQLearning implements Serializable {
     }
 
     public void learn(double[] state, int action, double reward, double[] nextState, boolean gameEnded) {
-        for (double value : state) {
-            if (Double.isNaN(value) || Double.isInfinite(value)) {
-                System.out.println("Érvénytelen bemenet detektálva: " + value);
-                return;
-            }
-        }
-        double[] currentQValues = getQValues(state);
+        // Előre átviteli számítások egyszer
+        double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1);
+        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2);
+        double[] currentQValues = calculateLayerOutputs(hidden2, weightsHidden2Output, biasOutput);
         for (int i = 0; i < currentQValues.length; i++) {
             currentQValues[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, currentQValues[i]));  // Korlátozott Q-értékek
         }
-        double[] nextQValues = getQValues(nextState);
+        // Következő állapot Q-értékeinek kiszámítása
+        double[] nextHidden1 = calculateLayerOutputs(nextState, weightsInputHidden1, biasHidden1);
+        double[] nextHidden2 = calculateLayerOutputs(nextHidden1, weightsHidden1Hidden2, biasHidden2);
+        double[] nextQValues = calculateLayerOutputs(nextHidden2, weightsHidden2Output, biasOutput);
+        //double[] nextQValues = getQValues(nextState);
+        for (int i = 0; i < nextQValues.length; i++) {
+            nextQValues[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, nextQValues[i]));  // Korlátozott Q-értékek
+        }
         double maxNextQ = max(nextQValues);
         double target = reward + discountFactor * maxNextQ;
         target = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, target));
         double currentQ = currentQValues[action];
         double error = target - currentQ;
         error = Math.max(CLIP_MIN, Math.min(CLIP_MAX, error));  // Gradient clipping
-        backpropagate(state, action, error);
-        learningRate = Math.max(MIN_LEARNING_RATE, learningRate * LEARNING_RATE_DECAY);
-        epsilon = Math.max(MIN_EPSILON, epsilon * EPSILON_DECAY);
-
+        backpropagate(state, action, error, hidden1, hidden2);
+        decreaseLearningrate();
+        decreaseEpsilon();
         if (gameEnded) {
-            System.out.printf("Végeredmény: %.4f, Eddigi rekord: %.4f, Learning rate: %.4f, Epsylon: %.4f, Q: %.4f", reward, bestScore, learningRate, epsilon, maxNextQ);
+            System.out.printf("Reward: %.4f: Record: %.4f, Learning rate: %.4f, Epsylon: %.4f, Q: %.4f", reward, bestScore, learningRate, epsilon, maxNextQ);
             if (reward > bestScore) {
                 bestScore = reward;
                 System.out.print(" * New record");
             }
             System.out.println();
         }
+    }
+
+    private void decreaseEpsilon() {
+        epsilon = Math.max(MIN_EPSILON, epsilon * EPSILON_DECAY);
+    }
+
+    private void decreaseLearningrate() {
+        learningRate = Math.max(MIN_LEARNING_RATE, learningRate * LEARNING_RATE_DECAY);
     }
 
     private double max(double[] array) {
@@ -290,11 +310,8 @@ public class NeuralNetworkQLearning implements Serializable {
         }
     }
 
-    private void backpropagate(double[] state, int action, double error) {
-        double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1);
-        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2);
+    private void backpropagate(double[] state, int action, double error, double[] hidden1, double[] hidden2) {
         double[] outputs = calculateLayerOutputs(hidden2, weightsHidden2Output, biasOutput);
-
         // Hidden2 -> Output
         double[] deltaOutput = new double[outputNodes];
         deltaOutput[action] = error * derivativeLeakyReLU(outputs[action]);
@@ -308,7 +325,6 @@ public class NeuralNetworkQLearning implements Serializable {
                 }
             }
         }
-
         for (int i = 0; i < outputNodes; i++) {
             biasOutput[i] += learningRate * deltaOutput[i] * 0.1;
             biasOutput[i] = Math.max(-1.0, Math.min(1.0, biasOutput[i]));  // Biasok korlátozása
