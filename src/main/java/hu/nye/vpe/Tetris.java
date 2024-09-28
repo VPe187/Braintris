@@ -16,7 +16,7 @@ import hu.nye.vpe.nn.NeuralNetworkQLearning;
 public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
-    private static final int FEED_DATA_SIZE = 7;
+    private static final int FEED_DATA_SIZE = 19;
     private static final int OUTPUT_NODES = 4;
     private static final long DROP_SPEED = 10L;
     private final long speed = 1000L;
@@ -243,12 +243,10 @@ public class Tetris {
         int k = 0;
 
         // Oszlopmagasságok
-        /*
         double[] columnHeights = stack.getColumnHeights();
         for (double columnHeight : columnHeights) {
             feedData[k++] = columnHeight;
         }
-         */
 
         // Aktuális elem
         if (stack.getCurrentShape() != null) {
@@ -320,8 +318,7 @@ public class Tetris {
                 System.out.println("NaN detektálva normalizálás után! Index: " + k);
             }
         }
-        //return normalizedData;
-        return feedData;
+        return normalizedData;
     }
 
     private double calculateReward() {

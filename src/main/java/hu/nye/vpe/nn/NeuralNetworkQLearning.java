@@ -338,9 +338,9 @@ public class NeuralNetworkQLearning implements Serializable {
         double error = target - currentQ;
         error = scaleAndClipGradient(error);
         backpropagate(state, action, error, hidden1, hidden2, hidden3);
-        updateEpsilon();
         if (gameEnded) {
             updateDiscountFactor();
+            updateEpsilon();
             updateLearningrate();
             episodeCount++;
             if (reward > bestScore) {
