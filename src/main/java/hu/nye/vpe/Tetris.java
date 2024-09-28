@@ -16,13 +16,11 @@ import hu.nye.vpe.nn.NeuralNetworkQLearning;
 public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
-    //private static final int FEED_DATA_SIZE = ROWS * COLS + 32 + 37;
-    private static final int FEED_DATA_SIZE = 30;
+    private static final int FEED_DATA_SIZE = 29;
     private static final int OUTPUT_NODES = 4;
-    private static final int SHAPE_SIZE = 4 * 4;
     private static final long DROP_SPEED = 10L;
     private final long speed = 1000L;
-    private final long learningSpeed = 10L;
+    private final long learningSpeed = 100L;
     private Shape nextShape = null;
     private static final ShapeFactory sf = ShapeFactory.getInstance();
     private final Stack stack;
@@ -38,6 +36,7 @@ public class Tetris {
     private NeuralNetworkQLearning brain;
     private double[] lastState;
     private int lastAction;
+    private double lastReward;
 
     private double lastFullRows = 0;
     private double lastNearlyFullRows = 0;
@@ -89,7 +88,8 @@ public class Tetris {
         }
         musicOn = true;
         nextShape();
-        lastAction = -1;
+        lastAction = 0;
+        lastState = getFeedData();
     }
 
     private void nextShape() {
@@ -116,6 +116,15 @@ public class Tetris {
             starField.update();
         }
         if (tickControl.tick()) {
+            double[] currentState = getFeedData();
+            if (stack.getCurrentShape() != null) {
+                if (learning) {
+                    double reward = calculateReward();
+                    brain.learn(lastState, lastAction, reward, currentState, false);
+                    lastState = currentState;
+                    lastReward = reward;
+                }
+            }
             handleInput();
         }
         if (tickDown.tick()) {
@@ -131,9 +140,9 @@ public class Tetris {
                             if (learning) {
                                 double[] currentState = getFeedData();
                                 double reward = calculateReward();
-                                //System.out.printf("%.2f ", reward);
                                 brain.learn(lastState, lastAction, reward, currentState, false);
                                 lastState = currentState;
+                                lastReward = reward;
                             }
                         }
                     }
@@ -142,13 +151,6 @@ public class Tetris {
         }
         if (stack.getState() == State.GAMEOVER) {
             if (learning) {
-                /*
-                System.out.printf("%nHoles: %.0f, S.holes: %.0f, Height: %d, Avg.height: %.2f, Bumpiness: %.2f, " +
-                                "Blocked rows: %.0f, Nearly full rows: %.0f, Dropped: %.0f%n",
-                        stack.getNumberofHoles(), stack.getSurroundingHoles(), stack.getMaxHeight(),
-                        stack.getAvgColumnHeights(), stack.getBumpiness(), stack.getBlockedRows(),
-                        stack.getNearlyFullRows(), stack.getDroppedElements());
-                 */
                 double[] currentState = getFeedData();
                 double reward = calculateFinishReward();
                 brain.learn(lastState, lastAction, reward, currentState, true);
@@ -179,19 +181,19 @@ public class Tetris {
         if (stack.getState() == State.RUNNING && stack.getCurrentShape() != null) {
             if (learning) {
                 double[] currentState = getFeedData();
+                //brain.learn(lastState, lastAction, lastReward, currentState, false);
                 int action = brain.selectAction(currentState);
-                //System.out.println(action);
                 lastState = currentState;
                 lastAction = action;
                 switch (action) {
                     case 0:
-                        stack.moveShapeLeft();
+                        stack.rotateShapeRight();
                         break;
                     case 1:
                         stack.moveShapeRight();
                         break;
                     case 2:
-                        stack.rotateShapeRight();
+                        stack.moveShapeLeft();
                         break;
                     case 3:
                         tickDown.setPeriodMilliSecond(DROP_SPEED);
@@ -284,13 +286,13 @@ public class Tetris {
 
         // Aktuális elem x és y poziciója
         if (stack.getCurrentShape() != null) {
-            feedData[k++] = (double) stack.getCurrentShape().getStackCol() / COLS;
-            feedData[k++] = (double) stack.getCurrentShape().getStackRow() / ROWS;
+            feedData[k++] = (double) stack.getCurrentShape().getStackCol();
+            feedData[k++] = (double) stack.getCurrentShape().getStackRow();
             feedData[k++] = stack.getShapeRotation();
         } else {
-            feedData[k++] = -1;
-            feedData[k++] = -1;
-            feedData[k++] = -1;
+            feedData[k++] = 0;
+            feedData[k++] = 0;
+            feedData[k++] = 0;
         }
 
         // Következő elem
@@ -333,11 +335,12 @@ public class Tetris {
                 System.out.println("NaN detektálva normalizálás után! Index: " + k);
             }
         }
-        return normalizedData;
+        //return normalizedData;
+        return feedData;
     }
 
     private double calculateReward() {
-        double reward = 4;
+        double reward = 0;
         double fullRows = stack.getAllFullRows();
         double nearlyFullRows = stack.getNearlyFullRows();
         double droppedElements = stack.getDroppedElements();
@@ -349,7 +352,6 @@ public class Tetris {
         double bumpiness = stack.getBumpiness();
         double elapsedTime = stack.getElapsedTimeLong() / 1000.0;
         double avgDensity = stack.calculateAverageDensity();
-
         // Jutalom
         reward += Math.log(elapsedTime + 1) * 0.1;
         reward += (fullRows - lastFullRows) * 50;
@@ -379,9 +381,8 @@ public class Tetris {
         lastBlockedRows = blockedRows;
         lastBumpiness = bumpiness;
         lastAvgDensity = avgDensity;
-        return reward * 8;
+        return reward;
     }
-
 
     private double calculateFinishReward() {
         double reward = 0;
@@ -396,18 +397,18 @@ public class Tetris {
         double elapsedTime = stack.getElapsedTimeLong() / 1000.0;
         double avgDensity = stack.calculateAverageDensity();
         // Jutalom
-        reward += (avgDensity - lastAvgDensity) * 10;
-        reward += Math.log(elapsedTime + 1) * 0.1;
-        reward += (fullRows - lastFullRows) * 100;
-        reward += (fullRows) * 50;
-        reward += (nearlyFullRows - lastNearlyFullRows) * 5;
-        reward += (droppedElements - lastDroppedElements) * 5;
+        reward += avgDensity * 10;
+        reward += Math.log(elapsedTime + 1) * 0.2;
+        reward += fullRows * 100;
+        reward += fullRows * 50;
+        reward += nearlyFullRows * 5;
+        reward += droppedElements * 2;
         // Büntetés
-        reward -= (numberofHoles - lastNumberofHoles);
-        reward -= (surroundingHoles - lastSurroundingHoles);
-        reward -= (avgColumnHeights - lastAvgColumnHeights) * 0.5;
-        reward -= (blockedRows - lastBlockedRows) * 0.5;
-        reward -= (bumpiness - lastBumpiness);
+        reward -= numberofHoles * 0.5;
+        reward -= surroundingHoles * 0.5;
+        reward -= avgColumnHeights;
+        reward -= blockedRows * 0.5;
+        reward -= bumpiness;
         lastFullRows = 0;
         lastNearlyFullRows = 0;
         lastDroppedElements = 0;
@@ -418,7 +419,7 @@ public class Tetris {
         lastBlockedRows = 0;
         lastBumpiness = 0;
         lastAvgDensity = 0;
-        return reward * 400;
+        return reward;
     }
 
     public NeuralNetworkQLearning getBrain() {
@@ -427,6 +428,4 @@ public class Tetris {
         }
         return brain;
     }
-
-
 }

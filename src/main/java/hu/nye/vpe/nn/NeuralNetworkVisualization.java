@@ -11,13 +11,17 @@ public class NeuralNetworkVisualization implements GameElement {
     private static final int LAYER_DISTANCE = 150;
     private static final int STAT_X = 500;
     private static String FONT_NAME = "Truly Madly Dpad";
-    private static final Color NODE_COLOR = new Color( 255, 255, 255, 200 );
+    private static final Color INACTIVE_NODE_COLOR = new Color(100, 100, 100, 100);
+    private static final Color ACTIVE_NODE_COLOR = new Color(255, 255, 255, 200);
+    private static final Color INACTIVE_OUTPUT_NODE_COLOR = new Color(0, 100, 0, 100);
+    private static final Color ACTIVE_OUTPUT_NODE_COLOR = new Color(0, 255, 0, 200);
     private static final Color FONT_COLOR = new Color( 255, 255, 255, 120 );
     private final NeuralNetworkQLearning network;
     private final int width;
     private final int height;
     private double[][][] weights;
     private int[] layerSizes;
+    private double[][] activations;
 
 
     public NeuralNetworkVisualization(NeuralNetworkQLearning network, int width, int height) {
@@ -47,6 +51,7 @@ public class NeuralNetworkVisualization implements GameElement {
             layerSizes[i] = weights[i].length;
         }
         layerSizes[layerSizes.length - 1] = weights[weights.length - 1][0].length;
+        this.activations = network.getLastActivations();
     }
 
     private void drawNetwork(Graphics2D g2d) {
@@ -72,7 +77,9 @@ public class NeuralNetworkVisualization implements GameElement {
                 }
 
                 // Csomópontok rajzolása (kitöltött négyzetek)
-                g2d.setColor(NODE_COLOR);
+                double activation = activations[i][j];
+                Color nodeColor = getColorForActivation(activation);
+                g2d.setColor(nodeColor);
                 g2d.fill(new Rectangle2D.Double(x, y, NODE_SIZE, NODE_SIZE));
             }
         }
@@ -81,37 +88,68 @@ public class NeuralNetworkVisualization implements GameElement {
         int lastLayerIndex = layerSizes.length - 1;
         int lastLayerNodeCount = layerSizes[lastLayerIndex];
         int lastLayerStartY = height / 2 - (lastLayerNodeCount * (NODE_SIZE + 5)) / 2;
+
+        int maxOutputIndex = 0;
+        double maxOutputValue = Double.NEGATIVE_INFINITY;
+        for (int j = 0; j < lastLayerNodeCount; j++) {
+            if (activations[lastLayerIndex][j] > maxOutputValue) {
+                maxOutputValue = activations[lastLayerIndex][j];
+                maxOutputIndex = j;
+            }
+        }
+
         for (int j = 0; j < lastLayerNodeCount; j++) {
             int x = lastLayerIndex * LAYER_DISTANCE + 50;
             int y = lastLayerStartY + j * (NODE_SIZE + 5);
-            g2d.setColor(NODE_COLOR);
+            Color nodeColor;
+            if (j == maxOutputIndex) {
+                nodeColor = ACTIVE_OUTPUT_NODE_COLOR;
+            } else {
+                nodeColor = INACTIVE_OUTPUT_NODE_COLOR;
+            }
+            g2d.setColor(nodeColor);
             g2d.fill(new Rectangle2D.Double(x, y, NODE_SIZE, NODE_SIZE));
         }
     }
 
     private Color getColorForWeight(double weight) {
-        weight = Math.tanh(weight * 500);
+        weight = Math.tanh(weight * 100000);
         int colorValue = (int) (((weight + 1) / 2) * 255);
 
         return new Color(colorValue, colorValue, colorValue, 50);
     }
 
+    private Color getColorForActivation(double activation) {
+        // Ensure activation is between 0 and 1
+        activation = Math.max(0, Math.min(1, network.activate(activation)));
+
+        // Interpolate between INACTIVE_NODE_COLOR and ACTIVE_NODE_COLOR based on activation
+        int r = (int) (INACTIVE_NODE_COLOR.getRed() + (ACTIVE_NODE_COLOR.getRed() - INACTIVE_NODE_COLOR.getRed()) * activation);
+        int g = (int) (INACTIVE_NODE_COLOR.getGreen() + (ACTIVE_NODE_COLOR.getGreen() - INACTIVE_NODE_COLOR.getGreen()) * activation);
+        int b = (int) (INACTIVE_NODE_COLOR.getBlue() + (ACTIVE_NODE_COLOR.getBlue() - INACTIVE_NODE_COLOR.getBlue()) * activation);
+        int a = (int) (INACTIVE_NODE_COLOR.getAlpha() + (ACTIVE_NODE_COLOR.getAlpha() - INACTIVE_NODE_COLOR.getAlpha()) * activation);
+        return new Color(r, g, b, a);
+    }
+
     private void drawStats(Graphics2D g2d) {
         g2d.setColor(FONT_COLOR);
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
+        String maxQ = String.format("Nextq: %.8f", network.getMaxNextQValue());
+
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
         String discountFactor = String.format("Discount Factor: %.4f", network.getDiscountFactor());
-        String reward = String.format("Reward: %.4f", network.getReward());
-        String bestReward = String.format("Best reward: %.4f", network.getBestScoreValue());
-        String maxQ = String.format("Nextq: %.4f", network.getMaxNextQValue());
+        String reward = String.format("Reward: %.0f", network.getReward());
+        String bestReward = String.format("Best reward: %.0f", network.getBestScoreValue());
+        String episodes = String.format("Episodes: %d", network.getEpisodeCount());
 
         g2d.setFont(new Font(FONT_NAME, Font.BOLD, 16));
         g2d.setColor(Color.WHITE);
-        g2d.drawString(maxQ, STAT_X, height - 160);
+        g2d.drawString(maxQ, STAT_X, height - 720);
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
         g2d.setColor(FONT_COLOR);
 
+        g2d.drawString(episodes, STAT_X, height - 140);
         g2d.drawString(bestReward, STAT_X, height - 120);
         g2d.drawString(reward, STAT_X, height - 100);
         g2d.drawString(learningRate, STAT_X, height - 80);

@@ -7,21 +7,23 @@ import java.util.Random;
 public class NeuralNetworkQLearning implements Serializable {
     @Serial
     private static final long serialVersionUID = 3L;
-    private static final int HIDDEN_NODES1 = 64;
-    private static final int HIDDEN_NODES2 = 32;
-    private static final int HIDDEN_NODES3 = 16;
-    private static final double INITIAL_LEARNING_RATE = 0.001;
+    private static final int HIDDEN_NODES1 = 32;
+    private static final int HIDDEN_NODES2 = 16;
+    private static final int HIDDEN_NODES3 = 8;
+    private static final double INITIAL_LEARNING_RATE = 0.01;
     private static final double LEARNING_RATE_DECAY = 0.9999;
-    private static final double MIN_LEARNING_RATE = 0.0005;
+    private static final double MIN_LEARNING_RATE = 0.0001;
     private static final double INITIAL_DISCOUNT_FACTOR = 0.6;
     private static final double MAX_DISCOUNT_FACTOR = 0.99;
     private static final double DISCOUNT_FACTOR_INCREMENT = 0.0001;
-    private static final double INITIAL_EPSILON = 0.8;
+    private static final double INITIAL_EPSILON = 0.6;
     private static final double EPSILON_DECAY = 0.9999;
     private static final double MIN_EPSILON = 0.01;
     private static final double MIN_Q_VALUE = -50;
     private static final double MAX_Q_VALUE = 50;
-    private static final double L2_LAMBDA = 0.001;
+    private static final double L2_LAMBDA = 0.1;
+    private static final double CLIP_MIN = -0.9;
+    private static final double CLIP_MAX = 0.9;
     private static final String FILENAME = "brain.dat";
 
     private final int inputNodes;
@@ -41,9 +43,11 @@ public class NeuralNetworkQLearning implements Serializable {
     private double learningRate;
     private double discountFactor;
     private double epsilon;
+    private int episodeCount;
     private double bestScore = Double.NEGATIVE_INFINITY;
     private double rewardValue;
     private double maxNextQValue;
+    private double[][] lastActivations;
 
     public NeuralNetworkQLearning(int inputNodes, int outputNodes) {
         this.inputNodes = inputNodes;
@@ -56,6 +60,16 @@ public class NeuralNetworkQLearning implements Serializable {
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
         this.epsilon = INITIAL_EPSILON;
         loadOrInitialize();
+        initializeLastActivations();
+    }
+
+    private void initializeLastActivations() {
+        this.lastActivations = new double[5][];  // 5 layers: input, hidden1, hidden2, hidden3, output
+        this.lastActivations[0] = new double[inputNodes];
+        this.lastActivations[1] = new double[HIDDEN_NODES1];
+        this.lastActivations[2] = new double[HIDDEN_NODES2];
+        this.lastActivations[3] = new double[HIDDEN_NODES3];
+        this.lastActivations[4] = new double[outputNodes];
     }
 
     private void loadOrInitialize() {
@@ -85,7 +99,6 @@ public class NeuralNetworkQLearning implements Serializable {
         biasHidden2 = initializeBiasesReLU(hiddenNodes2);
         biasHidden3 = initializeBiasesReLU(hiddenNodes3);
         biasOutput = initializeBiasesReLU(outputNodes);
-        normalizeWeights();
     }
 
     private double[][] initializeWeights(int fromSize, int toSize) {
@@ -127,7 +140,7 @@ public class NeuralNetworkQLearning implements Serializable {
         for (int i = 0; i < fromSize; i++) {
             for (int j = 0; j < toSize; j++) {
                 weights[i][j] = random.nextGaussian() * stdDev;  // Normális eloszlás
-                weights[i][j] = Math.max(-0.1, Math.min(0.1, weights[i][j])); // Korlátozzuk a kezdeti súlyokat
+                //weights[i][j] = Math.max(-0.1, Math.min(0.1, weights[i][j])); // Korlátozzuk a kezdeti súlyokat
             }
         }
         return weights;
@@ -161,10 +174,22 @@ public class NeuralNetworkQLearning implements Serializable {
     }
 
     public double[] getQValues(double[] state) {
+        if (lastActivations == null) {
+            initializeLastActivations();
+        }
+
         double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1);
         double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2);
         double[] hidden3 = calculateLayerOutputs(hidden2, weightsHidden2Hidden3, biasHidden3);
         double[] output = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput);
+
+        // Store activations
+        System.arraycopy(state, 0, lastActivations[0], 0, state.length);
+        System.arraycopy(hidden1, 0, lastActivations[1], 0, hidden1.length);
+        System.arraycopy(hidden2, 0, lastActivations[2], 0, hidden2.length);
+        System.arraycopy(hidden3, 0, lastActivations[3], 0, hidden3.length);
+        System.arraycopy(output, 0, lastActivations[4], 0, output.length);
+
         for (int i = 0; i < output.length; i++) {
             output[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, output[i]));
         }
@@ -179,9 +204,17 @@ public class NeuralNetworkQLearning implements Serializable {
                 double product = inputs[j] * weights[j][i];
                 sum += product;
             }
-            outputs[i] = activateLeakyReLU(sum);
+            outputs[i] = activate(sum);
         }
         return batchNormalize(outputs);
+    }
+
+    public double activate(double x) {
+        return activateELU(x);
+    }
+
+    public double derivated(double x) {
+        return derivativeELU(x);
     }
 
     private double activateLeakyReLU(double x) {
@@ -200,6 +233,31 @@ public class NeuralNetworkQLearning implements Serializable {
         return x > 0 ? 1 : 0;
     }
 
+    private double activateSigmoid(double x) {
+        return 1 / (1 + Math.exp(-x));
+    }
+
+    private double derivativeSigmoid(double x) {
+        double sigmoid = activateSigmoid(x);
+        return sigmoid * (1 - sigmoid);
+    }
+
+    // ELU (Exponential Linear Unit) aktivációs függvény
+    private double activateELU(double x) {
+        return x > 0 ? x : 0.01 * (Math.exp(x) - 1);
+    }
+
+    private double derivativeELU(double x) {
+        return x > 0 ? 1 : 0.01 * Math.exp(x);
+    }
+
+    /**
+     * Select move action.
+     *
+     * @param state gameState
+     *
+     * @return selected movement
+     */
     public int selectAction(double[] state) {
         if (random.nextDouble() < epsilon) {
             return random.nextInt(outputNodes);
@@ -221,9 +279,18 @@ public class NeuralNetworkQLearning implements Serializable {
         return bestIndex;
     }
 
-    public void learn(double[] state, int action, double reward, double[] nextState, boolean gameEnded) {
-        this.rewardValue = reward;
+    private double[] forwardPass (double[] input) {
+        double[] hidden1 = calculateLayerOutputs(input, weightsInputHidden1, biasHidden1);
+        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2);
+        double[] hidden3 = calculateLayerOutputs(hidden2, weightsHidden2Hidden3, biasHidden3);
+        double[] output = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput);
+        for (int i = 0; i < output.length; i++) {
+            output[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, output[i]));  // Korlátozott Q-értékek
+        }
+        return output;
+    }
 
+    public void learn(double[] state, int action, double reward, double[] nextState, boolean gameEnded) {
         // Előre átviteli számítások egyszer
         double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1);
         double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2);
@@ -246,27 +313,19 @@ public class NeuralNetworkQLearning implements Serializable {
         target = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, target));
         double currentQ = currentQValues[action];
         double error = target - currentQ;
-        //error = Math.max(CLIP_MIN, Math.min(CLIP_MAX, error));  // Gradient clipping
-        error *= 100;
+        error = Math.max(CLIP_MIN, Math.min(CLIP_MAX, error));  // Gradient clipping
+        //error *= 20.0; // Gradient scaling
         backpropagate(state, action, error, hidden1, hidden2, hidden3);
-        decreaseLearningrate();
-        decreaseEpsilon();
+        updateEpsilon();
         if (gameEnded) {
             updateDiscountFactor();
+            updateLearningrate();
+            episodeCount++;
             if (reward > bestScore) {
                 bestScore = reward;
             }
-            /*
-            System.out.printf("Reward: %.2f: Record: %.2f, Learning rate: %.4f, Epsylon: %.4f, Discount: %.4f, Q: %.4f%n",
-                    reward, bestScore, learningRate, epsilon, discountFactor, maxNextQ);
-            if (reward > bestScore) {
-                bestScore = reward;
-                System.out.println(" * New record");
-            }
-            System.out.println();
-             */
         }
-        //printWeightSamples();
+        this.rewardValue = reward;
     }
 
     private double[] batchNormalize(double[] inputs) {
@@ -287,11 +346,15 @@ public class NeuralNetworkQLearning implements Serializable {
         return normalized;
     }
 
-    private void decreaseEpsilon() {
-        epsilon = Math.max(MIN_EPSILON, epsilon * EPSILON_DECAY);
+    private void updateEpsilon() {
+        if (episodeCount % 1000 == 0) {
+            epsilon = Math.min(INITIAL_EPSILON, epsilon * 2);
+        } else {
+            epsilon = Math.max(MIN_EPSILON, epsilon * EPSILON_DECAY);
+        }
     }
 
-    private void decreaseLearningrate() {
+    private void updateLearningrate() {
         learningRate = Math.max(MIN_LEARNING_RATE, learningRate * LEARNING_RATE_DECAY);
     }
 
@@ -299,7 +362,7 @@ public class NeuralNetworkQLearning implements Serializable {
         discountFactor = Math.min(MAX_DISCOUNT_FACTOR, discountFactor + DISCOUNT_FACTOR_INCREMENT);
     }
 
-    private double max(double[] array) {
+    public double max(double[] array) {
         double maxValue = array[0];
         for (int i = 1; i < array.length; i++) {
             if (array[i] > maxValue) {
@@ -307,27 +370,6 @@ public class NeuralNetworkQLearning implements Serializable {
             }
         }
         return maxValue;
-    }
-
-    private void normalizeWeights() {
-        normalizeWeightMatrixLess(weightsInputHidden1);
-        normalizeWeightMatrixLess(weightsHidden1Hidden2);
-        normalizeWeightMatrixLess(weightsHidden2Hidden3);
-        normalizeWeightMatrixLess(weightsHidden3Output);
-    }
-
-    private void normalizeWeightMatrixLess(double[][] weights) {
-        for (double[] row : weights) {
-            double sum = 0;
-            for (double weight : row) {
-                sum += Math.abs(weight);
-            }
-            if (sum > 1e-8) {
-                for (int i = 0; i < row.length; i++) {
-                    row[i] /= (sum * 2); // Enyhébb normalizálás
-                }
-            }
-        }
     }
 
     private void backpropagate(double[] state, int action, double error, double[] hidden1, double[] hidden2, double[] hidden3) {
@@ -475,5 +517,38 @@ public class NeuralNetworkQLearning implements Serializable {
 
     public double getBestScoreValue() {
         return bestScore;
+    }
+
+    public int getEpisodeCount() {
+        return episodeCount;
+    }
+
+    public double[][] getLastActivations() {
+        if (lastActivations == null) {
+            initializeLastActivations();
+        }
+        return lastActivations;
+    }
+
+    @Serial
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        initializeLastActivations();
+    }
+
+    // Gradiens skálázás hozzáadása
+    private void scaleGradients(double[] gradients, double maxNorm) {
+        double norm = 0;
+        for (double grad : gradients) {
+            norm += grad * grad;
+        }
+        norm = Math.sqrt(norm);
+
+        if (norm > maxNorm) {
+            double scale = maxNorm / norm;
+            for (int i = 0; i < gradients.length; i++) {
+                gradients[i] *= scale;
+            }
+        }
     }
 }
