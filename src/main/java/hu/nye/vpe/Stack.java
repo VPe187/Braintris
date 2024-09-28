@@ -70,9 +70,9 @@ public class Stack implements GameElement {
     private double bumpiness;
     private double nearlyFullRows;
     private double blockedRows;
-    private double stableRows;
     private double surroundingHoles;
     private double droppedElements;
+    private double avgDensity;
 
     public Stack(boolean learning) {
         this.learning = learning;
@@ -97,6 +97,9 @@ public class Stack implements GameElement {
             currentSpeed = START_SPEED;
         }
         droppedElements = 0;
+        if (learning) {
+            generateEasyRows(1);
+        }
         calculateGameMetrics();
     }
 
@@ -291,13 +294,38 @@ public class Stack implements GameElement {
         noFullRows = 0;
     }
 
+    private void generateEasyRows(int rowNum) {
+        for (int i = ROW_OFFSET; i < stackArea.length; i++) {
+            System.arraycopy(stackArea[i], 0, stackArea[i - 1], 0, stackArea[i].length);
+        }
+        Random rnd = new Random();
+        int rn;
+        for (int w = ROWS - ROW_OFFSET; w >= ROWS - (rowNum + 1); w--) {
+            for (int h = 1; h <= COLS; h++) {
+                if (h >= 3) {
+                    insertPixel(w, h, true);
+                }
+            }
+        }
+
+        for (int w = ROWS - ROW_OFFSET; w >= ROWS - (rowNum + 2); w--) {
+            for (int h = 1; h <= COLS; h++) {
+                if (h >= 5) {
+                    insertPixel(w, h, true);
+                }
+            }
+        }
+
+    }
+
     protected void checkPenalty() {
         if (noFullRows >= PENALTY_NO_FULL_ROW) {
             if (!learning) {
                 audio.soundPenalty();
             }
             if (state != State.GAMEOVER) {
-                generatePenaltyRows(1);
+                //generatePenaltyRows(1); // Tanításhoz kikapcsolva
+                noFullRows = 0;
             }
         }
     }
@@ -530,7 +558,7 @@ public class Stack implements GameElement {
         numberofHoles = countHoles();
         blockedRows = countBlockedRows();
         nearlyFullRows = countNearlyFullRows();
-        stableRows = countStableRows();
+        avgDensity = calculateAverageDensity();
     }
 
     /**
@@ -559,6 +587,68 @@ public class Stack implements GameElement {
             putShape();
         }
         return holes;
+    }
+
+    public double calculateAverageDensity() {
+        int lowestEmptyRow = findLowestEmptyRow();
+        int activeCells = lowestEmptyRow * COLS; // Az összes cella a legalacsonyabb üres sor alatt
+        int filledCells = 0;
+
+        for (int row = ROWS - 1; row >= ROWS - lowestEmptyRow; row--) {
+            for (int col = 0; col < COLS; col++) {
+                if (stackArea[row][col].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    filledCells++;
+                }
+            }
+        }
+        return activeCells > 0 ? (double) filledCells / activeCells : 0.0;
+    }
+
+    /**
+     * Megkeresi a legalacsonyabb üres sort (alulról számolva).
+     *
+     * @return A legalacsonyabb üres sor indexe (alulról számolva).
+     */
+    private int findLowestEmptyRow() {
+        for (int row = 0; row < ROWS; row++) {
+            boolean isEmpty = true;
+            for (int col = 0; col < COLS; col++) {
+                if (stackArea[ROWS - 1 - row][col].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    isEmpty = false;
+                    break;
+                }
+            }
+            if (isEmpty) {
+                return row;
+            }
+        }
+        return ROWS; // Ha a játéktér teljesen tele van
+    }
+
+    /**
+     * Kiszámolja a hozzáférhető üres cellák számát az egész veremben.
+     * Egy üres cella akkor hozzáférhető, ha közvetlenül elérhető felülről,
+     * azaz nincs kitöltött cella felette.
+     *
+     * @return A hozzáférhető üres cellák száma.
+     */
+    public int countAccessibleEmptyCells() {
+        int accessibleEmptyCells = 0;
+        boolean[] columnBlocked = new boolean[COLS];
+        // Felülről lefelé haladunk a sorokon
+        for (int row = 0; row < ROWS; row++) {
+            for (int col = 0; col < COLS; col++) {
+                // Ha a cella üres és az oszlop még nem blokkolt
+                if (stackArea[row][col].getShapeId() == Shape.ShapeType.EMPTY.getShapeTypeId() && !columnBlocked[col]) {
+                    accessibleEmptyCells++;
+                }
+                // Ha a cella nem üres, megjelöljük az oszlopot blokkolva
+                else if (stackArea[row][col].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    columnBlocked[col] = true;
+                }
+            }
+        }
+        return accessibleEmptyCells;
     }
 
     /**
@@ -646,27 +736,38 @@ public class Stack implements GameElement {
     }
 
     /**
-     * Counts the number of rows that are nearly full (e.g., have only 1 or 2 empty cells).
+     * Megszámolja a közel teli sorok számát (pl. csak 1 vagy 2 üres cellával rendelkező sorok).
+     * A verem felső sora 0 indexű, az alsó sora 23 indexű.
      *
-     * @return Number of nearly full rows.
+     * @return A közel teli sorok száma 0.0 és 1.0 között (a játéktér magasságának arányában).
      */
     public double countNearlyFullRows() {
         int nearlyFullRows = 0;
-        for (int i = 0; i < ROWS; i++) {
-            int emptyCells = 0;
+        boolean foundNonEmptyRow = false;
+
+        for (int i = ROWS - 1; i >= 0; i--) {  // Alulról felfelé haladunk
+            int filledCells = 0;
             for (int j = 0; j < COLS; j++) {
-                if (stackArea[i][j].getShapeId() == Shape.ShapeType.EMPTY.getShapeTypeId()) {
-                    emptyCells++;
-                    if (emptyCells > 2) { // Tetszőleges küszöb, itt 2
-                        break;
-                    }
+                if (stackArea[i][j].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    filledCells++;
                 }
             }
-            if (emptyCells > 0 && emptyCells <= 2) { // Csak 1 vagy 2 üres cella
-                nearlyFullRows++;
+
+            if (filledCells > 0) {
+                foundNonEmptyRow = true;
+            }
+
+            if (foundNonEmptyRow) {
+                if (filledCells >= COLS - 2 && filledCells < COLS) {  // 10 vagy 11 kitöltött cella 12-ből
+                    nearlyFullRows++;
+                }
+
+                if (filledCells == 0) {  // Ha üres sort találunk az első nem üres sor után, kilépünk
+                    break;
+                }
             }
         }
-        return nearlyFullRows / ROWS;
+        return nearlyFullRows;
     }
 
     /**
@@ -675,25 +776,31 @@ public class Stack implements GameElement {
      *
      * @return Number of blocked rows.
      */
-    public double countBlockedRows() {
+    public int countBlockedRows() {
         int blockedRows = 0;
-        for (int i = 0; i < ROWS; i++) {
+        boolean[] hasHole = new boolean[COLS];
+
+        for (int i = ROWS - 1; i >= 0; i--) {
+            boolean rowBlocked = false;
+            boolean rowHasBlock = false;
+
             for (int j = 0; j < COLS; j++) {
-                if (stackArea[i][j].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
-                    // Ellenőrzi, hogy van-e lyuk a jelenlegi cella alatt
-                    for (int k = i + 1; k < ROWS; k++) {
-                        if (stackArea[k][j].getShapeId() == Shape.ShapeType.EMPTY.getShapeTypeId()) {
-                            blockedRows++;
-                            break;
-                        }
-                    }
-                    if (blockedRows > 0) {
-                        break; // Egy sor blokkoltságát elég egyszer számolni
+                if (stackArea[i][j].getShapeId() == Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                    hasHole[j] = true;
+                } else {
+                    rowHasBlock = true;
+                    if (hasHole[j]) {
+                        rowBlocked = true;
                     }
                 }
             }
+
+            if (rowBlocked && rowHasBlock) {
+                blockedRows++;
+            }
         }
-        return blockedRows / ROWS;
+
+        return blockedRows;
     }
 
     /**
@@ -774,29 +881,6 @@ public class Stack implements GameElement {
             }
         }
         return surroundings;
-    }
-
-    /**
-     * Counts the number of stable rows.
-     * A stable row is a row without any holes and is fully occupied.
-     *
-     * @return Number of stable rows.
-     */
-    public double countStableRows() {
-        int stableRows = 0;
-        for (int i = 0; i < ROWS; i++) {
-            boolean isStable = true;
-            for (int j = 0; j < COLS; j++) {
-                if (stackArea[i][j].getShapeId() == Shape.ShapeType.EMPTY.getShapeTypeId()) {
-                    isStable = false;
-                    break;
-                }
-            }
-            if (isStable) {
-                stableRows++;
-            }
-        }
-        return stableRows / ROWS;
     }
 
     @Override
@@ -1123,6 +1207,7 @@ public class Stack implements GameElement {
         String infoStrH;
         String infoStrO;
         String infoStrD;
+        String infoStrV;
         if (learning) {
             infoStrM = "Height: " + calculateMaxHeight();
             infoStrP = "Holes: " + countHoles();
@@ -1131,10 +1216,10 @@ public class Stack implements GameElement {
             infoStrA = "Height (avg): " + String.format("%.2f", avgColumnHeights);
             infoStrN = "Nearly full rows: " + String.format("%.0f", nearlyFullRows);
             infoStrB = "Blocked rows: " + String.format("%.0f", blockedRows);
-            infoStrS = "Stable rows: " + String.format("%.0f", stableRows);
             infoStrH = "Surrounding holes: " + String.format("%.0f", surroundingHoles);
             infoStrO = "Shape rotation: " + String.format("%.2f", shapeRotation);
             infoStrD = "Dropped elements: " + String.format("%.0f", droppedElements);
+            infoStrV = "Average density: " + String.format("%.2f", avgDensity);
         } else {
             infoStrM = "M: Music On/Off";
             infoStrP = "P: Pause/Resume";
@@ -1143,10 +1228,10 @@ public class Stack implements GameElement {
             infoStrA = "";
             infoStrN = "";
             infoStrB = "";
-            infoStrS = "";
             infoStrH = "";
             infoStrO = "";
             infoStrD = "";
+            infoStrV = "";
         }
         int stringHeight = BLOCK_SIZE - 14;
         g2D.setFont(new Font(FONT_NAME, Font.PLAIN, stringHeight));
@@ -1158,7 +1243,7 @@ public class Stack implements GameElement {
             infoX= infoPanel.getPanelX() + BLOCK_SIZE;
         }
         int infoY = infoPanel.getPanelY() + BLOCK_SIZE + BLOCK_SIZE / 2;
-        int rowOffset = BLOCK_SIZE / 2 + 2;
+        int rowOffset = (BLOCK_SIZE / 2) + 2;
         g2D.drawString(infoStrM, infoX, infoY + stringHeight - 5);
         g2D.drawString(infoStrP, infoX, infoY + rowOffset + stringHeight - 5);
         g2D.drawString(infoStrC, infoX, infoY + rowOffset * 2 + stringHeight - 5);
@@ -1167,10 +1252,10 @@ public class Stack implements GameElement {
             g2D.drawString(infoStrA, infoX, infoY + rowOffset * 4 + stringHeight - 5);
             g2D.drawString(infoStrN, infoX, infoY + rowOffset * 5 + stringHeight - 5);
             g2D.drawString(infoStrB, infoX, infoY + rowOffset * 6 + stringHeight - 5);
-            g2D.drawString(infoStrS, infoX, infoY + rowOffset * 7 + stringHeight - 5);
-            g2D.drawString(infoStrH, infoX, infoY + rowOffset * 8 + stringHeight - 5);
-            g2D.drawString(infoStrO, infoX, infoY + rowOffset * 9 + stringHeight - 5);
-            g2D.drawString(infoStrD, infoX, infoY + rowOffset * 10 + stringHeight - 5);
+            g2D.drawString(infoStrH, infoX, infoY + rowOffset * 7 + stringHeight - 5);
+            g2D.drawString(infoStrO, infoX, infoY + rowOffset * 8 + stringHeight - 5);
+            g2D.drawString(infoStrD, infoX, infoY + rowOffset * 9 + stringHeight - 5);
+            g2D.drawString(infoStrV, infoX, infoY + rowOffset * 10 + stringHeight - 5);
         }
     }
 
@@ -1262,10 +1347,6 @@ public class Stack implements GameElement {
 
     public double getBlockedRows() {
         return blockedRows;
-    }
-
-    public double getStableRows() {
-        return stableRows;
     }
 
     public double[] getColumnHeights() {

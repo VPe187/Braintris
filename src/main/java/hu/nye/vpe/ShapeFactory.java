@@ -48,15 +48,19 @@ public class ShapeFactory {
      *
      * @return Shape
      */
-    public Shape getRandomShape() {
+    public Shape getRandomShape(int shapeId) {
         Shape poolShape = shapePool.getShape();  // Megpróbálunk egy Shape-et kérni a poolból
         if (poolShape != null) {
             return poolShape;  // Ha van elérhető shape, visszaadjuk
         }
-
+        Shape randomShape;
         // Ha nincs elérhető shape a poolban, létrehozunk egy újat
-        int rsn = rnd.nextInt(shapeArray.size());
-        Shape randomShape = shapeArray.get(rsn);
+        if (shapeId == -1) {
+            int rsn = rnd.nextInt(shapeArray.size());
+            randomShape = shapeArray.get(rsn);
+        } else {
+            randomShape = shapeArray.get(shapeId);
+        }
         int[][] pixels = new int[randomShape.getPixels().length][randomShape.getPixels()[0].length];
         for (int a = 0; a < randomShape.getPixels().length; a++) {
             for (int b = 0; b < randomShape.getPixels()[a].length; b++) {

@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferStrategy;
 
 import hu.nye.vpe.Tetris;
+import hu.nye.vpe.nn.NeuralNetworkVisualization;
 
 /**
  * Game class. Runnable.
@@ -12,19 +13,27 @@ import hu.nye.vpe.Tetris;
 public class GameEngine implements Runnable {
     public static final int FPS = 60;
     private final GameDisplay gameDisplay;
-    public int width;
+    private final int gameWidth;
+    private final int fullWidth;
     public int height;
     public String title;
     private boolean running = false;
     private Thread thread;
     private final Tetris tetris;
+    private GameElement nnVisualization;
+    private boolean learning;
 
     public GameEngine(String title, int width, int height, boolean learning) {
-        this.width = width;
+        this.learning = learning;
+        this.fullWidth = width;
+        this.gameWidth = learning ? width / 2 : width;
         this.height = height;
         this.title = title;
-        gameDisplay = new GameDisplay(title, width, height);
-        tetris = new Tetris(width, height, gameDisplay.getInput(), learning);
+        gameDisplay = new GameDisplay(title, this.fullWidth, height);
+        tetris = new Tetris(gameWidth, height, gameDisplay.getInput(), learning);
+        if (learning) {
+            nnVisualization = new NeuralNetworkVisualization(tetris.getBrain(), gameWidth, height);
+        }
     }
 
     /**
@@ -58,6 +67,9 @@ public class GameEngine implements Runnable {
 
     private void update() {
         tetris.update();
+        if (learning) {
+            nnVisualization.update();
+        }
     }
 
     private void render() {
@@ -68,9 +80,11 @@ public class GameEngine implements Runnable {
         }
         Graphics2D graphics2D = (Graphics2D) bs.getDrawGraphics();
         graphics2D.setColor(Color.BLACK);
-        graphics2D.clearRect(0, 0, width, height);
-        graphics2D.fillRect(0, 0, width, height);
+        graphics2D.clearRect(0, 0, gameWidth, height);
+        graphics2D.fillRect(0, 0, gameWidth, height);
         tetris.render(graphics2D);
+        graphics2D.translate(gameWidth,0);
+        nnVisualization.render(graphics2D);
         bs.show();
         graphics2D.dispose();
     }
