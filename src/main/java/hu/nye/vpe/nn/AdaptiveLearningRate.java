@@ -11,7 +11,7 @@ public class AdaptiveLearningRate implements Serializable, Cloneable {
     private static final double MIN_LEARNING_RATE = 0.00001;
     private static final double INCREASE_FACTOR = 1.05;
     private static final double DECREASE_FACTOR = 0.95;
-    private final int PATIENCE = 10;
+    private static final int PATIENCE = 10;
     private double learningRate;
     private final double baseLearningRate;
     private final double improvementThreshold;
@@ -69,6 +69,9 @@ public class AdaptiveLearningRate implements Serializable, Cloneable {
         return velocity;
     }
 
+    /***
+     * Reset learning rate.
+     */
     public void resetLearningRate() {
         this.learningRate = baseLearningRate;
         this.velocity = 0.0; // Reset momentum

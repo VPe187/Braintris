@@ -1,11 +1,16 @@
 package hu.nye.vpe.nn;
 
-import hu.nye.vpe.gaming.GameElement;
-
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 
+import hu.nye.vpe.gaming.GameElement;
+
+/***
+ * Neural network visualization class.
+ */
 public class NeuralNetworkVisualization implements GameElement {
     private static final int NODE_SIZE = 6;
     private static final int LAYER_DISTANCE = 150;
@@ -15,7 +20,7 @@ public class NeuralNetworkVisualization implements GameElement {
     private static final Color ACTIVE_NODE_COLOR = new Color(255, 255, 255, 200);
     private static final Color INACTIVE_OUTPUT_NODE_COLOR = new Color(0, 100, 0, 100);
     private static final Color ACTIVE_OUTPUT_NODE_COLOR = new Color(0, 255, 0, 200);
-    private static final Color FONT_COLOR = new Color( 255, 255, 255, 120 );
+    private static final Color FONT_COLOR = new Color(255, 255, 255, 120);
     private final NeuralNetworkQLearning network;
     private final int width;
     private final int height;
@@ -73,7 +78,7 @@ public class NeuralNetworkVisualization implements GameElement {
                     double weight = weights[i][j][k];
                     Color lineColor = getColorForWeight(weight);
                     g2d.setColor(lineColor);
-                    g2d.draw(new Line2D.Double(x + NODE_SIZE, y + NODE_SIZE/2, nextX, nextY + NODE_SIZE/2));
+                    g2d.draw(new Line2D.Double(x + NODE_SIZE, y + NODE_SIZE / 2, nextX, nextY + NODE_SIZE / 2));
                 }
 
                 // Csomópontok rajzolása (kitöltött négyzetek)

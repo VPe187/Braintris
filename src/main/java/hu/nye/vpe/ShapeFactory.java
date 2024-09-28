@@ -34,7 +34,7 @@ public class ShapeFactory {
     }
 
     private void init() {
-        shapeArray.add(new Shape(1, 10, Color.WHITE, 1, new int[][]{{1}, {1}, {1}, {1}},0)); // Shape I
+        shapeArray.add(new Shape(1, 10, Color.WHITE, 1, new int[][]{{1}, {1}, {1}, {1}}, 0)); // Shape I
         shapeArray.add(new Shape(2, 20, Color.WHITE, 2, new int[][]{{0, 1}, {0, 1}, {1, 1}}, 0.25)); // Shape J
         shapeArray.add(new Shape(3, 20, Color.WHITE, 2, new int[][]{{1, 0}, {1, 0}, {1, 1}}, 0.5)); // Shape L
         shapeArray.add(new Shape(4, 10, Color.WHITE, 2, new int[][]{{1, 1}, {1, 1}}, 0.75)); // Shape O

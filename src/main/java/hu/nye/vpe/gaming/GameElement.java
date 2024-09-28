@@ -7,5 +7,6 @@ import java.awt.Graphics2D;
  */
 public interface GameElement {
     void update();
+
     void render(Graphics2D g2D);
 }

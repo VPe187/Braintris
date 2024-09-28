@@ -2,6 +2,9 @@ package hu.nye.vpe.nn;
 
 import java.util.Arrays;
 
+/**
+ * Inputnormalizer class.
+ */
 public class InputNormalizer {
     private double min;
     private double max;
@@ -13,15 +16,17 @@ public class InputNormalizer {
         this.arraySize = arraySize;
     }
 
-    // A min és max értékek meghatározása csak azokra az értékekre, amelyek 1-nél nagyobbak
+    /***
+     * Define min and max for values wich bigger than 1.
+     *
+     * @param data Data array
+     */
     public void fit(double[] data) {
         if (data.length != arraySize) {
             throw new IllegalArgumentException("Data length does not match the expected array size.");
         }
-
         min = Double.POSITIVE_INFINITY;
         max = Double.NEGATIVE_INFINITY;
-
         for (double value : data) {
             if (value > 1) {
                 if (value < min) {
@@ -35,7 +40,13 @@ public class InputNormalizer {
         isFitted = true;
     }
 
-    // Normalizálás, amely a 1-nél nagyobb értékeket 0 és 1 közé alakítja
+    /***
+     * Normalize data, all value which bigger than 1 converted to 0-1 intervall.
+     *
+     * @param data Data array.
+     *
+     * @return normalized data
+     */
     public double[] transform(double[] data) {
         if (!isFitted) {
             throw new IllegalStateException("Fit the data before transforming.");
@@ -60,28 +71,26 @@ public class InputNormalizer {
         return normalizedData;
     }
 
-    // Kényelmi metódus, amely egy lépésben elvégzi a fit és transform műveletet
+    /***
+     * Method make fit and transform.
+     *
+     * @param data Data array
+     *
+     * @return transformet data.
+     */
     public double[] fitTransform(double[] data) {
         fit(data);
         return transform(data);
     }
 
-    // Új metódus, amely automatikusan végigmegy és normalizálja az adatokat
+    /***
+     * Automaticly normalization.
+     *
+     * @param data Data array.
+     *
+     * @return normalized data array.
+     */
     public double[] normalizeAutomatically(double[] data) {
         return fitTransform(data);
-    }
-
-    public static void main(String[] args) {
-        // Konstruktor, amely beállítja a tömb méretét
-        InputNormalizer normalizer = new InputNormalizer(8);
-
-        // Példa adat
-        double[] data = { 0, 1, 0.5, 2, 3, 0.8, 4, 5 };
-
-        // Automatikus normalizálás
-        double[] normalizedData = normalizer.normalizeAutomatically(data);
-
-        // Normalizált adatok kiírása
-        System.out.println("Normalized Data: " + Arrays.toString(normalizedData));
     }
 }

@@ -98,7 +98,7 @@ public class Stack implements GameElement {
         }
         droppedElements = 0;
         if (learning) {
-            generateEasyRows(1);
+            //generateEasyRows(1);
         }
         calculateGameMetrics();
     }
@@ -484,8 +484,8 @@ public class Stack implements GameElement {
         removeShape();
         if (checkShapeIsRotate()) {
             currentShape.rotateRight();
-            if (shapeRotation < 0.75 ) {
-                shapeRotation+= 0.25;
+            if (shapeRotation < 0.75) {
+                shapeRotation += 0.25;
             } else {
                 shapeRotation = 0;
             }
@@ -549,6 +549,9 @@ public class Stack implements GameElement {
         }
     }
 
+    /**
+     * Calculate game metrics.
+     */
     public void calculateGameMetrics() {
         bumpiness = calculateBumpiness();
         maxHeight = calculateMaxHeight();
@@ -589,6 +592,11 @@ public class Stack implements GameElement {
         return holes;
     }
 
+    /***
+     * Calculate average density.
+     *
+     * @return average density
+     */
     public double calculateAverageDensity() {
         int lowestEmptyRow = findLowestEmptyRow();
         int activeCells = lowestEmptyRow * COLS; // Az összes cella a legalacsonyabb üres sor alatt
@@ -635,15 +643,11 @@ public class Stack implements GameElement {
     public int countAccessibleEmptyCells() {
         int accessibleEmptyCells = 0;
         boolean[] columnBlocked = new boolean[COLS];
-        // Felülről lefelé haladunk a sorokon
         for (int row = 0; row < ROWS; row++) {
             for (int col = 0; col < COLS; col++) {
-                // Ha a cella üres és az oszlop még nem blokkolt
                 if (stackArea[row][col].getShapeId() == Shape.ShapeType.EMPTY.getShapeTypeId() && !columnBlocked[col]) {
                     accessibleEmptyCells++;
-                }
-                // Ha a cella nem üres, megjelöljük az oszlopot blokkolva
-                else if (stackArea[row][col].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
+                } else if (stackArea[row][col].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
                     columnBlocked[col] = true;
                 }
             }
@@ -711,9 +715,9 @@ public class Stack implements GameElement {
 
     /**
      * Gets the row index of the highest occupied cell in each column.
-     *
-     * @return An array of integers where each element corresponds to the highest
-     * occupied cell (row index) in each column. If a column is empty, the value will be -1.
+     * An array of integers where each element corresponds to the highest occupied cell (row index) in each column.
+
+     * @return If a column is empty, the value will be -1.
      */
     public int[] getHighestOccupiedCells() {
         if (currentShape != null) {
@@ -1238,9 +1242,9 @@ public class Stack implements GameElement {
         g2D.setColor(Color.GRAY);
         int infoX;
         if (learning) {
-            infoX= infoPanel.getPanelX() + BLOCK_SIZE - 14;
+            infoX = infoPanel.getPanelX() + BLOCK_SIZE - 14;
         } else {
-            infoX= infoPanel.getPanelX() + BLOCK_SIZE;
+            infoX = infoPanel.getPanelX() + BLOCK_SIZE;
         }
         int infoY = infoPanel.getPanelY() + BLOCK_SIZE + BLOCK_SIZE / 2;
         int rowOffset = (BLOCK_SIZE / 2) + 2;

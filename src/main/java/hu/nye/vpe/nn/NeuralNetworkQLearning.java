@@ -1,14 +1,23 @@
 package hu.nye.vpe.nn;
 
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Random;
 
+/**
+ * Neural network for Q-Learning.
+ */
 public class NeuralNetworkQLearning implements Serializable {
     @Serial
     private static final long serialVersionUID = 3L;
-    private static final int HIDDEN_NODES1 = 32;
-    private static final int HIDDEN_NODES2 = 16;
+    private static final int HIDDEN_NODES1 = 16;
+    private static final int HIDDEN_NODES2 = 12;
     private static final int HIDDEN_NODES3 = 8;
     private static final double INITIAL_LEARNING_RATE = 0.01;
     private static final double LEARNING_RATE_DECAY = 0.9999;
@@ -17,15 +26,15 @@ public class NeuralNetworkQLearning implements Serializable {
     private static final double MAX_DISCOUNT_FACTOR = 0.99;
     private static final double DISCOUNT_FACTOR_INCREMENT = 0.0001;
     private static final double INITIAL_EPSILON = 0.6;
-    private static final double EPSILON_DECAY = 0.9999;
+    private static final double EPSILON_DECAY = 0.999;
     private static final double MIN_EPSILON = 0.01;
     private static final double MIN_Q_VALUE = -50;
     private static final double MAX_Q_VALUE = 50;
     private static final double L2_LAMBDA = 0.1;
-    private static final double CLIP_MIN = -0.9;
-    private static final double CLIP_MAX = 0.9;
+    private static final double GRADIENT_CLIP_MIN = -1;
+    private static final double GRADIENT_CLIP_MAX = 1;
+    private static final double GRADIENT_SCALE = 1.1;
     private static final String FILENAME = "brain.dat";
-
     private final int inputNodes;
     private final int hiddenNodes1;
     private final int hiddenNodes2;
@@ -49,6 +58,12 @@ public class NeuralNetworkQLearning implements Serializable {
     private double maxNextQValue;
     private double[][] lastActivations;
 
+    /**
+     * QLearning neural network.
+     *
+     * @param inputNodes Number of input nodes
+     * @param outputNodes Number of output nodes
+     */
     public NeuralNetworkQLearning(int inputNodes, int outputNodes) {
         this.inputNodes = inputNodes;
         this.hiddenNodes1 = HIDDEN_NODES1;
@@ -59,8 +74,8 @@ public class NeuralNetworkQLearning implements Serializable {
         this.learningRate = INITIAL_LEARNING_RATE;
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
         this.epsilon = INITIAL_EPSILON;
-        loadOrInitialize();
         initializeLastActivations();
+        loadOrInitialize();
     }
 
     private void initializeLastActivations() {
@@ -86,7 +101,7 @@ public class NeuralNetworkQLearning implements Serializable {
             }
         } catch (IOException | ClassNotFoundException e) {
             initializeNetwork();
-            System.out.println("Error during loading, new network initialized");
+            System.out.println(e.getMessage());
         }
     }
 
@@ -173,48 +188,12 @@ public class NeuralNetworkQLearning implements Serializable {
         return biases;
     }
 
-    public double[] getQValues(double[] state) {
-        if (lastActivations == null) {
-            initializeLastActivations();
-        }
-
-        double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1);
-        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2);
-        double[] hidden3 = calculateLayerOutputs(hidden2, weightsHidden2Hidden3, biasHidden3);
-        double[] output = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput);
-
-        // Store activations
-        System.arraycopy(state, 0, lastActivations[0], 0, state.length);
-        System.arraycopy(hidden1, 0, lastActivations[1], 0, hidden1.length);
-        System.arraycopy(hidden2, 0, lastActivations[2], 0, hidden2.length);
-        System.arraycopy(hidden3, 0, lastActivations[3], 0, hidden3.length);
-        System.arraycopy(output, 0, lastActivations[4], 0, output.length);
-
-        for (int i = 0; i < output.length; i++) {
-            output[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, output[i]));
-        }
-        return output;
-    }
-
-    private double[] calculateLayerOutputs(double[] inputs, double[][] weights, double[] biases) {
-        double[] outputs = new double[weights[0].length];
-        for (int i = 0; i < outputs.length; i++) {
-            double sum = biases[i];
-            for (int j = 0; j < inputs.length; j++) {
-                double product = inputs[j] * weights[j][i];
-                sum += product;
-            }
-            outputs[i] = activate(sum);
-        }
-        return batchNormalize(outputs);
-    }
-
     public double activate(double x) {
-        return activateELU(x);
+        return activateReLU(x);
     }
 
     public double derivated(double x) {
-        return derivativeELU(x);
+        return derivativeReLU(x);
     }
 
     private double activateLeakyReLU(double x) {
@@ -251,6 +230,52 @@ public class NeuralNetworkQLearning implements Serializable {
         return x > 0 ? 1 : 0.01 * Math.exp(x);
     }
 
+    private double scaleAndClipGradient(double grad) {
+        double scaledGrad = grad * GRADIENT_SCALE;
+        return Math.max(GRADIENT_CLIP_MIN, Math.min(GRADIENT_CLIP_MAX, scaledGrad));
+    }
+
+    /**
+     * GetQ values, output layer values.
+     *
+     * @param state State data.
+     *
+     * @return output values.
+     */
+    public double[] getQValues(double[] state) {
+        if (lastActivations == null) {
+            initializeLastActivations();
+        }
+        double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1);
+        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2);
+        double[] hidden3 = calculateLayerOutputs(hidden2, weightsHidden2Hidden3, biasHidden3);
+        double[] output = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput);
+        // Store activations for Visualization
+        System.arraycopy(state, 0, lastActivations[0], 0, state.length);
+        System.arraycopy(hidden1, 0, lastActivations[1], 0, hidden1.length);
+        System.arraycopy(hidden2, 0, lastActivations[2], 0, hidden2.length);
+        System.arraycopy(hidden3, 0, lastActivations[3], 0, hidden3.length);
+        System.arraycopy(output, 0, lastActivations[4], 0, output.length);
+        for (int i = 0; i < output.length; i++) {
+            output[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, output[i]));
+        }
+        //return batchNormalize(output);
+        return output;
+    }
+
+    private double[] calculateLayerOutputs(double[] inputs, double[][] weights, double[] biases) {
+        double[] outputs = new double[weights[0].length];
+        for (int i = 0; i < outputs.length; i++) {
+            double sum = biases[i];
+            for (int j = 0; j < inputs.length; j++) {
+                double product = inputs[j] * weights[j][i];
+                sum += product;
+            }
+            outputs[i] = activate(sum);
+        }
+        return batchNormalize(outputs);
+    }
+
     /**
      * Select move action.
      *
@@ -262,8 +287,8 @@ public class NeuralNetworkQLearning implements Serializable {
         if (random.nextDouble() < epsilon) {
             return random.nextInt(outputNodes);
         } else {
-            double[] qValues = getQValues(state);
-            return argmax(qValues);
+            double[] qvalues = getQValues(state);
+            return argmax(qvalues);
         }
     }
 
@@ -279,17 +304,15 @@ public class NeuralNetworkQLearning implements Serializable {
         return bestIndex;
     }
 
-    private double[] forwardPass (double[] input) {
-        double[] hidden1 = calculateLayerOutputs(input, weightsInputHidden1, biasHidden1);
-        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2);
-        double[] hidden3 = calculateLayerOutputs(hidden2, weightsHidden2Hidden3, biasHidden3);
-        double[] output = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput);
-        for (int i = 0; i < output.length; i++) {
-            output[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, output[i]));  // Korlátozott Q-értékek
-        }
-        return output;
-    }
-
+    /**
+     * Neural network learning method.
+     *
+     * @param state game metric state
+     * @param action action
+     * @param reward reward points
+     * @param nextState next game metric
+     * @param gameEnded the game is ended
+     */
     public void learn(double[] state, int action, double reward, double[] nextState, boolean gameEnded) {
         // Előre átviteli számítások egyszer
         double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1);
@@ -313,8 +336,7 @@ public class NeuralNetworkQLearning implements Serializable {
         target = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, target));
         double currentQ = currentQValues[action];
         double error = target - currentQ;
-        error = Math.max(CLIP_MIN, Math.min(CLIP_MAX, error));  // Gradient clipping
-        //error *= 20.0; // Gradient scaling
+        error = scaleAndClipGradient(error);
         backpropagate(state, action, error, hidden1, hidden2, hidden3);
         updateEpsilon();
         if (gameEnded) {
@@ -362,6 +384,13 @@ public class NeuralNetworkQLearning implements Serializable {
         discountFactor = Math.min(MAX_DISCOUNT_FACTOR, discountFactor + DISCOUNT_FACTOR_INCREMENT);
     }
 
+    /**
+     * Get maximum value from array.
+     *
+     * @param array
+     *
+     * @return max output value
+     */
     public double max(double[] array) {
         double maxValue = array[0];
         for (int i = 1; i < array.length; i++) {
@@ -373,105 +402,70 @@ public class NeuralNetworkQLearning implements Serializable {
     }
 
     private void backpropagate(double[] state, int action, double error, double[] hidden1, double[] hidden2, double[] hidden3) {
-        // Kimeneti réteg kimeneteinek kiszámítása
         double[] outputs = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput);
+        double[] deltaOutput = calculateOutputDelta(outputs, action, error);
+        updateWeightsAndBiases(weightsHidden3Output, biasOutput, deltaOutput, hidden3, outputNodes);
+        double[] deltaHidden3 = calculateHiddenDelta(deltaOutput, weightsHidden3Output, hidden3, hiddenNodes3);
+        updateWeightsAndBiases(weightsHidden2Hidden3, biasHidden3, deltaHidden3, hidden2, hiddenNodes3);
+        double[] deltaHidden2 = calculateHiddenDelta(deltaHidden3, weightsHidden2Hidden3, hidden2, hiddenNodes2);
+        updateWeightsAndBiases(weightsHidden1Hidden2, biasHidden2, deltaHidden2, hidden1, hiddenNodes2);
+        double[] deltaHidden1 = calculateHiddenDelta(deltaHidden2, weightsHidden1Hidden2, hidden1, hiddenNodes1);
+        updateWeightsAndBiases(weightsInputHidden1, biasHidden1, deltaHidden1, state, hiddenNodes1);
+    }
 
-        // Kimeneti réteg (output) delta számítása
-        double[] deltaOutput = new double[outputNodes];
+    private double[] calculateOutputDelta(double[] outputs, int action, double error) {
+        double[] delta = new double[outputNodes];
         for (int i = 0; i < outputNodes; i++) {
-            deltaOutput[i] = (i == action ? error : 0) * derivativeLeakyReLU(outputs[i]);
+            delta[i] = (i == action ? error : 0) * derivativeLeakyReLU(outputs[i]);
+            delta[i] = scaleAndClipGradient(delta[i]);
         }
+        return delta;
+    }
 
-        // Hidden3 -> Output súlyok frissítése
-        for (int i = 0; i < hiddenNodes3; i++) {
-            for (int j = 0; j < outputNodes; j++) {
-                double delta = learningRate * (deltaOutput[j] * hidden3[i] - L2_LAMBDA * weightsHidden3Output[i][j]);
-                weightsHidden3Output[i][j] += delta;
-            }
-        }
-
-        // Output bias frissítése
-        for (int i = 0; i < outputNodes; i++) {
-            biasOutput[i] += learningRate * deltaOutput[i] * 0.1;
-        }
-
-        // Hidden2 -> Hidden3 delta számítása
-        double[] deltaHidden3 = new double[hiddenNodes3];
-        for (int i = 0; i < hiddenNodes3; i++) {
+    private double[] calculateHiddenDelta(double[] nextLayerDelta, double[][] weights, double[] layerOutputs, int layerSize) {
+        double[] delta = new double[layerSize];
+        for (int i = 0; i < layerSize; i++) {
             double sum = 0;
-            for (int j = 0; j < outputNodes; j++) {
-                sum += deltaOutput[j] * weightsHidden3Output[i][j];
+            for (int j = 0; j < nextLayerDelta.length; j++) {
+                sum += nextLayerDelta[j] * weights[i][j];
             }
-            deltaHidden3[i] = sum * derivativeLeakyReLU(hidden3[i]);
+            delta[i] = sum * derivativeLeakyReLU(layerOutputs[i]);
+            delta[i] = scaleAndClipGradient(delta[i]);
         }
+        return delta;
+    }
 
-        // Hidden2 -> Hidden3 súlyok frissítése
-        for (int i = 0; i < hiddenNodes2; i++) {
-            for (int j = 0; j < hiddenNodes3; j++) {
-                double delta = learningRate * (deltaHidden3[j] * hidden2[i] - L2_LAMBDA * weightsHidden2Hidden3[i][j]);
-                weightsHidden2Hidden3[i][j] += delta;
-            }
-        }
-
-        // Hidden3 bias frissítése
-        for (int i = 0; i < hiddenNodes3; i++) {
-            biasHidden3[i] += learningRate * deltaHidden3[i] * 0.1;
-        }
-
-        // Hidden1 -> Hidden2 delta számítása
-        double[] deltaHidden2 = new double[hiddenNodes2];
-        for (int i = 0; i < hiddenNodes2; i++) {
-            double sum = 0;
-            for (int j = 0; j < hiddenNodes3; j++) {
-                sum += deltaHidden3[j] * weightsHidden2Hidden3[i][j];
-            }
-            deltaHidden2[i] = sum * derivativeLeakyReLU(hidden2[i]);
-        }
-
-        // Hidden1 -> Hidden2 súlyok frissítése
-        for (int i = 0; i < hiddenNodes1; i++) {
-            for (int j = 0; j < hiddenNodes2; j++) {
-                double delta = learningRate * (deltaHidden2[j] * hidden1[i] - L2_LAMBDA * weightsHidden1Hidden2[i][j]);
-                weightsHidden1Hidden2[i][j] += delta;
+    private void updateWeightsAndBiases(double[][] weights, double[] biases, double[] delta, double[] inputs, int layerSize) {
+        for (int i = 0; i < inputs.length; i++) {
+            for (int j = 0; j < layerSize; j++) {
+                double weightDelta = learningRate * (delta[j] * inputs[i] - L2_LAMBDA * weights[i][j]);
+                weightDelta = scaleAndClipGradient(weightDelta);
+                weights[i][j] += learningRate * weightDelta;
             }
         }
-
-        // Hidden2 bias frissítése
-        for (int i = 0; i < hiddenNodes2; i++) {
-            biasHidden2[i] += learningRate * deltaHidden2[i] * 0.1;
-        }
-
-        // Input -> Hidden1 delta számítása
-        double[] deltaHidden1 = new double[hiddenNodes1];
-        for (int i = 0; i < hiddenNodes1; i++) {
-            double sum = 0;
-            for (int j = 0; j < hiddenNodes2; j++) {
-                sum += deltaHidden2[j] * weightsHidden1Hidden2[i][j];
-            }
-            deltaHidden1[i] = sum * derivativeLeakyReLU(hidden1[i]);
-        }
-
-        // Input -> Hidden1 súlyok frissítése
-        for (int i = 0; i < inputNodes; i++) {
-            for (int j = 0; j < hiddenNodes1; j++) {
-                double delta = learningRate * (deltaHidden1[j] * state[i] - L2_LAMBDA * weightsInputHidden1[i][j]);
-                weightsInputHidden1[i][j] += delta;
-            }
-        }
-
-        // Hidden1 bias frissítése
-        for (int i = 0; i < hiddenNodes1; i++) {
-            biasHidden1[i] += learningRate * deltaHidden1[i] * 0.1;
+        for (int i = 0; i < layerSize; i++) {
+            biases[i] += learningRate * delta[i] * 0.1;
         }
     }
 
-
+    /***
+     * Save network object data to file.
+     *
+     * @throws IOException exception
+     */
     public void saveToFile() throws IOException {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILENAME))) {
             oos.writeObject(this);
         }
     }
 
+    /***
+     * Load network object from file.
+     *
+     * @return loaded network object.
+     * @throws IOException exception
+     * @throws ClassNotFoundException exception
+     */
     public static NeuralNetworkQLearning loadFromFile() throws IOException, ClassNotFoundException {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILENAME))) {
             System.out.println("Network loaded from file");
@@ -491,13 +485,11 @@ public class NeuralNetworkQLearning implements Serializable {
         return epsilon;
     }
 
-    private void printWeightSamples() {
-        System.out.println("Input -> Hidden1: " + weightsInputHidden1[0][0]);
-        System.out.println("Hidden1 -> Hidden2: " + weightsHidden1Hidden2[0][0]);
-        System.out.println("Hidden2 -> Hidden3: " + weightsHidden2Hidden3[0][0]);
-        System.out.println("Hidden3 -> Output: " + weightsHidden3Output[0][0]);
-    }
-
+    /***
+     * Get all weight data for visualization.
+     *
+     * @return all weight array in array
+     */
     public double[][][] getAllWeights() {
         return new double[][][] {
                 weightsInputHidden1,
@@ -523,6 +515,11 @@ public class NeuralNetworkQLearning implements Serializable {
         return episodeCount;
     }
 
+    /**
+     * Get last activation data for visualization.
+     *
+     * @return activation data
+     */
     public double[][] getLastActivations() {
         if (lastActivations == null) {
             initializeLastActivations();
@@ -536,19 +533,6 @@ public class NeuralNetworkQLearning implements Serializable {
         initializeLastActivations();
     }
 
-    // Gradiens skálázás hozzáadása
-    private void scaleGradients(double[] gradients, double maxNorm) {
-        double norm = 0;
-        for (double grad : gradients) {
-            norm += grad * grad;
-        }
-        norm = Math.sqrt(norm);
 
-        if (norm > maxNorm) {
-            double scale = maxNorm / norm;
-            for (int i = 0; i < gradients.length; i++) {
-                gradients[i] *= scale;
-            }
-        }
-    }
+
 }

@@ -67,7 +67,8 @@ public class NeuralNetworkGenetic implements Serializable, Cloneable {
     private double globalBestFitness = Double.NEGATIVE_INFINITY;
     private NeuralNetworkGenetic globalBestNetwork;
 
-    public NeuralNetworkGenetic(final int inputNodes, final int hiddenNodes1, final int hiddenNodes2, final int outputNodes, boolean initialize) {
+    public NeuralNetworkGenetic(final int inputNodes, final int hiddenNodes1, final int hiddenNodes2,
+                                final int outputNodes, boolean initialize) {
         this.inputNodes = inputNodes;
         this.hiddenNodes1 = hiddenNodes1;
         this.hiddenNodes2 = hiddenNodes2;
@@ -276,6 +277,13 @@ public class NeuralNetworkGenetic implements Serializable, Cloneable {
         return Arrays.stream(outputs).map(x -> (x - mean) / (stdDev + 1e-5)).toArray();
     }
 
+    /***
+     * Apply softmax algorithm.
+     *
+     * @param outputs Outputs data.
+     *
+     * @return softmaxed data.
+     */
     public double[] applySoftmax(double[] outputs) {
         double max = Arrays.stream(outputs).max().orElse(0);
         double sum = 0.0;
@@ -439,7 +447,8 @@ public class NeuralNetworkGenetic implements Serializable, Cloneable {
             this.copyFrom(newBestNetwork);
             this.bestNetwork = this.clone();
             this.globalBestNetwork = this.clone();
-            System.out.println(String.format("* New best network = %.4f (Score: %.4f, Deleted rows: %d, Holes: %d, Max height: %d, Bumpiness: %.4f, Playtime: %.4f, Learning rate: %.4f)",
+            System.out.println(String.format("* New best network = %.4f (Score: %.4f, Deleted rows: %d, Holes: %d, " +
+                            "Max height: %d, Bumpiness: %.4f, Playtime: %.4f, Learning rate: %.4f)",
                     this.globalBestFitness,
                     newBestNetwork.getScore(),
                     newBestNetwork.getClearedLines(),
