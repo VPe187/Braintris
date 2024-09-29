@@ -15,6 +15,7 @@ public class NeuralNetworkVisualization implements GameElement {
     private static final int NODE_SIZE = 6;
     private static final int LAYER_DISTANCE = 150;
     private static final int STAT_X = 500;
+    private static final int UP_OFFSET = 460;
     private static String FONT_NAME = "Truly Madly Dpad";
     private static final Color INACTIVE_NODE_COLOR = new Color(100, 100, 100, 100);
     private static final Color ACTIVE_NODE_COLOR = new Color(255, 255, 255, 200);
@@ -141,6 +142,9 @@ public class NeuralNetworkVisualization implements GameElement {
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
         String maxQ = String.format("Nextq: %.8f", network.getMaxNextQValue());
         String rms = String.format("RMS: %.8f", network.getRms());
+        String h1 = String.format("H1: Min: %.4f, Max: %.4f", network.getHidden1Min(), network.getHidden1Max());
+        String h2 = String.format("H2: Min: %.4f, Max: %.4f", network.getHidden2Min(), network.getHidden2Max());
+        String h3 = String.format("H3: Min: %.4f, Max: %.4f", network.getHidden3Min(), network.getHidden3Max());
 
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
@@ -151,7 +155,7 @@ public class NeuralNetworkVisualization implements GameElement {
 
         g2d.setFont(new Font(FONT_NAME, Font.BOLD, 16));
         g2d.setColor(Color.WHITE);
-        g2d.drawString(maxQ, STAT_X, height - 720);
+        g2d.drawString(maxQ, STAT_X - UP_OFFSET, height - 720);
         if (network.getRms() > 1.0) {
             g2d.setColor(Color.ORANGE);
         } else if (network.getRms() < 1e-7 ) {
@@ -159,10 +163,15 @@ public class NeuralNetworkVisualization implements GameElement {
         } else {
             g2d.setColor(Color.GREEN);
         }
-        g2d.drawString(rms, STAT_X, height - 700);
+        g2d.drawString(rms, STAT_X - UP_OFFSET, height - 700);
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
         g2d.setColor(FONT_COLOR);
 
+        g2d.drawString(h1, STAT_X - UP_OFFSET, height - 680);
+        g2d.drawString(h2, STAT_X - UP_OFFSET, height - 660);
+        g2d.drawString(h3, STAT_X - UP_OFFSET, height - 640);
+
+        // Down
         g2d.drawString(episodes, STAT_X, height - 140);
         g2d.drawString(bestReward, STAT_X, height - 120);
         g2d.drawString(reward, STAT_X, height - 100);
