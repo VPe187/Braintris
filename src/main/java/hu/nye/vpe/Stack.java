@@ -484,8 +484,8 @@ public class Stack implements GameElement {
         removeShape();
         if (checkShapeIsRotate()) {
             currentShape.rotateRight();
-            if (shapeRotation < 0.75) {
-                shapeRotation += 0.25;
+            if (shapeRotation < 75) {
+                shapeRotation += 25;
             } else {
                 shapeRotation = 0;
             }

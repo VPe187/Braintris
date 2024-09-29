@@ -250,7 +250,7 @@ public class Tetris {
 
         // Aktuális elem
         if (stack.getCurrentShape() != null) {
-            feedData[k++] = stack.getCurrentShape().getQid();
+            feedData[k++] = stack.getCurrentShape().getId();
         } else {
             feedData[k++] = 0;
         }
@@ -267,7 +267,7 @@ public class Tetris {
         }
 
         // Következő elem
-        feedData[k++] = nextShape.getQid();
+        feedData[k++] = nextShape.getId();
 
         // Lyukak száma
         feedData[k++] = stack.getNumberofHoles();
@@ -324,14 +324,13 @@ public class Tetris {
     private double calculateReward() {
         double reward = 0;
         // Jutalom
-        double elapsedTime = stack.getElapsedTimeLong() / 1000.0;
+        //double elapsedTime = stack.getElapsedTimeLong() / 1000.0;
         //reward += Math.log(elapsedTime + 1) * 0.1;
         double fullRows = stack.getAllFullRows();
         reward += (fullRows - lastFullRows) * 100;
         //reward += (nearlyFullRows - lastNearlyFullRows) * 3;
         double droppedElements = stack.getDroppedElements();
-        reward += (droppedElements - lastDroppedElements) * 3;
-        //reward += (avgDensity - lastAvgDensity) * 10;
+        reward += (droppedElements - lastDroppedElements) * 0.1;
         // Büntetés
         double avgDensity = stack.calculateAverageDensity();
         reward -= 50 - (avgDensity - lastAvgDensity) * 100;

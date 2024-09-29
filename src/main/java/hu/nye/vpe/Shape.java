@@ -14,7 +14,6 @@ public class Shape {
     private final int weight;
     private int rowPosition;
     private int colPosition;
-    private  double qid;
 
     /**
      * Shape type enum.
@@ -32,9 +31,8 @@ public class Shape {
         }
     }
 
-    public Shape(int id, int score, Color color, int weight, int[][] pixels, double qid) {
+    public Shape(int id, int score, Color color, int weight, int[][] pixels) {
         this.id = id;
-        this.qid = qid;
         this.score = score;
         this.color = color;
         this.weight = weight;
@@ -63,10 +61,6 @@ public class Shape {
 
     public int getStackCol() {
         return colPosition;
-    }
-
-    public double getQid() {
-        return qid;
     }
 
     /**

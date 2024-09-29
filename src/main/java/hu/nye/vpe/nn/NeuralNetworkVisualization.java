@@ -118,7 +118,7 @@ public class NeuralNetworkVisualization implements GameElement {
     }
 
     private Color getColorForWeight(double weight) {
-        weight = Math.tanh(weight * 100000);
+        weight = Math.tanh(weight * 1000);
         int colorValue = (int) (((weight + 1) / 2) * 255);
 
         return new Color(colorValue, colorValue, colorValue, 50);
@@ -140,6 +140,7 @@ public class NeuralNetworkVisualization implements GameElement {
         g2d.setColor(FONT_COLOR);
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
         String maxQ = String.format("Nextq: %.8f", network.getMaxNextQValue());
+        String rms = String.format("RMS: %.8f", network.getRms());
 
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
@@ -151,6 +152,7 @@ public class NeuralNetworkVisualization implements GameElement {
         g2d.setFont(new Font(FONT_NAME, Font.BOLD, 16));
         g2d.setColor(Color.WHITE);
         g2d.drawString(maxQ, STAT_X, height - 720);
+        g2d.drawString(rms, STAT_X, height - 700);
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
         g2d.setColor(FONT_COLOR);
 
