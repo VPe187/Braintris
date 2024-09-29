@@ -152,6 +152,13 @@ public class NeuralNetworkVisualization implements GameElement {
         g2d.setFont(new Font(FONT_NAME, Font.BOLD, 16));
         g2d.setColor(Color.WHITE);
         g2d.drawString(maxQ, STAT_X, height - 720);
+        if (network.getRms() > 1.0) {
+            g2d.setColor(Color.ORANGE);
+        } else if (network.getRms() < 1e-7 ) {
+            g2d.setColor(Color.RED);
+        } else {
+            g2d.setColor(Color.GREEN);
+        }
         g2d.drawString(rms, STAT_X, height - 700);
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
         g2d.setColor(FONT_COLOR);
