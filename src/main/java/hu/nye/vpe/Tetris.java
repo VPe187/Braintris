@@ -324,8 +324,8 @@ public class Tetris {
                 System.out.println("NaN detektálva normalizálás után! Index: " + k);
             }
         }
-        //return normalizedData;
-        return feedData;
+        return normalizedData;
+        //return feedData;
     }
 
     private double calculateReward() {
@@ -353,10 +353,10 @@ public class Tetris {
         double bumpiness = stack.getMetricBumpiness();
         reward -= (bumpiness - lastBumpiness) * 0.9;
         if (stack.getMetricNumberOfHoles() == 0) {
-            reward += 50;
+            reward += 5;
         }
         if (stack.getMetricMaxHeight() <= 6) {
-            reward += 60;
+            reward += 5;
         }
         lastFullRows = fullRows;
         lastNearlyFullRows = nearlyFullRows;

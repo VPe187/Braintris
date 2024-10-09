@@ -1,97 +1,109 @@
 package hu.nye.vpe.nn;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
-/**
- * Batch normalizer class.
- */
 public class BatchNormalizer implements Serializable {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 5L;
     private final int size;
-    private final double epsilon = 1e-5;
-    private double gamma;
-    private double beta;
+    private final double epsilon = 1e-3;
+    private double[] gamma;
+    private double[] beta;
     private double[] runningMean;
     private double[] runningVariance;
     private final double momentum = 0.99;
+    private double[] lastInputs;
+    private double[] lastMean;
+    private double[] lastVariance;
+    private double[] lastNormalized;
 
     public BatchNormalizer(int size, double initialGamma, double initialBeta) {
         this.size = size;
-        this.gamma = initialGamma;
-        this.beta = initialBeta;
+        this.gamma = new double[size];
+        this.beta = new double[size];
         this.runningMean = new double[size];
         this.runningVariance = new double[size];
+        Arrays.fill(gamma, initialGamma);
+        Arrays.fill(beta, initialBeta);
     }
 
-    /**
-     * Normalize.
-     *
-     * @param inputs layer array
-     *
-     * @param training isTraining?
-     *
-     * @return normalized data.
-     */
     public double[] normalize(double[] inputs, boolean training) {
         double[] normalized = new double[size];
+        double mean;
+        double variance;
 
         if (training) {
-            double mean = 0;
-            double variance = 0;
+            mean = Arrays.stream(inputs).average().orElse(0.0);
+            variance = Arrays.stream(inputs).map(x -> Math.pow(x - mean, 2)).average().orElse(0.0);
 
-            // Számoljuk ki az átlagot és a varianciát
-            for (double input : inputs) {
-                mean += input;
-            }
-            mean /= size;
-
-            for (double input : inputs) {
-                variance += Math.pow(input - mean, 2);
-            }
-            variance = Math.max(variance / size, epsilon);
-
-            // Frissítsük a futó statisztikákat
+            // Update running statistics
             for (int i = 0; i < size; i++) {
                 runningMean[i] = momentum * runningMean[i] + (1 - momentum) * mean;
                 runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * variance;
             }
-
-            // Normalizáljuk az inputokat
-            for (int i = 0; i < size; i++) {
-                normalized[i] = gamma * ((inputs[i] - mean) / Math.sqrt(variance + epsilon)) + beta;
-            }
         } else {
-            // Tesztelés közben használjuk a futó statisztikákat
-            for (int i = 0; i < size; i++) {
-                normalized[i] = gamma * ((inputs[i] - runningMean[i]) / Math.sqrt(runningVariance[i] + epsilon)) + beta;
-            }
+            mean = runningMean[0];
+            variance = runningVariance[0];
         }
+
+        double stddev = Math.sqrt(variance + epsilon);
+        for (int i = 0; i < size; i++) {
+            normalized[i] = gamma[i] * ((inputs[i] - mean) / stddev) + beta[i];
+        }
+
+        /*
+        System.out.println("Debug - BN input: " + Arrays.toString(inputs));
+        System.out.println("Debug - BN output: " + Arrays.toString(normalized));
+        System.out.println("Debug - BN gamma: " + Arrays.toString(gamma));
+        System.out.println("Debug - BN beta: " + Arrays.toString(beta));
+         */
+
+        this.lastInputs = inputs.clone();
+        this.lastMean = new double[]{mean};  // Átlag minden neuronra ugyanaz
+        this.lastVariance = new double[]{variance};  // Variancia minden neuronra ugyanaz
+        this.lastNormalized = normalized.clone();
 
         return normalized;
     }
 
-    /**
-     * Update parameters.
-     *
-     * @param learningRate LearningRate
-     *
-     * @param gradientGamma GradientGamma
-     *
-     * @param gradientBeta GradientBeta
-     */
+    public double[] backprop(double[] inputGradients) {
+        double[] gradients = new double[size];
+        double mean = lastMean[0];
+        double variance = lastVariance[0];
+        double invStd = 1.0 / Math.sqrt(variance + epsilon);
+
+        double sumDy = 0;
+        double sumDyXmu = 0;
+        for (int i = 0; i < size; i++) {
+            sumDy += inputGradients[i];
+            sumDyXmu += inputGradients[i] * (lastInputs[i] - mean);
+        }
+
+        for (int i = 0; i < size; i++) {
+            double dx = inputGradients[i] * gamma[i];
+            dx = invStd * (dx - sumDy / size - (lastInputs[i] - mean) * sumDyXmu * invStd * invStd / size);
+            gradients[i] = dx;
+        }
+
+        return gradients;
+    }
+
     public void updateParameters(double learningRate, double[] gradientGamma, double[] gradientBeta) {
         for (int i = 0; i < size; i++) {
-            gamma -= learningRate * gradientGamma[i];
-            beta -= learningRate * gradientBeta[i];
+            gamma[i] -= learningRate * gradientGamma[i];
+            beta[i] -= learningRate * gradientBeta[i];
         }
     }
 
-    // Getter metódusok
-    public double getGamma() {
+    public double[] getGamma() {
         return gamma;
     }
 
-    public double getBeta() {
+    public double[] getBeta() {
         return beta;
+    }
+
+    public double[] getLastNormalized() {
+        return lastNormalized;
     }
 }
