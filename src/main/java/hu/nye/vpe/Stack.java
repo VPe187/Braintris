@@ -25,7 +25,7 @@ public class Stack implements GameElement {
     private static final Color PANEL_COLOR = new Color(30, 30, 30, 100);
     private static final Color colorStackBackground = new Color(15, 15, 15);
     private static final Color colorStackBorder = new Color(100, 100, 100, 100);
-    private static final Color helperColor = new Color(55, 55, 55, 20);
+    private static final Color helperColor = new Color(30, 30, 30, 40);
     private static final Color helperLineColor = new Color(40, 40, 40, 40);
     private static final int LEVEL_BONUS = 20;
     private static final int ROW_SCORE = 100;
@@ -240,10 +240,10 @@ public class Stack implements GameElement {
         if (!checkShapeIsDown()) {
             currentShape.setRowPosition(currentShape.getStackRow() + 1);
             putShape();
-            return false;
+            return true;
         } else {
             itemFalled();
-            return true;
+            return false;
         }
     }
 
@@ -324,8 +324,10 @@ public class Stack implements GameElement {
                 audio.soundPenalty();
             }
             if (state != State.GAMEOVER) {
-                //generatePenaltyRows(1); // Tanításhoz kikapcsolva
-                noFullRows = 0;
+                if (!learning) {
+                    generatePenaltyRows(1); // Tanításhoz kikapcsolva
+                    noFullRows = 0;
+                }
             }
         }
     }
@@ -422,12 +424,16 @@ public class Stack implements GameElement {
     /**
      * Move shape left.
      */
-    public void moveShapeLeft() {
+    public boolean moveShapeLeft() {
         removeShape();
         if (!checkShapeIsLeft()) {
             currentShape.setColPosition(currentShape.getStackCol() - 1);
+            putShape();
+            return true;
+        } else {
+            putShape();
+            return false;
         }
-        putShape();
     }
 
     private boolean checkShapeIsRight() {
@@ -449,12 +455,16 @@ public class Stack implements GameElement {
     /**
      * Move shape right.
      */
-    public void moveShapeRight() {
+    public boolean moveShapeRight() {
         removeShape();
         if (!checkShapeIsRight()) {
             currentShape.setColPosition(currentShape.getStackCol() + 1);
+            putShape();
+            return true;
+        } else {
+            putShape();
+            return false;
         }
-        putShape();
     }
 
     private boolean checkShapeIsRotate() {
@@ -480,10 +490,29 @@ public class Stack implements GameElement {
     /**
      * Rotate shape (right).
      */
-    public void rotateShapeRight() {
+    public boolean rotateShapeRight() {
         removeShape();
         if (checkShapeIsRotate()) {
             currentShape.rotateRight();
+            putShape();
+            if (shapeRotation < 75) {
+                shapeRotation += 25;
+            } else {
+                shapeRotation = 0;
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Rotate shape (right).
+     */
+    public void rotateShapeLeft() {
+        removeShape();
+        if (checkShapeIsRotate()) {
+            currentShape.rotateLeft();
             if (shapeRotation < 75) {
                 shapeRotation += 25;
             } else {
@@ -1326,4 +1355,59 @@ public class Stack implements GameElement {
     public void nextIteration() {
         iteration++;
     }
+
+    /**
+     * Megpróbálja az aktuális elemet a megadott pozícióba mozgatni és elforgatni.
+     *
+     * @param targetX        A célpozíció x koordinátája
+     * @param targetY        A célpozíció y koordinátája
+     * @param targetRotation A célforgatás állapota (0-3, ahol 0 az eredeti állapot)
+     */
+    public void moveAndRotateShapeTo(int targetX, int targetY, int targetRotation) {
+        if (currentShape == null) {
+            return;
+        }
+        // Forgatás
+        int currentRotation = (int)(shapeRotation / 25); // Feltételezve, hogy a shapeRotation 0, 25, 50, 75 értékeket vehet fel
+        while (currentRotation != targetRotation) {
+            if (!rotateShapeRight()) {
+                return; // Ha nem lehet forgatni, visszatérünk
+            }
+            currentRotation = (currentRotation + 1) % 4;
+        }
+        // Vízszintes mozgatás
+        while (currentShape.getStackCol() != targetX) {
+            if (currentShape.getStackCol() < targetX) {
+                if (moveShapeRight()) {
+                } else {
+                    return;
+                }
+            } else {
+                if (moveShapeLeft()) {
+                } else {
+                    return;
+                }
+            }
+        }
+        // Függőleges mozgatás
+        while (currentShape.getStackRow() < targetY) {
+            if (moveShapeDown()) {
+            } else {
+                System.out.println("Drop");
+                return;
+            }
+        }
+
+    }
+
+    /**
+     * Az elemet a lehető legmélyebbre ejti.
+     */
+    public void dropShapeToBottom() {
+        if (currentShape != null) {
+            while (!moveShapeDown()) {
+            }
+        }
+    }
+
 }

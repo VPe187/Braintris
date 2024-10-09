@@ -84,7 +84,9 @@ public class GameEngine implements Runnable {
         graphics2D.fillRect(0, 0, gameWidth, height);
         tetris.render(graphics2D);
         graphics2D.translate(gameWidth, 0);
-        nnVisualization.render(graphics2D);
+        if (learning) {
+            nnVisualization.render(graphics2D);
+        }
         bs.show();
         graphics2D.dispose();
     }

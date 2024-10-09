@@ -96,6 +96,21 @@ public class Shape {
     }
 
     /**
+     * Rotate left.
+     */
+    public void rotateLeft() {
+        int x = getPixels().length;
+        int y = getPixels()[0].length;
+        int[][] newPixels = new int[y][x];
+        for (int i = 0; i < x; i++) {
+            for (int j = 0; j < y; j++) {
+                newPixels[j][((x - 1) - i)] = this.pixels[i][j];
+            }
+        }
+        this.pixels = newPixels;
+    }
+
+    /**
      * Get width.
      *
      * @return int

@@ -202,6 +202,11 @@ public class Tetris {
                 if (gameInput.space()) {
                     stack.rotateShapeRight();
                 }
+                if (gameInput.ctrlDown()) {
+                    if (stack.getCurrentShape() != null) {
+                        stack.moveAndRotateShapeTo(0, 24, 2);
+                    }
+                }
                 if (gameInput.downRepeat()) {
                     tickDown.setPeriodMilliSecond(DROP_SPEED);
                 } else {

@@ -12,6 +12,7 @@ import javax.swing.Timer;
  */
 public class GameInput implements KeyListener, ActionListener {
     private final boolean[] keys = new boolean[600];
+    private boolean ctrlPressed = false;
 
     public GameInput() {
         Timer repeatTimer = new Timer(5, this);
@@ -63,6 +64,20 @@ public class GameInput implements KeyListener, ActionListener {
         boolean key = keys[KeyEvent.VK_DOWN] || keys[KeyEvent.VK_NUMPAD2];
         keys[KeyEvent.VK_DOWN] = false;
         keys[KeyEvent.VK_NUMPAD2] = false;
+        return key;
+    }
+
+    /**
+     * CTRL+Down.
+     *
+     * @return boolean
+     */
+    public boolean ctrlDown() {
+        boolean key = ctrlPressed && (keys[KeyEvent.VK_DOWN] || keys[KeyEvent.VK_NUMPAD2]);
+        if (key) {
+            keys[KeyEvent.VK_DOWN] = false;
+            keys[KeyEvent.VK_NUMPAD2] = false;
+        }
         return key;
     }
 
@@ -131,6 +146,7 @@ public class GameInput implements KeyListener, ActionListener {
 
     public void clearBuffer() {
         Arrays.fill(keys, false);
+        ctrlPressed = false;
     }
 
     @Override
@@ -140,11 +156,17 @@ public class GameInput implements KeyListener, ActionListener {
     @Override
     public void keyPressed(KeyEvent keyEvent) {
         keys[keyEvent.getKeyCode()] = true;
+        if (keyEvent.getKeyCode() == KeyEvent.VK_CONTROL) {
+            ctrlPressed = true;
+        }
     }
 
     @Override
     public void keyReleased(KeyEvent keyEvent) {
         keys[keyEvent.getKeyCode()] = false;
+        if (keyEvent.getKeyCode() == KeyEvent.VK_CONTROL) {
+            ctrlPressed = false;
+        }
     }
 
     @Override
