@@ -19,7 +19,7 @@ public class NeuralNetworkQLearning implements Serializable {
     private static final int HIDDEN_NODES1 = 48;
     private static final int HIDDEN_NODES2 = 32;
     private static final int HIDDEN_NODES3 = 16;
-    private static final double INITIAL_LEARNING_RATE = 0.01;
+    private static final double INITIAL_LEARNING_RATE = 5.01;
     private static final double LEARNING_RATE_DECAY = 0.9999;
     private static final double MIN_LEARNING_RATE = 0.001;
     private static final double INITIAL_DISCOUNT_FACTOR = 0.6;
@@ -198,11 +198,12 @@ public class NeuralNetworkQLearning implements Serializable {
     }
 
     public double activate(double x) {
-        return activateLeakyReLU(x);
+        //return activateLeakyReLU(x);
+        return activateGELU(x);
     }
 
     private double activateOutput(double x) {
-        return activateTanh(x);
+        return x;
     }
 
     public double derivative(double x) {

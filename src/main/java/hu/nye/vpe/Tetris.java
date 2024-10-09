@@ -17,7 +17,7 @@ public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
     private static final int FEED_DATA_SIZE = 34;
-    private static final int OUTPUT_NODES = 4;
+    private static final int OUTPUT_NODES = 5;
     private static final long DROP_SPEED = 10L;
     private final long speed = 1000L;
     private final long learningSpeed = 30L;
@@ -180,13 +180,17 @@ public class Tetris {
                         stack.rotateShapeRight();
                         break;
                     case 1:
-                        stack.moveShapeRight();
+                        stack.rotateShapeLeft();
                         break;
                     case 2:
-                        stack.moveShapeLeft();
+                        stack.moveShapeRight();
                         break;
                     case 3:
-                        tickDown.setPeriodMilliSecond(DROP_SPEED);
+                        stack.moveShapeLeft();
+                        break;
+                    case 4:
+                        //tickDown.setPeriodMilliSecond(DROP_SPEED);
+                        stack.moveShapeDown();
                         break;
                     default:
                         tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
@@ -203,9 +207,11 @@ public class Tetris {
                     stack.rotateShapeRight();
                 }
                 if (gameInput.ctrlDown()) {
+                    /*
                     if (stack.getCurrentShape() != null) {
                         stack.moveAndRotateShapeTo(0, 24, 2);
                     }
+                     */
                 }
                 if (gameInput.downRepeat()) {
                     tickDown.setPeriodMilliSecond(DROP_SPEED);

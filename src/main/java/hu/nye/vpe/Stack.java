@@ -326,8 +326,8 @@ public class Stack implements GameElement {
             if (state != State.GAMEOVER) {
                 if (!learning) {
                     generatePenaltyRows(1); // Tanításhoz kikapcsolva
-                    noFullRows = 0;
                 }
+                noFullRows = 0;
             }
         }
     }

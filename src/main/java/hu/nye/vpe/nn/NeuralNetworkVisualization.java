@@ -12,6 +12,7 @@ import hu.nye.vpe.gaming.GameElement;
  * Neural network visualization class.
  */
 public class NeuralNetworkVisualization implements GameElement {
+    private static final int LINE_RATE = 100000;
     private static final int NODE_SIZE = 6;
     private static final int LAYER_DISTANCE = 150;
     private static final int STAT_X = 500;
@@ -119,7 +120,7 @@ public class NeuralNetworkVisualization implements GameElement {
     }
 
     private Color getColorForWeight(double weight) {
-        weight = Math.tanh(weight * 1000);
+        weight = Math.tanh(weight * LINE_RATE);
         int colorValue = (int) (((weight + 1) / 2) * 255);
 
         return new Color(colorValue, colorValue, colorValue, 50);
