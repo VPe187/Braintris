@@ -63,16 +63,16 @@ public class Stack implements GameElement {
     private GamePanel infoPanel;
     private GamePanel statPanel;
 
-    private double numberofHoles;
-    private double[] columnHeights;
-    private double avgColumnHeights;
-    private int maxHeight;
-    private double bumpiness;
-    private double nearlyFullRows;
-    private double blockedRows;
-    private double surroundingHoles;
-    private double droppedElements;
-    private double avgDensity;
+    private double metricNumberOfHoles;
+    private double[] metricColumnHeights;
+    private double metricAvgColumnHeight;
+    private int metricMaxHeight;
+    private double metricBumpiness;
+    private double metricNearyFullRows;
+    private double metricBlockedRows;
+    private double metricSurroundingHoles;
+    private double metricDroppedElements;
+    private double metricAvgDensity;
 
     public Stack(boolean learning) {
         this.learning = learning;
@@ -96,7 +96,7 @@ public class Stack implements GameElement {
         } else {
             currentSpeed = START_SPEED;
         }
-        droppedElements = 0;
+        metricDroppedElements = 0;
         if (learning) {
             //generateEasyRows(1);
         }
@@ -400,7 +400,7 @@ public class Stack implements GameElement {
             flagFullRows();
         }
         currentShape = null;
-        droppedElements++;
+        metricDroppedElements++;
     }
 
     private boolean checkShapeIsLeft() {
@@ -553,24 +553,18 @@ public class Stack implements GameElement {
      * Calculate game metrics.
      */
     public void calculateGameMetrics() {
-        bumpiness = calculateBumpiness();
-        maxHeight = calculateMaxHeight();
-        columnHeights = calculateColumnHeights();
-        avgColumnHeights = calculateAverageHeightDifference();
-        surroundingHoles = calculateHolesSurroundings();
-        numberofHoles = countHoles();
-        blockedRows = countBlockedRows();
-        nearlyFullRows = countNearlyFullRows();
-        avgDensity = calculateAverageDensity();
+        metricBumpiness = calculateBumpiness();
+        metricMaxHeight = calculateMaxHeight();
+        metricColumnHeights = calculateColumnHeights();
+        metricAvgColumnHeight = calculateAverageHeightDifference();
+        metricSurroundingHoles = calculateHolesSurroundings();
+        metricNumberOfHoles = countHoles();
+        metricBlockedRows = countBlockedRows();
+        metricNearyFullRows = countNearlyFullRows();
+        metricAvgDensity = calculateAverageDensity();
     }
 
-    /**
-     * Count the holes in the playing field.
-     * A hole is an empty cell with a non-empty cell above it.
-     *
-     * @return Number of holes in the playing field.
-     */
-    public int countHoles() {
+    private int countHoles() {
         if (currentShape != null) {
             removeShape();
         }
@@ -592,16 +586,10 @@ public class Stack implements GameElement {
         return holes;
     }
 
-    /***
-     * Calculate average density.
-     *
-     * @return average density
-     */
-    public double calculateAverageDensity() {
+    private double calculateAverageDensity() {
         int lowestEmptyRow = findLowestEmptyRow();
         int activeCells = lowestEmptyRow * COLS; // Az összes cella a legalacsonyabb üres sor alatt
         int filledCells = 0;
-
         for (int row = ROWS - 1; row >= ROWS - lowestEmptyRow; row--) {
             for (int col = 0; col < COLS; col++) {
                 if (stackArea[row][col].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
@@ -612,11 +600,6 @@ public class Stack implements GameElement {
         return activeCells > 0 ? (double) filledCells / activeCells : 0.0;
     }
 
-    /**
-     * Megkeresi a legalacsonyabb üres sort (alulról számolva).
-     *
-     * @return A legalacsonyabb üres sor indexe (alulról számolva).
-     */
     private int findLowestEmptyRow() {
         for (int row = 0; row < ROWS; row++) {
             boolean isEmpty = true;
@@ -630,17 +613,10 @@ public class Stack implements GameElement {
                 return row;
             }
         }
-        return ROWS; // Ha a játéktér teljesen tele van
+        return ROWS;
     }
 
-    /**
-     * Kiszámolja a hozzáférhető üres cellák számát az egész veremben.
-     * Egy üres cella akkor hozzáférhető, ha közvetlenül elérhető felülről,
-     * azaz nincs kitöltött cella felette.
-     *
-     * @return A hozzáférhető üres cellák száma.
-     */
-    public int countAccessibleEmptyCells() {
+    private int countAccessibleEmptyCells() {
         int accessibleEmptyCells = 0;
         boolean[] columnBlocked = new boolean[COLS];
         for (int row = 0; row < ROWS; row++) {
@@ -655,13 +631,7 @@ public class Stack implements GameElement {
         return accessibleEmptyCells;
     }
 
-    /**
-     * Calculates the bumpiness of the playing field.
-     * Bumpiness is the sum of the height differences between adjacent columns.
-     *
-     * @return Bumpiness of the playing field.
-     */
-    public double calculateBumpiness() {
+    private double calculateBumpiness() {
         if (currentShape != null) {
             removeShape();
         }
@@ -686,12 +656,7 @@ public class Stack implements GameElement {
         return bumpiness;
     }
 
-    /**
-     * Calculate the maximum height of the playing field.
-     *
-     * @return Maximum height of the playing field.
-     */
-    public int calculateMaxHeight() {
+    private int calculateMaxHeight() {
         if (currentShape != null) {
             removeShape();
         }
@@ -713,13 +678,7 @@ public class Stack implements GameElement {
         return maxHeight;
     }
 
-    /**
-     * Gets the row index of the highest occupied cell in each column.
-     * An array of integers where each element corresponds to the highest occupied cell (row index) in each column.
-
-     * @return If a column is empty, the value will be -1.
-     */
-    public int[] getHighestOccupiedCells() {
+    private int[] getHighestOccupiedCells() {
         if (currentShape != null) {
             removeShape();
         }
@@ -739,13 +698,7 @@ public class Stack implements GameElement {
         return highestOccupied;
     }
 
-    /**
-     * Megszámolja a közel teli sorok számát (pl. csak 1 vagy 2 üres cellával rendelkező sorok).
-     * A verem felső sora 0 indexű, az alsó sora 23 indexű.
-     *
-     * @return A közel teli sorok száma 0.0 és 1.0 között (a játéktér magasságának arányában).
-     */
-    public double countNearlyFullRows() {
+    private double countNearlyFullRows() {
         int nearlyFullRows = 0;
         boolean foundNonEmptyRow = false;
 
@@ -774,13 +727,7 @@ public class Stack implements GameElement {
         return nearlyFullRows;
     }
 
-    /**
-     * Counts the number of blocked rows.
-     * A blocked row is a row that has at least one hole beneath it.
-     *
-     * @return Number of blocked rows.
-     */
-    public int countBlockedRows() {
+    private int countBlockedRows() {
         int blockedRows = 0;
         boolean[] hasHole = new boolean[COLS];
 
@@ -807,12 +754,7 @@ public class Stack implements GameElement {
         return blockedRows;
     }
 
-    /**
-     * Calculates the heights of each column in the stack.
-     *
-     * @return An array containing the height of each column.
-     */
-    public double[] calculateColumnHeights() {
+    private double[] calculateColumnHeights() {
         double[] columnHeights = new double[COLS];
         for (int j = 0; j < COLS; j++) {
             for (int i = 0; i < ROWS; i++) {
@@ -825,12 +767,7 @@ public class Stack implements GameElement {
         return columnHeights;
     }
 
-    /**
-     * Calculates the height differences between adjacent columns.
-     *
-     * @return An array containing the height differences between adjacent columns.
-     */
-    public double[] calculateHeightDifferences() {
+    private double[] calculateHeightDifferences() {
         double[] columnHeights = calculateColumnHeights();
         double[] heightDifferences = new double[COLS - 1];
         for (int j = 0; j < COLS - 1; j++) {
@@ -839,12 +776,7 @@ public class Stack implements GameElement {
         return heightDifferences;
     }
 
-    /**
-     * Calculates the average height difference between adjacent columns, normalized.
-     *
-     * @return The normalized average height difference.
-     */
-    public double calculateAverageHeightDifference() {
+    private double calculateAverageHeightDifference() {
         double[] columnHeights = calculateColumnHeights();
         double totalDifference = 0;
         int comparisons = 0;
@@ -859,13 +791,7 @@ public class Stack implements GameElement {
         return averageDifference / ROWS;
     }
 
-    /**
-     * Calculates the surroundings of holes.
-     * For simplicity, this method counts the number of blocks adjacent to holes.
-     *
-     * @return Number of blocks adjacent to holes.
-     */
-    public int calculateHolesSurroundings() {
+    private int calculateHolesSurroundings() {
         int surroundings = 0;
         for (int j = 0; j < COLS; j++) {
             boolean blockAbove = false;
@@ -1207,23 +1133,22 @@ public class Stack implements GameElement {
         String infoStrA;
         String infoStrN;
         String infoStrB;
-        String infoStrS;
         String infoStrH;
         String infoStrO;
         String infoStrD;
         String infoStrV;
         if (learning) {
-            infoStrM = "Height: " + calculateMaxHeight();
-            infoStrP = "Holes: " + countHoles();
-            infoStrC = "Bumpiness: " + String.format("%.0f", bumpiness);
+            infoStrM = "Height: " + metricMaxHeight;
+            infoStrP = "Holes: " + metricNumberOfHoles;
+            infoStrC = "Bumpiness: " + String.format("%.0f", metricBumpiness);
             infoStrR = "Iteration: " + iteration;
-            infoStrA = "Height (avg): " + String.format("%.2f", avgColumnHeights);
-            infoStrN = "Nearly full rows: " + String.format("%.0f", nearlyFullRows);
-            infoStrB = "Blocked rows: " + String.format("%.0f", blockedRows);
-            infoStrH = "Surrounding holes: " + String.format("%.0f", surroundingHoles);
+            infoStrA = "Height (avg): " + String.format("%.2f", metricAvgColumnHeight);
+            infoStrN = "Nearly full rows: " + String.format("%.0f", metricNearyFullRows);
+            infoStrB = "Blocked rows: " + String.format("%.0f", metricBlockedRows);
+            infoStrH = "Surrounding holes: " + String.format("%.0f", metricSurroundingHoles);
             infoStrO = "Shape rotation: " + String.format("%.2f", shapeRotation);
-            infoStrD = "Dropped elements: " + String.format("%.0f", droppedElements);
-            infoStrV = "Average density: " + String.format("%.2f", avgDensity);
+            infoStrD = "Dropped elements: " + String.format("%.0f", metricDroppedElements);
+            infoStrV = "Average density: " + String.format("%.2f", metricAvgDensity);
         } else {
             infoStrM = "M: Music On/Off";
             infoStrP = "P: Pause/Resume";
@@ -1333,44 +1258,48 @@ public class Stack implements GameElement {
         return allFullRows;
     }
 
-    public double getNumberofHoles() {
-        return numberofHoles;
+    public double getMetricNumberOfHoles() {
+        return metricNumberOfHoles;
     }
 
-    public int getMaxHeight() {
-        return maxHeight;
+    public int getMetricMaxHeight() {
+        return metricMaxHeight;
     }
 
-    public double getBumpiness() {
-        return bumpiness;
+    public double getMetricBumpiness() {
+        return metricBumpiness;
     }
 
-    public double getNearlyFullRows() {
-        return nearlyFullRows;
+    public double getMetricNearyFullRows() {
+        return metricNearyFullRows;
     }
 
-    public double getBlockedRows() {
-        return blockedRows;
+    public double getMetricBlockedRows() {
+        return metricBlockedRows;
     }
 
-    public double[] getColumnHeights() {
-        return columnHeights;
+    public double[] getMetricColumnHeights() {
+        return metricColumnHeights;
     }
 
-    public double getAvgColumnHeights() {
-        return avgColumnHeights;
+    public double getMetricAvgColumnHeight() {
+        return metricAvgColumnHeight;
     }
 
-    public double getSurroundingHoles() {
-        return surroundingHoles;
+    public double getMetricSurroundingHoles() {
+        return metricSurroundingHoles;
     }
 
     public double getShapeRotation() {
         return shapeRotation;
     }
 
-    public double getDroppedElements() {
-        return droppedElements;
+    public double getMetricDroppedElements() {
+        return metricDroppedElements;
+    }
+
+    public double getMetricAvgDensity() {
+        return metricAvgDensity;
     }
 
     /**

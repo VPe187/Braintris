@@ -16,8 +16,8 @@ import java.util.Random;
 public class NeuralNetworkQLearning implements Serializable {
     @Serial
     private static final long serialVersionUID = 3L;
-    private static final int HIDDEN_NODES1 = 32;
-    private static final int HIDDEN_NODES2 = 24;
+    private static final int HIDDEN_NODES1 = 48;
+    private static final int HIDDEN_NODES2 = 32;
     private static final int HIDDEN_NODES3 = 16;
     private static final double INITIAL_LEARNING_RATE = 0.01;
     private static final double LEARNING_RATE_DECAY = 0.9999;

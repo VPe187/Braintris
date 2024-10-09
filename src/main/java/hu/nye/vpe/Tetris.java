@@ -16,7 +16,7 @@ import hu.nye.vpe.nn.NeuralNetworkQLearning;
 public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
-    private static final int FEED_DATA_SIZE = 19;
+    private static final int FEED_DATA_SIZE = 34;
     private static final int OUTPUT_NODES = 4;
     private static final long DROP_SPEED = 10L;
     private final long speed = 1000L;
@@ -243,16 +243,22 @@ public class Tetris {
         int k = 0;
 
         // Oszlopmagasságok
-        double[] columnHeights = stack.getColumnHeights();
+        double[] columnHeights = stack.getMetricColumnHeights();
         for (double columnHeight : columnHeights) {
             feedData[k++] = columnHeight;
         }
 
-        // Aktuális elem
+        //Aktuális elem
         if (stack.getCurrentShape() != null) {
-            feedData[k++] = stack.getCurrentShape().getId();
+            double[] currentShape = sf.shapeToArray(stack.getCurrentShape());
+            for (int i = 0; i < currentShape.length; i++) {
+                feedData[k++] = currentShape[i];
+            }
         } else {
-            feedData[k++] = 0;
+            for (int i = 0; i < 4; i++) {
+                feedData[i] = -1;
+                k++;
+            }
         }
 
         // Aktuális elem x és y poziciója
@@ -270,7 +276,7 @@ public class Tetris {
         feedData[k++] = nextShape.getId();
 
         // Lyukak száma
-        feedData[k++] = stack.getNumberofHoles();
+        feedData[k++] = stack.getMetricNumberOfHoles();
 
         // Majdnem teli sorok
         /*
@@ -309,7 +315,7 @@ public class Tetris {
          */
 
         // Terület tömörsége
-        feedData[k++] = stack.calculateAverageDensity();
+        feedData[k++] = stack.getMetricAvgDensity();
 
         InputNormalizer normalizer = new InputNormalizer(FEED_DATA_SIZE);
         double[] normalizedData = normalizer.normalizeAutomatically(feedData);
@@ -329,12 +335,12 @@ public class Tetris {
         double fullRows = stack.getAllFullRows();
         reward += (fullRows - lastFullRows) * 100;
         //reward += (nearlyFullRows - lastNearlyFullRows) * 3;
-        double droppedElements = stack.getDroppedElements();
+        double droppedElements = stack.getMetricDroppedElements();
         reward += (droppedElements - lastDroppedElements) * 0.1;
         // Büntetés
-        double avgDensity = stack.calculateAverageDensity();
+        double avgDensity = stack.getMetricAvgDensity();
         reward -= 50 - (avgDensity - lastAvgDensity) * 100;
-        double numberofHoles = stack.getNumberofHoles();
+        double numberofHoles = stack.getMetricNumberOfHoles();
         reward -= (numberofHoles - lastNumberofHoles);
 
         /*
@@ -373,26 +379,26 @@ public class Tetris {
     private double calculateFinishReward() {
         double reward = 0;
         // Jutalom
-        double avgDensity = stack.calculateAverageDensity();
+        double avgDensity = stack.getMetricAvgDensity();
         reward += avgDensity * 10;
         double elapsedTime = stack.getElapsedTimeLong() / 1000.0;
         reward += Math.log(elapsedTime + 1) * 0.2;
         double fullRows = stack.getAllFullRows();
         reward += fullRows * 100;
-        double nearlyFullRows = stack.getNearlyFullRows();
+        double nearlyFullRows = stack.getMetricNearyFullRows();
         reward += nearlyFullRows * 5;
-        double droppedElements = stack.getDroppedElements();
+        double droppedElements = stack.getMetricDroppedElements();
         reward += droppedElements * 2;
         // Büntetés
-        double numberofHoles = stack.getNumberofHoles();
+        double numberofHoles = stack.getMetricNumberOfHoles();
         reward -= numberofHoles * 0.5;
-        double surroundingHoles = stack.getSurroundingHoles();
+        double surroundingHoles = stack.getMetricSurroundingHoles();
         reward -= surroundingHoles * 0.5;
-        double avgColumnHeights = stack.getAvgColumnHeights();
+        double avgColumnHeights = stack.getMetricAvgColumnHeight();
         reward -= avgColumnHeights;
-        double blockedRows = stack.getBlockedRows();
+        double blockedRows = stack.getMetricBlockedRows();
         reward -= blockedRows * 0.5;
-        double bumpiness = stack.getBumpiness();
+        double bumpiness = stack.getMetricBumpiness();
         reward -= bumpiness;
         lastFullRows = 0;
         lastNearlyFullRows = 0;
