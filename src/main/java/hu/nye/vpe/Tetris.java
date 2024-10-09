@@ -36,7 +36,6 @@ public class Tetris {
     private NeuralNetworkQLearning brain;
     private double[] lastState;
     private int lastAction;
-    private double lastReward;
 
     private double lastFullRows = 0;
     private double lastNearlyFullRows = 0;
@@ -129,11 +128,7 @@ public class Tetris {
                     } else {
                         if (stack.moveShapeDown()) {
                             if (learning) {
-                                double[] currentState = getFeedData();
-                                double reward = calculateReward();
-                                brain.learn(lastState, lastAction, reward, currentState, false);
-                                lastState = currentState;
-                                lastReward = reward;
+                                learning(false);
                             }
                         }
                     }
@@ -142,10 +137,7 @@ public class Tetris {
         }
         if (stack.getState() == State.GAMEOVER) {
             if (learning) {
-                double[] currentState = getFeedData();
-                double reward = calculateReward();
-                brain.learn(lastState, lastAction, reward, currentState, true);
-                lastState = currentState;
+                learning(true);
                 try {
                     brain.saveToFile();
                 } catch (Exception e) {
@@ -178,15 +170,19 @@ public class Tetris {
                 switch (action) {
                     case 0:
                         stack.rotateShapeRight();
+                        //learning(false);
                         break;
                     case 1:
                         stack.rotateShapeLeft();
+                        //learning(false);
                         break;
                     case 2:
                         stack.moveShapeRight();
+                        //learning(false);
                         break;
                     case 3:
                         stack.moveShapeLeft();
+                        //learning(false);
                         break;
                     case 4:
                         //tickDown.setPeriodMilliSecond(DROP_SPEED);
@@ -328,41 +324,39 @@ public class Tetris {
                 System.out.println("NaN detektálva normalizálás után! Index: " + k);
             }
         }
-        return normalizedData;
-        //return feedData;
+        //return normalizedData;
+        return feedData;
     }
 
     private double calculateReward() {
         double reward = 0;
         // Jutalom
-        //double elapsedTime = stack.getElapsedTimeLong() / 1000.0;
-        //reward += Math.log(elapsedTime + 1) * 0.1;
         double fullRows = stack.getAllFullRows();
         reward += (fullRows - lastFullRows) * 100;
         double nearlyFullRows = stack.getMetricNearlyFullRows();
-        reward += (nearlyFullRows - lastNearlyFullRows) * 10;
+        reward += (nearlyFullRows - lastNearlyFullRows) * 5;
         double droppedElements = stack.getMetricDroppedElements();
         reward += (droppedElements - lastDroppedElements) * 0.1;
         // Büntetés
         double avgDensity = stack.getMetricAvgDensity();
-        reward -= 50 - (avgDensity - lastAvgDensity) * 100;
+        reward -= (avgDensity - lastAvgDensity) * 10;
         double numberofHoles = stack.getMetricNumberOfHoles();
-        reward -= (numberofHoles - lastNumberofHoles);
+        reward -= (numberofHoles - lastNumberofHoles) * 0.9;
         double surroundingHoles = stack.getMetricSurroundingHoles();
-        reward -= (surroundingHoles - lastSurroundingHoles);
+        reward -= (surroundingHoles - lastSurroundingHoles) * 1.0;
         double maxHeight = stack.getMetricMaxHeight();
-        reward -= (maxHeight - lastMaxHeight) * 0.3;
+        reward -= (maxHeight - lastMaxHeight) * 0.4;
         double avgColumnHeights = stack.getMetricAvgColumnHeight();
-        reward -= (avgColumnHeights - lastAvgColumnHeights) * 0.5;
+        reward -= (avgColumnHeights - lastAvgColumnHeights) * 0.4;
         double blockedRows = stack.getMetricBlockedRows();
         reward -= (blockedRows - lastBlockedRows) * 0.5;
         double bumpiness = stack.getMetricBumpiness();
-        reward -= (bumpiness - lastBumpiness);
+        reward -= (bumpiness - lastBumpiness) * 0.9;
         if (stack.getMetricNumberOfHoles() == 0) {
-            reward += 10;
+            reward += 50;
         }
         if (stack.getMetricMaxHeight() <= 6) {
-            reward += 10;
+            reward += 60;
         }
         lastFullRows = fullRows;
         lastNearlyFullRows = nearlyFullRows;
@@ -378,21 +372,21 @@ public class Tetris {
     }
 
     private double calculateFinishReward() {
-        double reward = 0;
+        double reward = -50;
         // Jutalom
         double avgDensity = stack.getMetricAvgDensity();
         reward += avgDensity * 10;
         double elapsedTime = stack.getElapsedTimeLong() / 1000.0;
-        reward += Math.log(elapsedTime + 1) * 0.2;
+        reward += Math.log(elapsedTime + 1) * 0.1;
         double fullRows = stack.getAllFullRows();
         reward += fullRows * 100;
         double nearlyFullRows = stack.getMetricNearlyFullRows();
-        reward += nearlyFullRows * 5;
+        reward += nearlyFullRows * 3;
         double droppedElements = stack.getMetricDroppedElements();
-        reward += droppedElements * 2;
+        reward += droppedElements * 1;
         // Büntetés
         double numberofHoles = stack.getMetricNumberOfHoles();
-        reward -= numberofHoles * 0.5;
+        reward -= numberofHoles * 0.3;
         double surroundingHoles = stack.getMetricSurroundingHoles();
         reward -= surroundingHoles * 0.5;
         double avgColumnHeights = stack.getMetricAvgColumnHeight();
@@ -412,6 +406,18 @@ public class Tetris {
         lastBumpiness = 0;
         lastAvgDensity = 0;
         return reward;
+    }
+
+    private void learning(boolean gameOver) {
+        double[] currentState = getFeedData();
+        double reward;
+        if (gameOver) {
+            reward = calculateFinishReward();
+        } else {
+            reward = calculateReward();
+        }
+        brain.learn(lastState, lastAction, reward, currentState, gameOver);
+        lastState = currentState;
     }
 
     /**

@@ -1368,7 +1368,7 @@ public class Stack implements GameElement {
             return;
         }
         // Forgatás
-        int currentRotation = (int)(shapeRotation / 25); // Feltételezve, hogy a shapeRotation 0, 25, 50, 75 értékeket vehet fel
+        int currentRotation = (int) (shapeRotation / 25); // Feltételezve, hogy a shapeRotation 0, 25, 50, 75 értékeket vehet fel
         while (currentRotation != targetRotation) {
             if (!rotateShapeRight()) {
                 return; // Ha nem lehet forgatni, visszatérünk
@@ -1378,24 +1378,14 @@ public class Stack implements GameElement {
         // Vízszintes mozgatás
         while (currentShape.getStackCol() != targetX) {
             if (currentShape.getStackCol() < targetX) {
-                if (moveShapeRight()) {
-                } else {
-                    return;
-                }
+                moveShapeRight();
             } else {
-                if (moveShapeLeft()) {
-                } else {
-                    return;
-                }
+                moveShapeLeft();
             }
         }
         // Függőleges mozgatás
         while (currentShape.getStackRow() < targetY) {
-            if (moveShapeDown()) {
-            } else {
-                System.out.println("Drop");
-                return;
-            }
+            moveShapeDown();
         }
 
     }

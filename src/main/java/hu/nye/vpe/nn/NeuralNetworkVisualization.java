@@ -12,9 +12,9 @@ import hu.nye.vpe.gaming.GameElement;
  * Neural network visualization class.
  */
 public class NeuralNetworkVisualization implements GameElement {
-    private static final int LINE_RATE = 100000;
+    private static final int LINE_RATE = 10000;
     private static final int NODE_SIZE = 6;
-    private static final int LAYER_DISTANCE = 150;
+    private static final int LAYER_DISTANCE = 200;
     private static final int STAT_X = 500;
     private static final int UP_OFFSET = 460;
     private static String FONT_NAME = "Truly Madly Dpad";
@@ -128,7 +128,7 @@ public class NeuralNetworkVisualization implements GameElement {
 
     private Color getColorForActivation(double activation) {
         // Ensure activation is between 0 and 1
-        activation = Math.max(0, Math.min(1, network.activate(activation)));
+        activation = Math.max(0, Math.min(1, network.activateHidden(activation)));
 
         // Interpolate between INACTIVE_NODE_COLOR and ACTIVE_NODE_COLOR based on activation
         int r = (int) (INACTIVE_NODE_COLOR.getRed() + (ACTIVE_NODE_COLOR.getRed() - INACTIVE_NODE_COLOR.getRed()) * activation);
@@ -141,38 +141,43 @@ public class NeuralNetworkVisualization implements GameElement {
     private void drawStats(Graphics2D g2d) {
         g2d.setColor(FONT_COLOR);
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
-        String maxQ = String.format("Nextq: %.8f", network.getMaxNextQValue());
-        String rms = String.format("RMS: %.8f", network.getRms());
-        String h1 = String.format("H1: Min: %.4f, Max: %.4f", network.getHidden1Min(), network.getHidden1Max());
-        String h2 = String.format("H2: Min: %.4f, Max: %.4f", network.getHidden2Min(), network.getHidden2Max());
-        String h3 = String.format("H3: Min: %.4f, Max: %.4f", network.getHidden3Min(), network.getHidden3Max());
 
+        String maxQ = String.format("Nextq: %.8f", network.getMaxNextQValue());
+        g2d.drawString(maxQ, STAT_X - UP_OFFSET, height - 720);
+        if (network.getRms() > 1.0) {
+            g2d.setColor(Color.ORANGE);
+        } else if (network.getRms() < 1e-7) {
+            g2d.setColor(Color.RED);
+        } else {
+            g2d.setColor(Color.GREEN);
+        }
+
+        g2d.setFont(new Font(FONT_NAME, Font.BOLD, 16));
+        g2d.setColor(Color.WHITE);
+        String rms = String.format("RMS: %.8f", network.getRms());
+        g2d.drawString(rms, STAT_X - UP_OFFSET, height - 700);
+        g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
+        g2d.setColor(FONT_COLOR);
+
+        String hidden1 = String.format("H1: Min: %.4f, Max: %.4f, Mean: %.4f", network.getHidden1Min(),
+                network.getHidden1Max(), network.getHidden1Mean());
+        g2d.drawString(hidden1, STAT_X - UP_OFFSET, height - 680);
+
+        String hidden2 = String.format("H2: Min: %.4f, Max: %.4f, Mean: %.4f", network.getHidden2Min(),
+                network.getHidden2Max(), network.getHidden2Mean());
+        g2d.drawString(hidden2, STAT_X - UP_OFFSET, height - 660);
+
+        String output = String.format("Out: Min: %.4f, Max: %.4f, Mean: %.4f", network.getOutputMin(),
+                network.getOutputMax(), network.getOutputMean());
+        g2d.drawString(output, STAT_X - UP_OFFSET, height - 640);
+
+        // Down
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
         String discountFactor = String.format("Discount Factor: %.4f", network.getDiscountFactor());
         String reward = String.format("Reward: %.0f", network.getReward());
         String bestReward = String.format("Best reward: %.0f", network.getBestScoreValue());
         String episodes = String.format("Episodes: %d", network.getEpisodeCount());
-
-        g2d.setFont(new Font(FONT_NAME, Font.BOLD, 16));
-        g2d.setColor(Color.WHITE);
-        g2d.drawString(maxQ, STAT_X - UP_OFFSET, height - 720);
-        if (network.getRms() > 1.0) {
-            g2d.setColor(Color.ORANGE);
-        } else if (network.getRms() < 1e-7 ) {
-            g2d.setColor(Color.RED);
-        } else {
-            g2d.setColor(Color.GREEN);
-        }
-        g2d.drawString(rms, STAT_X - UP_OFFSET, height - 700);
-        g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
-        g2d.setColor(FONT_COLOR);
-
-        g2d.drawString(h1, STAT_X - UP_OFFSET, height - 680);
-        g2d.drawString(h2, STAT_X - UP_OFFSET, height - 660);
-        g2d.drawString(h3, STAT_X - UP_OFFSET, height - 640);
-
-        // Down
         g2d.drawString(episodes, STAT_X, height - 140);
         g2d.drawString(bestReward, STAT_X, height - 120);
         g2d.drawString(reward, STAT_X, height - 100);

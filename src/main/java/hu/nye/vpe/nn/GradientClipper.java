@@ -2,6 +2,9 @@ package hu.nye.vpe.nn;
 
 import java.io.Serializable;
 
+/**
+ * Gradient clipper task.
+ */
 public class GradientClipper implements Serializable {
     private static final long serialVersionUID = 1L;
     private final double minValue;
@@ -21,6 +24,13 @@ public class GradientClipper implements Serializable {
         return Math.max(minValue, Math.min(maxValue, scaledGradient));
     }
 
+    /**
+     * Clip by value.
+     *
+     * @param gradients Gradients array
+     *
+     * @return clipped gradients array
+     */
     public double[] clipByValue(double[] gradients) {
         double[] clippedGradients = new double[gradients.length];
         for (int i = 0; i < gradients.length; i++) {
@@ -29,6 +39,13 @@ public class GradientClipper implements Serializable {
         return clippedGradients;
     }
 
+    /**
+     * Clip by norm.
+     *
+     * @param gradients Gradients array
+     *
+     * @return clipped gradients array
+     */
     public double[] clipByNorm(double[] gradients) {
         double norm = 0;
         for (double grad : gradients) {
@@ -45,6 +62,13 @@ public class GradientClipper implements Serializable {
         return gradients;
     }
 
+    /**
+     * Scaling and clipping cradients.
+     *
+     * @param gradients Gradinets array
+     *
+     * @return Clipped and scaled gradients array.
+     */
     public double[] scaleAndClip(double[] gradients) {
         double[] scaledGradients = new double[gradients.length];
         for (int i = 0; i < gradients.length; i++) {

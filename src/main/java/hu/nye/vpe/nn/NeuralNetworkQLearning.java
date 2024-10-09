@@ -8,6 +8,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -16,41 +17,40 @@ import java.util.Random;
 public class NeuralNetworkQLearning implements Serializable {
     @Serial
     private static final long serialVersionUID = 3L;
-    private static final int HIDDEN_NODES1 = 10;
-    private static final int HIDDEN_NODES2 = 8;
-    private static final int HIDDEN_NODES3 = 6;
-    private static final double INITIAL_LEARNING_RATE = 5.0;
+    private static final int HIDDEN_NODES1 = 24;
+    private static final int HIDDEN_NODES2 = 12;
+    private static final double INITIAL_LEARNING_RATE = 0.001;
     private static final double LEARNING_RATE_DECAY = 0.9999;
     private static final double MIN_LEARNING_RATE = 0.001;
     private static final double INITIAL_DISCOUNT_FACTOR = 0.6;
     private static final double MAX_DISCOUNT_FACTOR = 0.99;
     private static final double DISCOUNT_FACTOR_INCREMENT = 0.0001;
-    private static final double INITIAL_EPSILON = 0.2;
+    private static final double INITIAL_EPSILON = 0.6;
     private static final double EPSILON_DECAY = 0.999;
     private static final double MIN_EPSILON = 0.01;
-    private static final double MIN_Q_VALUE = -2;
-    private static final double MAX_Q_VALUE = 2;
-    private static final double L2_LAMBDA = 0.0;
+    private static final double MIN_Q_VALUE = -500;
+    private static final double MAX_Q_VALUE = 500;
+    private static final double L2_LAMBDA = 0.0001;
     private static final double GRADIENT_CLIP_MIN = -2; // Gradient vágás minimuma
     private static final double GRADIENT_CLIP_MAX = 2; // Gradient vágás maximuma
-    private static final double GRADIENT_SCALE = 2.0; // Gradient scálázás mértéke
+    private static final double GRADIENT_SCALE = 1.1; // Gradient scálázás mértéke
     private static final double MAXNORM = 5.0; // Gradient normalizálás
     private static final double GAMMA = 1.0; // Normalizálás
     private static final double BETA = 0; // Gradient eltolás
+    private static final int BATCH_SIZE = 64;
     private static final String FILENAME = "brain.dat";
+
     private final int inputNodes;
     private final int hiddenNodes1;
     private final int hiddenNodes2;
-    private final int hiddenNodes3;
     private final int outputNodes;
     private double[][] weightsInputHidden1;
     private double[][] weightsHidden1Hidden2;
-    private double[][] weightsHidden2Hidden3;
-    private double[][] weightsHidden3Output;
+    private double[][] weightsHidden2Output;
     private double[] biasHidden1;
     private double[] biasHidden2;
-    private double[] biasHidden3;
     private double[] biasOutput;
+
     private final Random random;
     private double learningRate;
     private double discountFactor;
@@ -61,11 +61,22 @@ public class NeuralNetworkQLearning implements Serializable {
     private double maxNextQValue;
     private double[][] lastActivations;
     private double rms;
-    private double hidden1Mean, hidden1Max, hidden1Min;
-    private double hidden2Mean, hidden2Max, hidden2Min;
-    private double hidden3Mean, hidden3Max, hidden3Min;
-    private double hidden4Mean, hidden4Max, hidden4Min;
-    private double outputMean, outputMax, outputMin; // Output statistics
+    private double hidden1Mean;
+    private double hidden1Max;
+    private double hidden1Min;
+    private double hidden2Mean;
+    private double hidden2Max;
+    private double hidden2Min;
+    private double outputMean;
+    private double outputMax;
+    private double outputMin;
+
+    private BatchNormalizer bnHidden1;
+    private BatchNormalizer bnHidden2;
+    private BatchNormalizer bnOutput;
+    private GradientClipper gradientClipper;
+    private ExperienceReplay experienceReplay;
+
 
     /**
      * QLearning neural network.
@@ -77,23 +88,26 @@ public class NeuralNetworkQLearning implements Serializable {
         this.inputNodes = inputNodes;
         this.hiddenNodes1 = HIDDEN_NODES1;
         this.hiddenNodes2 = HIDDEN_NODES2;
-        this.hiddenNodes3 = HIDDEN_NODES3;
         this.outputNodes = outputNodes;
         this.random = new Random();
         this.learningRate = INITIAL_LEARNING_RATE;
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
         this.epsilon = INITIAL_EPSILON;
         initializeLastActivations();
+        this.bnHidden1 = new BatchNormalizer(HIDDEN_NODES1, GAMMA, BETA);
+        this.bnHidden2 = new BatchNormalizer(HIDDEN_NODES2, GAMMA, BETA);
+        this.bnOutput = new BatchNormalizer(outputNodes, GAMMA, BETA);
+        this.gradientClipper = new GradientClipper(GRADIENT_CLIP_MIN, GRADIENT_CLIP_MAX, MAXNORM, GRADIENT_SCALE);
+        this.experienceReplay = new ExperienceReplay();
         loadOrInitialize();
     }
 
     private void initializeLastActivations() {
-        this.lastActivations = new double[5][];  // 5 layers: input, hidden1, hidden2, hidden3, output
+        this.lastActivations = new double[4][];
         this.lastActivations[0] = new double[inputNodes];
         this.lastActivations[1] = new double[HIDDEN_NODES1];
         this.lastActivations[2] = new double[HIDDEN_NODES2];
-        this.lastActivations[3] = new double[HIDDEN_NODES3];
-        this.lastActivations[4] = new double[outputNodes];
+        this.lastActivations[3] = new double[outputNodes];
     }
 
     private void loadOrInitialize() {
@@ -117,12 +131,10 @@ public class NeuralNetworkQLearning implements Serializable {
     private void initializeNetwork() {
         weightsInputHidden1 = initializeWeightsHE(inputNodes, hiddenNodes1);
         weightsHidden1Hidden2 = initializeWeightsHE(hiddenNodes1, hiddenNodes2);
-        weightsHidden2Hidden3 = initializeWeightsHE(hiddenNodes2, hiddenNodes3);
-        weightsHidden3Output = initializeWeightsXavier(hiddenNodes3, outputNodes);
+        weightsHidden2Output = initializeWeights(hiddenNodes2, outputNodes);
         biasHidden1 = initializeBiasesReLU(hiddenNodes1);
         biasHidden2 = initializeBiasesReLU(hiddenNodes2);
-        biasHidden3 = initializeBiasesReLU(hiddenNodes3);
-        biasOutput = initializeBiasesReLU(outputNodes);
+        biasOutput = initializeBiasesZero(outputNodes);
     }
 
     private double[][] initializeWeights(int fromSize, int toSize) {
@@ -197,14 +209,6 @@ public class NeuralNetworkQLearning implements Serializable {
         return biases;
     }
 
-    public double activate(double x) {
-        return activateLeakyReLU(x);
-    }
-
-    private double activateOutput(double x) {
-        return activateSigmoid(x);
-    }
-
     public double derivative(double x) {
         return derivativeLeakyReLU(x);
     }
@@ -254,12 +258,17 @@ public class NeuralNetworkQLearning implements Serializable {
     private double derivativeGELU(double x) {
         double cdf = 0.5 * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3))));
         double pdf = Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
-        return cdf + x * pdf * (1 - Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3))) * Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3))));
+        return cdf + x * pdf * (1 - Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3))) *
+                Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3))));
     }
 
-    private double scaleAndClipGradient(double grad) {
-        double scaledGrad = grad * GRADIENT_SCALE;
-        return Math.max(GRADIENT_CLIP_MIN, Math.min(GRADIENT_CLIP_MAX, scaledGrad));
+    public double activateHidden(double x) {
+        //return activateLeakyReLU(x);
+        return activateGELU(x);
+    }
+
+    private double activateOutput(double x) {
+        return x;
     }
 
     /**
@@ -273,35 +282,39 @@ public class NeuralNetworkQLearning implements Serializable {
         if (lastActivations == null) {
             initializeLastActivations();
         }
-        double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1, "Hidden1");
-        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2, "Hidden2");
-        double[] hidden3 = calculateLayerOutputs(hidden2, weightsHidden2Hidden3, biasHidden3, "Hidden3");
-        double[] output = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput, "Hidden4");
+        double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1, "Hidden1", bnHidden1);
+        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2, "Hidden2", bnHidden2);
+        double[] output = calculateLayerOutputs(hidden2, weightsHidden2Output, biasOutput, "Output", bnOutput);
         // Store activations for Visualization
         System.arraycopy(state, 0, lastActivations[0], 0, state.length);
         System.arraycopy(hidden1, 0, lastActivations[1], 0, hidden1.length);
         System.arraycopy(hidden2, 0, lastActivations[2], 0, hidden2.length);
-        System.arraycopy(hidden3, 0, lastActivations[3], 0, hidden3.length);
-        System.arraycopy(output, 0, lastActivations[4], 0, output.length);
+        System.arraycopy(output, 0, lastActivations[3], 0, output.length);
         for (int i = 0; i < output.length; i++) {
             output[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, output[i]));
         }
-        //return batchNormalize(output);
         return output;
     }
 
-    private double[] calculateLayerOutputs(double[] inputs, double[][] weights, double[] biases, String layerName) {
+    private double[] calculateLayerOutputs(double[] inputs, double[][] weights, double[] biases, String layerName, BatchNormalizer bn) {
         double[] outputs = new double[weights[0].length];
         for (int i = 0; i < outputs.length; i++) {
             double sum = biases[i];
             for (int j = 0; j < inputs.length; j++) {
-                double product = inputs[j] * weights[j][i];
-                sum += product;
+                sum += inputs[j] * weights[j][i];
             }
-            outputs[i] = layerName.equals("Outputs") || layerName.equals("NextOutputs") ? activateOutput(sum) : activate(sum);
+            outputs[i] = layerName.equals("Output") || layerName.equals("NextOutput") ? activateOutput(sum) : activateHidden(sum);
+
+            //System.out.println(layerName + " neuron " + i + " before activation: " + sum);
+            //System.out.println(layerName + " neuron " + i + " after activation: " + outputs[i]);
+
         }
-        //debugActivations(outputs, layerName);
-        return batchNormalize(outputs);
+
+        if (!layerName.equals("Output") && !layerName.equals("NextOutput")) {
+            outputs = bn.normalize(outputs, true);
+        }
+
+        return outputs;
     }
 
     /**
@@ -335,40 +348,24 @@ public class NeuralNetworkQLearning implements Serializable {
     /**
      * Neural network learning method.
      *
-     * @param state game metric state
+     * @param state game metric input
      * @param action action
      * @param reward reward points
      * @param nextState next game metric
      * @param gameEnded the game is ended
      */
     public void learn(double[] state, int action, double reward, double[] nextState, boolean gameEnded) {
-        // Előre átviteli számítások egyszer
-        double[] hidden1 = calculateLayerOutputs(state, weightsInputHidden1, biasHidden1, "Hidden1");
-        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2, "Hidden2");
-        double[] hidden3 = calculateLayerOutputs(hidden2, weightsHidden2Hidden3, biasHidden3, "Hidden3");
-        double[] currentQValues = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput, "Outputs");
-        for (int i = 0; i < currentQValues.length; i++) {
-            currentQValues[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, currentQValues[i]));
+        if (experienceReplay == null) {
+            this.experienceReplay = new ExperienceReplay();
+        }
+        experienceReplay.addExperience(state, action, reward, nextState, gameEnded);
+        if (experienceReplay.size() >= BATCH_SIZE) {
+            List<ExperienceReplay.Experience> batch = experienceReplay.sampleBatch(BATCH_SIZE);
+            for (ExperienceReplay.Experience exp : batch) {
+                learnFromExperience(exp.state, exp.action, exp.reward, exp.nextState, exp.done);
+            }
         }
 
-        // Következő állapot Q-értékeinek kiszámítása
-        double[] nextHidden1 = calculateLayerOutputs(nextState, weightsInputHidden1, biasHidden1, "NextHidden1");
-        double[] nextHidden2 = calculateLayerOutputs(nextHidden1, weightsHidden1Hidden2, biasHidden2, "NextHidden2");
-        double[] nextHidden3 = calculateLayerOutputs(nextHidden2, weightsHidden2Hidden3, biasHidden3, "NextHidden3");
-        double[] nextQValues = calculateLayerOutputs(nextHidden3, weightsHidden3Output, biasOutput, "NextOutputs");
-        for (int i = 0; i < nextQValues.length; i++) {
-            nextQValues[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, nextQValues[i]));  // Korlátozott Q-értékek
-        }
-
-        double maxNextQ = max(nextQValues);
-        maxNextQValue = maxNextQ;
-        double target = reward + discountFactor * maxNextQ;
-        target = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, target));
-        double currentQ = currentQValues[action];
-        double error = target - currentQ;
-        //error = scaleAndClipGradient(error);
-        normalizeGradient(new double[]{error});
-        backpropagate(state, action, error, hidden1, hidden2, hidden3);
         if (gameEnded) {
             updateEpsilon();
             updateDiscountFactor();
@@ -378,29 +375,46 @@ public class NeuralNetworkQLearning implements Serializable {
                 bestScore = reward;
             }
         }
+    }
+
+    private void learnFromExperience(double[] input, int action, double reward, double[] nextInput, boolean gameEnded) {
+        // Előre átviteli számítások egyszer
+        double[] hidden1 = calculateLayerOutputs(input, weightsInputHidden1, biasHidden1, "Hidden1", bnHidden1);
+        double[] hidden2 = calculateLayerOutputs(hidden1, weightsHidden1Hidden2, biasHidden2, "Hidden2", bnHidden2);
+        double[] currentQValues = calculateLayerOutputs(hidden2, weightsHidden2Output, biasOutput, "Output", bnOutput);
+        for (int i = 0; i < currentQValues.length; i++) {
+            currentQValues[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, currentQValues[i]));
+        }
+
+        // Következő állapot Q-értékeinek kiszámítása
+        double[] nextHidden1 = calculateLayerOutputs(nextInput, weightsInputHidden1, biasHidden1, "NextHidden1", bnHidden1);
+        double[] nextHidden2 = calculateLayerOutputs(nextHidden1, weightsHidden1Hidden2, biasHidden2, "NextHidden2", bnHidden2);
+        double[] nextQValues = calculateLayerOutputs(nextHidden2, weightsHidden2Output, biasOutput, "NextOutput", bnOutput);
+        for (int i = 0; i < nextQValues.length; i++) {
+            nextQValues[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, nextQValues[i]));  // Korlátozott Q-értékek
+        }
+
+        // Debug információk kiírása
+        //System.out.println("Current Q-values: " + Arrays.toString(currentQValues));
+        //System.out.println("Next Q-values: " + Arrays.toString(nextQValues));
+
+        double maxNextQ = max(nextQValues); // Ez itt mindig nulla.
+        maxNextQValue = maxNextQ;
+
+        //System.out.println("Max Next Q-value: " + maxNextQ);
+
+        double target = reward + discountFactor * maxNextQ;
+        target = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, target));
+        double currentQ = currentQValues[action];
+        double error = target - currentQ;
+
+        //System.out.println("Target: " + target + ", Current Q: " + currentQ + ", Error: " + error);
+
+        backpropagate(input, action, error, hidden1, hidden2);
+
         this.rewardValue = reward;
         calculateHiddenLayerStatistics();
         calculateOutputStatistics();
-    }
-
-    private double[] batchNormalize(double[] inputs) {
-        double mean = 0;
-        double variance = 0;
-        for (double input : inputs) {
-            mean += input;
-        }
-        mean /= inputs.length;
-        for (double input : inputs) {
-            variance += Math.pow(input - mean, 2);
-        }
-        // variance /= inputs.length;
-        variance = Math.max(variance / inputs.length, 1e-5);
-        double[] normalized = new double[inputs.length];
-        for (int i = 0; i < inputs.length; i++) {
-            //normalized[i] = (inputs[i] - mean) / Math.sqrt(variance + 1e-5);
-            normalized[i] = GAMMA * ((inputs[i] - mean) / Math.sqrt(variance)) + BETA;
-        }
-        return normalized;
     }
 
     private void updateEpsilon() {
@@ -436,27 +450,25 @@ public class NeuralNetworkQLearning implements Serializable {
         return maxValue;
     }
 
-    private void backpropagate(double[] state, int action, double error, double[] hidden1, double[] hidden2, double[] hidden3) {
-        double[] outputs = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput, "Output");
+    private void backpropagate(double[] input, int action, double error, double[] hidden1, double[] hidden2) {
+        double[] outputs = calculateLayerOutputs(hidden2, weightsHidden2Output, biasOutput, "Output", bnOutput);
         double[] deltaOutput = calculateOutputDelta(outputs, action, error);
-        debugGradients(deltaOutput);
-        updateWeightsAndBiases(weightsHidden3Output, biasOutput, deltaOutput, hidden3, outputNodes, "Output");
-        double[] deltaHidden3 = calculateHiddenDelta(deltaOutput, weightsHidden3Output, hidden3, hiddenNodes3);
-        updateWeightsAndBiases(weightsHidden2Hidden3, biasHidden3, deltaHidden3, hidden2, hiddenNodes3, "Hidden 3");
-        double[] deltaHidden2 = calculateHiddenDelta(deltaHidden3, weightsHidden2Hidden3, hidden2, hiddenNodes2);
+        updateWeightsAndBiases(weightsHidden2Output, biasOutput, deltaOutput, hidden2, outputNodes, "Output");
+        calculateRMS(deltaOutput);
+
+        double[] deltaHidden2 = calculateHiddenDelta(deltaOutput, weightsHidden2Output, hidden2, hiddenNodes2);
         updateWeightsAndBiases(weightsHidden1Hidden2, biasHidden2, deltaHidden2, hidden1, hiddenNodes2, "Hidden 2");
+
         double[] deltaHidden1 = calculateHiddenDelta(deltaHidden2, weightsHidden1Hidden2, hidden1, hiddenNodes1);
-        updateWeightsAndBiases(weightsInputHidden1, biasHidden1, deltaHidden1, state, hiddenNodes1,"Hidden 1");
+        updateWeightsAndBiases(weightsInputHidden1, biasHidden1, deltaHidden1, input, hiddenNodes1, "Hidden 1");
     }
 
     private double[] calculateOutputDelta(double[] outputs, int action, double error) {
         double[] delta = new double[outputNodes];
         for (int i = 0; i < outputNodes; i++) {
             delta[i] = (i == action ? error : 0) * derivative(outputs[i]);
-            normalizeGradient(delta);
-            delta[i] = scaleAndClipGradient(delta[i]);
         }
-        return delta;
+        return gradientClipper.scaleAndClip(delta);
     }
 
     private double[] calculateHiddenDelta(double[] nextLayerDelta, double[][] weights, double[] layerOutputs, int layerSize) {
@@ -467,13 +479,12 @@ public class NeuralNetworkQLearning implements Serializable {
                 sum += nextLayerDelta[j] * weights[i][j];
             }
             delta[i] = sum * derivative(layerOutputs[i]);
-            normalizeGradient(delta);
-            delta[i] = scaleAndClipGradient(delta[i]);
         }
-        return delta;
+        return gradientClipper.scaleAndClip(delta);
     }
 
-    private void updateWeightsAndBiases(double[][] weights, double[] biases, double[] delta, double[] inputs, int layerSize, String layerName) {
+    private void updateWeightsAndBiases(double[][] weights, double[] biases, double[] delta, double[] inputs,
+                                        int layerSize, String layerName) {
         // Mentsük el az eredeti súlyokat és biasokat
         double[][] originalWeights = new double[weights.length][weights[0].length];
         double[] originalBiases = new double[biases.length];
@@ -486,14 +497,12 @@ public class NeuralNetworkQLearning implements Serializable {
         for (int i = 0; i < inputs.length; i++) {
             for (int j = 0; j < layerSize; j++) {
                 double weightDelta = learningRate * (delta[j] * inputs[i] - L2_LAMBDA * weights[i][j]);
-                 weights[i][j] += learningRate * weightDelta;
-                    normalizeGradient(weights[i]);
+                 weights[i][j] += weightDelta;
             }
         }
         for (int i = 0; i < layerSize; i++) {
             biases[i] += learningRate * delta[i] * 0.1;
         }
-
         //debugWeightChanges(weights, biases, originalWeights, originalBiases, layerName);
     }
 
@@ -543,8 +552,7 @@ public class NeuralNetworkQLearning implements Serializable {
         return new double[][][] {
                 weightsInputHidden1,
                 weightsHidden1Hidden2,
-                weightsHidden2Hidden3,
-                weightsHidden3Output
+                weightsHidden2Output
         };
     }
 
@@ -572,60 +580,36 @@ public class NeuralNetworkQLearning implements Serializable {
         return hidden1Mean;
     }
 
-    public double getHidden1Max() {
-        return hidden1Max;
-    }
-
     public double getHidden1Min() {
         return hidden1Min;
+    }
+
+    public double getHidden1Max() {
+        return hidden1Max;
     }
 
     public double getHidden2Mean() {
         return hidden2Mean;
     }
 
-    public double getHidden2Max() {
-        return hidden2Max;
-    }
-
     public double getHidden2Min() {
         return hidden2Min;
     }
 
-    public double getHidden3Mean() {
-        return hidden3Mean;
-    }
-
-    public double getHidden3Max() {
-        return hidden3Max;
-    }
-
-    public double getHidden3Min() {
-        return hidden3Min;
-    }
-
-    public double getHidden4Mean() {
-        return hidden4Mean;
-    }
-
-    public double getHidden4Max() {
-        return hidden4Max;
-    }
-
-    public double getHidden4Min() {
-        return hidden4Min;
+    public double getHidden2Max() {
+        return hidden2Max;
     }
 
     public double getOutputMean() {
         return outputMean;
     }
 
-    public double getOutputMax() {
-        return outputMax;
-    }
-
     public double getOutputMin() {
         return outputMin;
+    }
+
+    public double getOutputMax() {
+        return outputMax;
     }
 
     /**
@@ -646,40 +630,17 @@ public class NeuralNetworkQLearning implements Serializable {
         initializeLastActivations();
     }
 
-    private double[] normalizeGradient(double[] gradient) {
-        double norm = 0;
-        for (double grad : gradient) {
-            norm += grad * grad;
-        }
-        norm = Math.sqrt(norm);
-
-        if (norm > MAXNORM) {
-            double scale = MAXNORM / norm;
-            for (int i = 0; i < gradient.length; i++) {
-                gradient[i] *= scale;
-            }
-        }
-        return gradient;
-    }
-
-    private void debugGradients(double[] gradients) {
+    private void calculateRMS(double[] gradients) {
         double sum = 0;
         for (double grad : gradients) {
             sum += grad * grad;
         }
         double rms = Math.sqrt(sum / gradients.length);
         this.rms = rms;
-        //System.out.println("Gradient RMS: " + rms);
-        /*
-        if (rms > 1.0) {
-            System.out.println("Warning: Potential exploding gradient");
-        } else if (rms < 1e-7) {
-            System.out.println("Warning: Potential vanishing gradient");
-        }
-         */
     }
 
-    private void debugWeightChanges(double[][] weights, double[] biases, double[][] previousWeights, double[] previousBiases, String layerName) {
+    private void debugWeightChanges(double[][] weights, double[] biases, double[][] previousWeights,
+                                    double[] previousBiases, String layerName) {
         double totalWeightChange = 0;
         double maxWeightChange = 0;
         int unchangedWeights = 0;
@@ -733,37 +694,20 @@ public class NeuralNetworkQLearning implements Serializable {
      * Calculate and update the statistics (Mean, Max, Min) for each hidden layer.
      */
     public void calculateHiddenLayerStatistics() {
-        double[] hidden1Activations = lastActivations[1];
-        double[] hidden2Activations = lastActivations[2];
-        double[] hidden3Activations = lastActivations[3];
-        double[] hidden4Activations = lastActivations[4];
-
         // Calculate statistics for Hidden1
+        double[] hidden1Activations = lastActivations[1];
         hidden1Mean = calculateMean(hidden1Activations);
         hidden1Max = calculateMax(hidden1Activations);
         hidden1Min = calculateMin(hidden1Activations);
-
         // Calculate statistics for Hidden2
+        double[] hidden2Activations = lastActivations[2];
         hidden2Mean = calculateMean(hidden2Activations);
         hidden2Max = calculateMax(hidden2Activations);
         hidden2Min = calculateMin(hidden2Activations);
-
-        // Calculate statistics for Hidden3
-        hidden3Mean = calculateMean(hidden3Activations);
-        hidden3Max = calculateMax(hidden3Activations);
-        hidden3Min = calculateMin(hidden3Activations);
-
-        // Calculate statistics for Hidden4 (Output layer)
-        hidden4Mean = calculateMean(hidden4Activations);
-        hidden4Max = calculateMax(hidden4Activations);
-        hidden4Min = calculateMin(hidden4Activations);
-
         // Print the calculated statistics for debugging
         /*
         System.out.println("Hidden1 Stats - Mean: " + hidden1Mean + ", Max: " + hidden1Max + ", Min: " + hidden1Min);
         System.out.println("Hidden2 Stats - Mean: " + hidden2Mean + ", Max: " + hidden2Max + ", Min: " + hidden2Min);
-        System.out.println("Hidden3 Stats - Mean: " + hidden3Mean + ", Max: " + hidden3Max + ", Min: " + hidden3Min);
-        System.out.println("Hidden4 Stats - Mean: " + hidden4Mean + ", Max: " + hidden4Max + ", Min: " + hidden4Min);
          */
     }
 
@@ -771,7 +715,7 @@ public class NeuralNetworkQLearning implements Serializable {
      * Calculate and update the statistics (Mean, Max, Min) for the output layer.
      */
     public void calculateOutputStatistics() {
-        double[] outputActivations = lastActivations[4];
+        double[] outputActivations = lastActivations[3];
 
         // Calculate statistics for Output layer
         outputMean = calculateMean(outputActivations);

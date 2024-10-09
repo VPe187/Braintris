@@ -2,6 +2,9 @@ package hu.nye.vpe.nn;
 
 import java.io.Serializable;
 
+/**
+ * Batch normalizer class.
+ */
 public class BatchNormalizer implements Serializable {
     private static final long serialVersionUID = 1L;
     private final int size;
@@ -20,6 +23,15 @@ public class BatchNormalizer implements Serializable {
         this.runningVariance = new double[size];
     }
 
+    /**
+     * Normalize.
+     *
+     * @param inputs layer array
+     *
+     * @param training isTraining?
+     *
+     * @return normalized data.
+     */
     public double[] normalize(double[] inputs, boolean training) {
         double[] normalized = new double[size];
 
@@ -58,6 +70,15 @@ public class BatchNormalizer implements Serializable {
         return normalized;
     }
 
+    /**
+     * Update parameters.
+     *
+     * @param learningRate LearningRate
+     *
+     * @param gradientGamma GradientGamma
+     *
+     * @param gradientBeta GradientBeta
+     */
     public void updateParameters(double learningRate, double[] gradientGamma, double[] gradientBeta) {
         for (int i = 0; i < size; i++) {
             gamma -= learningRate * gradientGamma[i];
