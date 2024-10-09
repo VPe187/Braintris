@@ -16,10 +16,10 @@ import java.util.Random;
 public class NeuralNetworkQLearning implements Serializable {
     @Serial
     private static final long serialVersionUID = 3L;
-    private static final int HIDDEN_NODES1 = 48;
-    private static final int HIDDEN_NODES2 = 32;
-    private static final int HIDDEN_NODES3 = 16;
-    private static final double INITIAL_LEARNING_RATE = 5.01;
+    private static final int HIDDEN_NODES1 = 10;
+    private static final int HIDDEN_NODES2 = 8;
+    private static final int HIDDEN_NODES3 = 6;
+    private static final double INITIAL_LEARNING_RATE = 5.0;
     private static final double LEARNING_RATE_DECAY = 0.9999;
     private static final double MIN_LEARNING_RATE = 0.001;
     private static final double INITIAL_DISCOUNT_FACTOR = 0.6;
@@ -28,15 +28,15 @@ public class NeuralNetworkQLearning implements Serializable {
     private static final double INITIAL_EPSILON = 0.2;
     private static final double EPSILON_DECAY = 0.999;
     private static final double MIN_EPSILON = 0.01;
-    private static final double MIN_Q_VALUE = -1;
-    private static final double MAX_Q_VALUE = 1;
-    private static final double L2_LAMBDA = 0.0001;
+    private static final double MIN_Q_VALUE = -2;
+    private static final double MAX_Q_VALUE = 2;
+    private static final double L2_LAMBDA = 0.0;
     private static final double GRADIENT_CLIP_MIN = -2; // Gradient vágás minimuma
     private static final double GRADIENT_CLIP_MAX = 2; // Gradient vágás maximuma
-    private static final double GRADIENT_SCALE = 1.05; // Gradient scálázás mértéke
-    private static final double MAXNORM = 2.0; // Gradient normalizálás
-    private static final double GAMMA = 1.2; // Normalizálás
-    private static final double BETA = 0.05; // Gradient eltolás
+    private static final double GRADIENT_SCALE = 2.0; // Gradient scálázás mértéke
+    private static final double MAXNORM = 5.0; // Gradient normalizálás
+    private static final double GAMMA = 1.0; // Normalizálás
+    private static final double BETA = 0; // Gradient eltolás
     private static final String FILENAME = "brain.dat";
     private final int inputNodes;
     private final int hiddenNodes1;
@@ -198,12 +198,11 @@ public class NeuralNetworkQLearning implements Serializable {
     }
 
     public double activate(double x) {
-        //return activateLeakyReLU(x);
-        return activateGELU(x);
+        return activateLeakyReLU(x);
     }
 
     private double activateOutput(double x) {
-        return x;
+        return activateSigmoid(x);
     }
 
     public double derivative(double x) {
@@ -349,8 +348,9 @@ public class NeuralNetworkQLearning implements Serializable {
         double[] hidden3 = calculateLayerOutputs(hidden2, weightsHidden2Hidden3, biasHidden3, "Hidden3");
         double[] currentQValues = calculateLayerOutputs(hidden3, weightsHidden3Output, biasOutput, "Outputs");
         for (int i = 0; i < currentQValues.length; i++) {
-            currentQValues[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, currentQValues[i]));  // Korlátozott Q-értékek
+            currentQValues[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, currentQValues[i]));
         }
+
         // Következő állapot Q-értékeinek kiszámítása
         double[] nextHidden1 = calculateLayerOutputs(nextState, weightsInputHidden1, biasHidden1, "NextHidden1");
         double[] nextHidden2 = calculateLayerOutputs(nextHidden1, weightsHidden1Hidden2, biasHidden2, "NextHidden2");
@@ -359,6 +359,7 @@ public class NeuralNetworkQLearning implements Serializable {
         for (int i = 0; i < nextQValues.length; i++) {
             nextQValues[i] = Math.max(MIN_Q_VALUE, Math.min(MAX_Q_VALUE, nextQValues[i]));  // Korlátozott Q-értékek
         }
+
         double maxNextQ = max(nextQValues);
         maxNextQValue = maxNextQ;
         double target = reward + discountFactor * maxNextQ;
@@ -368,8 +369,8 @@ public class NeuralNetworkQLearning implements Serializable {
         //error = scaleAndClipGradient(error);
         normalizeGradient(new double[]{error});
         backpropagate(state, action, error, hidden1, hidden2, hidden3);
-        updateEpsilon();
         if (gameEnded) {
+            updateEpsilon();
             updateDiscountFactor();
             updateLearningrate();
             episodeCount++;
@@ -669,11 +670,13 @@ public class NeuralNetworkQLearning implements Serializable {
         double rms = Math.sqrt(sum / gradients.length);
         this.rms = rms;
         //System.out.println("Gradient RMS: " + rms);
+        /*
         if (rms > 1.0) {
             System.out.println("Warning: Potential exploding gradient");
         } else if (rms < 1e-7) {
             System.out.println("Warning: Potential vanishing gradient");
         }
+         */
     }
 
     private void debugWeightChanges(double[][] weights, double[] biases, double[][] previousWeights, double[] previousBiases, String layerName) {

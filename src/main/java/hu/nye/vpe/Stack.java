@@ -68,7 +68,7 @@ public class Stack implements GameElement {
     private double metricAvgColumnHeight;
     private int metricMaxHeight;
     private double metricBumpiness;
-    private double metricNearyFullRows;
+    private double metricNearlyFullRows;
     private double metricBlockedRows;
     private double metricSurroundingHoles;
     private double metricDroppedElements;
@@ -589,7 +589,7 @@ public class Stack implements GameElement {
         metricSurroundingHoles = calculateHolesSurroundings();
         metricNumberOfHoles = countHoles();
         metricBlockedRows = countBlockedRows();
-        metricNearyFullRows = countNearlyFullRows();
+        metricNearlyFullRows = countNearlyFullRows();
         metricAvgDensity = calculateAverageDensity();
     }
 
@@ -1172,7 +1172,7 @@ public class Stack implements GameElement {
             infoStrC = "Bumpiness: " + String.format("%.0f", metricBumpiness);
             infoStrR = "Iteration: " + iteration;
             infoStrA = "Height (avg): " + String.format("%.2f", metricAvgColumnHeight);
-            infoStrN = "Nearly full rows: " + String.format("%.0f", metricNearyFullRows);
+            infoStrN = "Nearly full rows: " + String.format("%.0f", metricNearlyFullRows);
             infoStrB = "Blocked rows: " + String.format("%.0f", metricBlockedRows);
             infoStrH = "Surrounding holes: " + String.format("%.0f", metricSurroundingHoles);
             infoStrO = "Shape rotation: " + String.format("%.2f", shapeRotation);
@@ -1299,8 +1299,8 @@ public class Stack implements GameElement {
         return metricBumpiness;
     }
 
-    public double getMetricNearyFullRows() {
-        return metricNearyFullRows;
+    public double getMetricNearlyFullRows() {
+        return metricNearlyFullRows;
     }
 
     public double getMetricBlockedRows() {
