@@ -47,7 +47,7 @@ public class GradientClipper implements Serializable {
      *
      * @return clipped gradients array
      */
-    public double[] clipByNormOLD(double[] gradients) {
+    public double[] clipByNorm(double[] gradients) {
         double norm = 0;
         for (double grad : gradients) {
             norm += grad * grad;
@@ -63,7 +63,7 @@ public class GradientClipper implements Serializable {
         return gradients;
     }
 
-    public double[] clipByNorm(double[] gradients) {
+    public double[] clipByNormOLD(double[] gradients) {
         double squaredNorm = 0;
         for (double grad : gradients) {
             squaredNorm += grad * grad;

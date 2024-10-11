@@ -1,6 +1,8 @@
 package hu.nye.vpe;
 
 import java.awt.Graphics2D;
+import java.util.ArrayList;
+import java.util.List;
 
 import hu.nye.vpe.gaming.GameAudio;
 import hu.nye.vpe.gaming.GameColorPalette;
@@ -25,22 +27,23 @@ public class Tetris {
     private static int episodeMoveCount = 0;
 
     private NeuralNetwork brain;
-    private static final String[] NAMES = {"H1", "H2", "H3", "OUT"};
-    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 32, 32, 16, OUTPUT_NODES};
+
+    private static final String[] NAMES = {"INP", "H1", "H2", "H3", "OUT"};
+    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 32, 16, 8, OUTPUT_NODES};
     private static final Activation[] ACTIVATIONS = {
             Activation.LEAKY_RELU,
             Activation.LEAKY_RELU,
-            Activation.LEAKY_RELU,
+            Activation.ELU,
             Activation.LINEAR
     };
     private static final WeightInitStrategy[] INIT_STRATEGIES = {
             WeightInitStrategy.HE,
             WeightInitStrategy.HE,
             WeightInitStrategy.HE,
-            WeightInitStrategy.XAVIER
+            WeightInitStrategy.HE
     };
     private static final boolean[] USE_BATCH_NORM = {false, true, true, false};
-    private static final double[] L2 = {0.0, 0.0, 0.0, 0.0};
+    private static final double[] L2 = {0.0, 0.0001, 0.0001, 0.0};
 
     private final long speed = 1000L;
     private final long learningSpeed = 5L;

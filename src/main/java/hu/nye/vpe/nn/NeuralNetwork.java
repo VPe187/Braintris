@@ -17,11 +17,12 @@ public class NeuralNetwork implements Serializable {
     private double maxQValue;
     private double lastReward;
     private double[][] lastActivations;
+    private List<Double> rewardHistory = new ArrayList<>();
 
     private static final String FILENAME = "brain.dat";
     private static final double CLIP_MIN = -1.0;
     private static final double CLIP_MAX = 1.0;
-    private static final double CLIP_NORM = 1.0;
+    private static final double CLIP_NORM = 3.0;
     private static final double GRADIENT_SCALE = 1.0;
 
     private static final double INITIAL_LEARNING_RATE = 0.01;
