@@ -21,7 +21,6 @@ public class Tetris {
     private static final int FEED_DATA_SIZE = 16;
     private static final int OUTPUT_NODES = 4;
     private static final long DROP_SPEED = 10L;
-    private static final double REWARD_SCALE = 0.01;
     private static int moveCount = 0;
     private static int episodeMoveCount = 0;
 
@@ -40,8 +39,8 @@ public class Tetris {
             WeightInitStrategy.HE,
             WeightInitStrategy.XAVIER
     };
-    private static final boolean[] USE_BATCH_NORM = {true, true, true, false};
-    private static final double[] L2 = {0.0, 0.01, 0.0, 0.1};
+    private static final boolean[] USE_BATCH_NORM = {false, true, true, false};
+    private static final double[] L2 = {0.0, 0.0, 0.0, 0.0};
 
     private final long speed = 1000L;
     private final long learningSpeed = 5L;
@@ -447,7 +446,7 @@ public class Tetris {
         lastBlockedRows = blockedRows;
         lastBumpiness = bumpiness;
         lastAvgDensity = avgDensity;
-        return reward * REWARD_SCALE;
+        return reward;
     }
 
     private double calculateFinishReward() {
@@ -507,7 +506,7 @@ public class Tetris {
         lastBlockedRows = 0;
         lastBumpiness = 0;
         lastAvgDensity = 0;
-        return (50 + reward) * REWARD_SCALE;
+        return 50 + reward;
     }
 
     private void learning(boolean gameOver) {

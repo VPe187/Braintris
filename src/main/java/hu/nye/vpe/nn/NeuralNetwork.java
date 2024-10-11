@@ -8,14 +8,12 @@ import java.util.Random;
 public class NeuralNetwork implements Serializable {
     private final List<Layer> layers;
     private double learningRate;
-    private double outputLearningRate;
     private double discountFactor;
     private double epsilon;
     private int episodeCount;
     private double bestScore;
     private final Random random;
     private final GradientClipper gradientClipper;
-    private final ExperienceReplay experienceReplay;
     private double maxQValue;
     private double lastReward;
     private double[][] lastActivations;
@@ -23,7 +21,7 @@ public class NeuralNetwork implements Serializable {
     private static final String FILENAME = "brain.dat";
     private static final double CLIP_MIN = -1.0;
     private static final double CLIP_MAX = 1.0;
-    private static final double CLIP_NORM = 5.0;
+    private static final double CLIP_NORM = 1.0;
     private static final double GRADIENT_SCALE = 1.0;
 
     private static final double INITIAL_LEARNING_RATE = 0.01;
@@ -37,9 +35,6 @@ public class NeuralNetwork implements Serializable {
     private static final double INITIAL_EPSILON = 0.6;
     private static final double EPSILON_DECAY = 0.995;
     private static final double MIN_EPSILON = 0.01;
-
-    private static final int REPLAY_MEMORY_SIZE =  100000;
-    private static final int BATCH_SIZE = 128;
 
     private static final double MIN_Q = -1000;
     private static final double MAX_Q = 1000;
@@ -59,9 +54,7 @@ public class NeuralNetwork implements Serializable {
                     useBatchNorm[i - 1], gradientClipper, l2[i - 1]));
         }
 
-        this.experienceReplay = new ExperienceReplay(REPLAY_MEMORY_SIZE);
         this.learningRate = INITIAL_LEARNING_RATE;
-        this.outputLearningRate = INITIAL_LEARNING_RATE * 3;
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
         this.epsilon = INITIAL_EPSILON;
         this.episodeCount = 0;
@@ -124,9 +117,7 @@ public class NeuralNetwork implements Serializable {
         // Súlyok frissítése
         for (int i = layers.size() - 1; i >= 0; i--) {
             Layer currentLayer = layers.get(i);
-            double currentLearningRate = (i == layers.size() - 1) ? outputLearningRate : learningRate; // Output réteg külön tanulási rátája
-            //LayerGradients gradients = currentLayer.backward(deltas, learningRate);
-            LayerGradients gradients = currentLayer.backward(deltas, currentLearningRate);
+            LayerGradients gradients = currentLayer.backward(deltas, learningRate);
             deltas = gradientClipper.scaleAndClip(gradients.inputGradients);
         }
     }
@@ -141,43 +132,24 @@ public class NeuralNetwork implements Serializable {
     }
 
     public void learn(double[] state, int action, double reward, double[] nextState, boolean gameOver) {
-
         double[] currentQValues = forward(state);
         double[] nextQValues = forward(nextState);
         double maxNextQ = max(nextQValues);
 
+        double normalizedReward = reward / Math.sqrt(reward * reward + 1);
+        double target = normalizedReward + (gameOver ? 0 : discountFactor * maxNextQ);
+        target = Math.max(MIN_Q, Math.min(MAX_Q, target));
+        /*
         double target = reward;
         if (!gameOver) {
             target += discountFactor * maxNextQ;
         }
+         */
 
         double[] targetQValues = currentQValues.clone();
         targetQValues[action] = target;
 
         backward(state, targetQValues);
-
-        // Experience Replay hozzáadása és batch tanulás
-        experienceReplay.add(new Experience(state, action, reward, nextState, gameOver));
-
-        if (experienceReplay.size() >= BATCH_SIZE) {
-            //System.out.println("Start experience ...");
-            List<Experience> batch = experienceReplay.sample(BATCH_SIZE);
-            for (Experience experience : batch) {
-                currentQValues = forward(experience.state);
-                nextQValues = forward(experience.nextState);
-                maxNextQ = max(nextQValues);
-
-                target = experience.reward;
-                if (!experience.done) {
-                    target += discountFactor * maxNextQ;
-                }
-
-                targetQValues = currentQValues.clone();
-                targetQValues[experience.action] = target;
-
-                backward(experience.state, targetQValues);
-            }
-        }
 
         lastReward = reward;
 
@@ -259,7 +231,7 @@ public class NeuralNetwork implements Serializable {
 
     public int[] getLayerSizes() {
         int[] sizes = new int[layers.size() + 1];
-        sizes[0] = layers.get(0).getNeurons().get(0).getWeights().length; // Input layer size
+        sizes[0] = layers.get(0).getNeurons().get(0).getWeights().length;
         for (int i = 0; i < layers.size(); i++) {
             sizes[i + 1] = layers.get(i).getNeurons().size();
         }

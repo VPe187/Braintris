@@ -98,10 +98,13 @@ public class BatchNormalizer implements Serializable {
 
         for (int i = 0; i < size; i++) {
             double xHat = (lastInputs[i] - lastMean[i]) * invStd[i];
-            gradients[i] = gamma[i] * invStd[i] * (inputGradients[i] - sumDy[i] / size - xHat * sumDyXmu[i] * invStd[i] / size);
-
-            this.gammaGradients[i] = inputGradients[i] * xHat;
-            this.betaGradients[i] = inputGradients[i];
+            gradients[i] = gamma[i] * invStd[i] * (
+                    inputGradients[i]
+                            - sumDy[i]
+                            - xHat * sumDyXmu[i] * invStd[i]
+            );
+            this.gammaGradients[i] = sumDyXmu[i] * invStd[i];
+            this.betaGradients[i] = sumDy[i];
         }
 
         return gradients;

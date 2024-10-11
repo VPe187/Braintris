@@ -32,12 +32,17 @@ public class Layer implements Serializable {
     public double[] forward(double[] inputs, boolean isTraining) {
         this.lastInputs = inputs.clone();
         double[] outputs = new double[neurons.size()];
-        for (int i = 0; i < neurons.size(); i++) {
-            outputs[i] = neurons.get(i).activate(inputs);
-        }
+
+        double[] normalizedInputs = inputs.clone();
         if (batchNormalizer != null) {
-            outputs = batchNormalizer.normalize(outputs, isTraining);
+            normalizedInputs = batchNormalizer.normalize(normalizedInputs, isTraining);
         }
+
+
+        for (int i = 0; i < neurons.size(); i++) {
+            outputs[i] = neurons.get(i).activate(normalizedInputs);
+        }
+
         return outputs;
     }
 
