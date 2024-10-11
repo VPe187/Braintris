@@ -240,10 +240,10 @@ public class Stack implements GameElement {
         if (!checkShapeIsDown()) {
             currentShape.setRowPosition(currentShape.getStackRow() + 1);
             putShape();
-            return true;
+            return false;
         } else {
             itemFalled();
-            return false;
+            return true;
         }
     }
 

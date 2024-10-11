@@ -7,8 +7,10 @@ import hu.nye.vpe.gaming.GameColorPalette;
 import hu.nye.vpe.gaming.GameInput;
 import hu.nye.vpe.gaming.GameStarfield;
 import hu.nye.vpe.gaming.GameTimeTicker;
-import hu.nye.vpe.nn.InputNormalizer;
-import hu.nye.vpe.nn.NeuralNetworkQLearning;
+import hu.nye.vpe.nn.Activation;
+import hu.nye.vpe.nn.InputNormalizerZScore;
+import hu.nye.vpe.nn.NeuralNetwork;
+import hu.nye.vpe.nn.WeightInitStrategy;
 
 /**
  * Tetris class.
@@ -16,11 +18,33 @@ import hu.nye.vpe.nn.NeuralNetworkQLearning;
 public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
-    private static final int FEED_DATA_SIZE = 8;
-    private static final int OUTPUT_NODES = 5;
+    private static final int FEED_DATA_SIZE = 16;
+    private static final int OUTPUT_NODES = 4;
     private static final long DROP_SPEED = 10L;
+    private static final double REWARD_SCALE = 0.01;
+    private static int moveCount = 0;
+    private static int episodeMoveCount = 0;
+
+    private NeuralNetwork brain;
+    private static final String[] NAMES = {"H1", "H2", "H3", "OUT"};
+    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 32, 32, 16, OUTPUT_NODES};
+    private static final Activation[] ACTIVATIONS = {
+            Activation.LEAKY_RELU,
+            Activation.LEAKY_RELU,
+            Activation.LEAKY_RELU,
+            Activation.LINEAR
+    };
+    private static final WeightInitStrategy[] INIT_STRATEGIES = {
+            WeightInitStrategy.HE,
+            WeightInitStrategy.HE,
+            WeightInitStrategy.HE,
+            WeightInitStrategy.XAVIER
+    };
+    private static final boolean[] USE_BATCH_NORM = {true, true, true, false};
+    private static final double[] L2 = {0.0, 0.01, 0.0, 0.1};
+
     private final long speed = 1000L;
-    private final long learningSpeed = 30L;
+    private final long learningSpeed = 5L;
     private Shape nextShape = null;
     private static final ShapeFactory sf = ShapeFactory.getInstance();
     private final Stack stack;
@@ -33,7 +57,6 @@ public class Tetris {
     private final GameInput gameInput;
     private boolean musicOn = true;
     private final boolean learning;
-    private NeuralNetworkQLearning brain;
     private double[] lastState;
     private int lastAction;
 
@@ -59,10 +82,17 @@ public class Tetris {
         this.learning = learning;
         if (this.learning) {
             try {
-                brain = NeuralNetworkQLearning.loadFromFile();
+                brain = NeuralNetwork.loadFromFile();
             } catch (Exception e) {
-                System.out.println("Creating new Q-Learning Neural Network");
-                brain = new NeuralNetworkQLearning(FEED_DATA_SIZE, OUTPUT_NODES);
+                System.out.println("Creating new Neural Network");
+                brain = new NeuralNetwork(
+                        NAMES,
+                        LAYER_SIZES,
+                        ACTIVATIONS,
+                        INIT_STRATEGIES,
+                        USE_BATCH_NORM,
+                        L2
+                );
             }
         }
     }
@@ -89,6 +119,8 @@ public class Tetris {
         nextShape();
         lastAction = 0;
         lastState = getFeedData();
+        moveCount = 0;
+        episodeMoveCount = 0;
     }
 
     private void nextShape() {
@@ -128,7 +160,9 @@ public class Tetris {
                     } else {
                         if (stack.moveShapeDown()) {
                             if (learning) {
+                                //System.out.println("Down: " + moveCount);
                                 learning(false);
+                                moveCount = 0;
                             }
                         }
                     }
@@ -138,6 +172,7 @@ public class Tetris {
         if (stack.getState() == State.GAMEOVER) {
             if (learning) {
                 learning(true);
+                //System.out.println("All movements: " + episodeMoveCount);
                 try {
                     brain.saveToFile();
                 } catch (Exception e) {
@@ -170,23 +205,32 @@ public class Tetris {
                 switch (action) {
                     case 0:
                         stack.rotateShapeRight();
-                        //learning(false);
+                        learning(false);
+                        moveCount++;
+                        episodeMoveCount++;
                         break;
                     case 1:
                         stack.rotateShapeLeft();
-                        //learning(false);
+                        learning(false);
+                        moveCount++;
+                        episodeMoveCount++;
                         break;
                     case 2:
                         stack.moveShapeRight();
-                        //learning(false);
+                        learning(false);
+                        moveCount++;
+                        episodeMoveCount++;
                         break;
                     case 3:
                         stack.moveShapeLeft();
-                        //learning(false);
+                        learning(false);
+                        moveCount++;
+                        episodeMoveCount++;
                         break;
                     case 4:
-                        //tickDown.setPeriodMilliSecond(DROP_SPEED);
+                        tickDown.setPeriodMilliSecond(DROP_SPEED);
                         stack.moveShapeDown();
+                        learning(false);
                         break;
                     default:
                         tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
@@ -249,6 +293,17 @@ public class Tetris {
         double[] feedData = new double[FEED_DATA_SIZE];
         int k = 0;
 
+        // Aktuális elem x és y poziciója
+        if (stack.getCurrentShape() != null) {
+            feedData[k++] = stack.getCurrentShape().getStackCol();
+            feedData[k++] = stack.getCurrentShape().getStackRow();
+            feedData[k++] = stack.getShapeRotation();
+        } else {
+            feedData[k++] = 0;
+            feedData[k++] = 0;
+            feedData[k++] = 0;
+        }
+
         /*
         // Oszlopmagasságok
         double[] columnHeights = stack.getMetricColumnHeights();
@@ -270,94 +325,118 @@ public class Tetris {
                 k++;
             }
         }
-
-        // Aktuális elem x és y poziciója
-        if (stack.getCurrentShape() != null) {
-            feedData[k++] = stack.getCurrentShape().getStackCol();
-            feedData[k++] = stack.getCurrentShape().getStackRow();
-            feedData[k++] = stack.getShapeRotation();
-        } else {
-            feedData[k++] = 0;
-            feedData[k++] = 0;
-            feedData[k++] = 0;
-        }
-
-        // Következő elem
-        feedData[k++] = nextShape.getId();
          */
+
+        // Összes sor
+        feedData[k++] = stack.getAllFullRows();
+
+        // Majdnem teli sorok
+        feedData[k++] = stack.getMetricNearlyFullRows();
 
         // Lyukak száma
         feedData[k++] = stack.getMetricNumberOfHoles();
 
-        // Majdnem teli sorok
-        feedData[k++] = stack.getMetricNearlyFullRows();
-        // Blokkolt sorok
-        feedData[k++] = stack.getMetricBlockedRows();
+        // Ledobott elemek
+        feedData[k++] = stack.getMetricDroppedElements();
 
-        // Magasság különbségek
-        feedData[k++] = stack.getMetricAvgColumnHeight();
+        // Átlagsűrűség
+        feedData[k++] = stack.getMetricAvgDensity();
+
+        // Lyukak száma
+        feedData[k++] = stack.getMetricNumberOfHoles();
 
         // Körbevett lukak
         feedData[k++] = stack.getMetricSurroundingHoles();
 
-        // Maximum magasság
-        feedData[k++] = stack.getMetricMaxHeight();
+        // Blokkolt sorok
+        feedData[k++] = stack.getMetricBlockedRows();
 
         // Egyenetlenség
         feedData[k++] = stack.getMetricBumpiness();
+
+        // Maximum magasság
+        feedData[k++] = stack.getMetricMaxHeight();
+
+        // Magasság különbségek
+        feedData[k++] = stack.getMetricAvgColumnHeight();
 
         // Játék állapot
         /*
         feedData[k++] = stack.getGameScore();
         feedData[k++] = stack.getGameLevel();
-        feedData[k++] = stack.getAllFullRows();
-        feedData[k++] = stack.getDroppedElements();
          */
 
         // Terület tömörsége
         feedData[k++] = stack.getMetricAvgDensity();
 
-        InputNormalizer normalizer = new InputNormalizer(FEED_DATA_SIZE);
+        // Mozgatások száma
+        feedData[k] = moveCount;
+
+        // Normalizálás
+        //InputNormalizerMinmax normalizer = new InputNormalizerMinmax(FEED_DATA_SIZE);
+        InputNormalizerZScore normalizer = new InputNormalizerZScore(FEED_DATA_SIZE);
         double[] normalizedData = normalizer.normalizeAutomatically(feedData);
-        for (int i = 0; i < normalizedData.length; i++) {
-            if (Double.isNaN(normalizedData[i])) {
-                System.out.println("NaN detektálva normalizálás után! Index: " + k);
-            }
-        }
         return normalizedData;
-        //return feedData;
     }
 
     private double calculateReward() {
         double reward = 0;
-        // Jutalom
+
+        // Jutalom teljes kirakott sorokra
         double fullRows = stack.getAllFullRows();
         reward += (fullRows - lastFullRows) * 100;
+
+        // Jutalom a közel teli sorokra
         double nearlyFullRows = stack.getMetricNearlyFullRows();
         reward += (nearlyFullRows - lastNearlyFullRows) * 5;
+
+        // Jutalom a ledobott elemekért
         double droppedElements = stack.getMetricDroppedElements();
-        reward += (droppedElements - lastDroppedElements) * 0.1;
-        // Büntetés
+        reward += (droppedElements - lastDroppedElements) * 2;
+
+        // Jutalom az átlagsűrűségért
         double avgDensity = stack.getMetricAvgDensity();
-        reward -= (avgDensity - lastAvgDensity) * 10;
-        double numberofHoles = stack.getMetricNumberOfHoles();
-        reward -= (numberofHoles - lastNumberofHoles) * 0.9;
-        double surroundingHoles = stack.getMetricSurroundingHoles();
-        reward -= (surroundingHoles - lastSurroundingHoles) * 1.0;
-        double maxHeight = stack.getMetricMaxHeight();
-        reward -= (maxHeight - lastMaxHeight) * 0.4;
-        double avgColumnHeights = stack.getMetricAvgColumnHeight();
-        reward -= (avgColumnHeights - lastAvgColumnHeights) * 0.4;
-        double blockedRows = stack.getMetricBlockedRows();
-        reward -= (blockedRows - lastBlockedRows) * 0.5;
-        double bumpiness = stack.getMetricBumpiness();
-        reward -= (bumpiness - lastBumpiness) * 0.9;
+        reward += (avgDensity - lastAvgDensity) * 10;
+
+        // Jutalom a lyuk nélküli elhelyezésért
         if (stack.getMetricNumberOfHoles() == 0) {
-            reward += 5;
+            reward += 20;
         }
-        if (stack.getMetricMaxHeight() <= 6) {
-            reward += 5;
+
+        // Jutalom az alacsonyra lerakásért
+        if (stack.getMetricMaxHeight() <= 8) {
+            reward += 1;
+        } else {
+            reward -= 2;
         }
+
+        // Büntetés a lyukakért
+        double numberofHoles = stack.getMetricNumberOfHoles();
+        reward -= (numberofHoles - lastNumberofHoles) * 0.3;
+
+        // Büntetés a végleges lyukakért
+        double surroundingHoles = stack.getMetricSurroundingHoles();
+        reward -= (surroundingHoles - lastSurroundingHoles) * 0.8;
+
+        // Büntetés a blokkolt sorokért
+        double blockedRows = stack.getMetricBlockedRows();
+        reward -= (blockedRows - lastBlockedRows) * 0.2;
+
+        // Büntetés az egyenetlenségért
+        double bumpiness = stack.getMetricBumpiness();
+        reward -= (bumpiness - lastBumpiness) * 0.1;
+
+        // Büntetés a magasra helyezésért
+        double maxHeight = stack.getMetricMaxHeight();
+        reward -= (maxHeight - lastMaxHeight) * 0.1;
+
+        // Büntetés az átlagos magasságért
+        double avgColumnHeights = stack.getMetricAvgColumnHeight();
+        reward -= (avgColumnHeights - lastAvgColumnHeights) * 0.1;
+
+        // Összes lerakott elemre jutó mozgatás
+        //reward += (5 - (episodeCount / droppedElements));
+
         lastFullRows = fullRows;
         lastNearlyFullRows = nearlyFullRows;
         lastDroppedElements = droppedElements;
@@ -368,33 +447,56 @@ public class Tetris {
         lastBlockedRows = blockedRows;
         lastBumpiness = bumpiness;
         lastAvgDensity = avgDensity;
-        return reward;
+        return reward * REWARD_SCALE;
     }
 
     private double calculateFinishReward() {
-        double reward = -50;
-        // Jutalom
-        double avgDensity = stack.getMetricAvgDensity();
-        reward += avgDensity * 10;
-        double elapsedTime = stack.getElapsedTimeLong() / 1000.0;
-        reward += Math.log(elapsedTime + 1) * 0.1;
+        double reward = -10;
+
+        // Jutalom a teljes kirakott sorokra
         double fullRows = stack.getAllFullRows();
         reward += fullRows * 100;
+
+        // Jutalom a közel teli sorokra
         double nearlyFullRows = stack.getMetricNearlyFullRows();
-        reward += nearlyFullRows * 3;
+        reward += nearlyFullRows * 5;
+
+        // Jutalom a ledobott elemekért
         double droppedElements = stack.getMetricDroppedElements();
-        reward += droppedElements * 1;
-        // Büntetés
+        reward += droppedElements * 2;
+
+        // Jutalom az átlagsűrűségért
+        double avgDensity = stack.getMetricAvgDensity();
+        reward += avgDensity * 10;
+
+        // Jutalom a játékidőért
+        double elapsedTime = stack.getElapsedTimeLong() / 1000.0;
+        reward += Math.log(elapsedTime + 1) * 0.1;
+
+        // Büntetés a lyukakért
         double numberofHoles = stack.getMetricNumberOfHoles();
         reward -= numberofHoles * 0.3;
+
+        // Büntetés a végleges lyukakért
         double surroundingHoles = stack.getMetricSurroundingHoles();
-        reward -= surroundingHoles * 0.5;
+        reward -= surroundingHoles * 0.8;
+
+        // Büntetés a blokkolt sorokért
+        double blockedRows = stack.getMetricBlockedRows();
+        reward -= blockedRows * 0.2;
+
+        // Büntetés az egyenetlenségért
+        double bumpiness = stack.getMetricBumpiness() * 0.1;
+        reward -= bumpiness;
+
+        // Büntetés az átlagos magasságért
         double avgColumnHeights = stack.getMetricAvgColumnHeight();
         reward -= avgColumnHeights;
-        double blockedRows = stack.getMetricBlockedRows();
-        reward -= blockedRows * 0.5;
-        double bumpiness = stack.getMetricBumpiness();
-        reward -= bumpiness;
+
+        if (droppedElements > 0) {
+            reward += 5 - episodeMoveCount / droppedElements;
+        }
+
         lastFullRows = 0;
         lastNearlyFullRows = 0;
         lastDroppedElements = 0;
@@ -405,7 +507,7 @@ public class Tetris {
         lastBlockedRows = 0;
         lastBumpiness = 0;
         lastAvgDensity = 0;
-        return reward;
+        return (50 + reward) * REWARD_SCALE;
     }
 
     private void learning(boolean gameOver) {
@@ -425,7 +527,7 @@ public class Tetris {
      *
      * @return neural network
      */
-    public NeuralNetworkQLearning getBrain() {
+    public NeuralNetwork getBrain() {
         if (!learning) {
             throw new IllegalStateException("Neural network is not available when learning is disabled.");
         }

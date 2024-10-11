@@ -11,6 +11,7 @@ public class GradientClipper implements Serializable {
     private final double maxValue;
     private final double clipNorm;
     private final double gradientScale;
+    private final double epsilon = 1e-8;
 
     public GradientClipper(double minValue, double maxValue, double clipNorm, double gradientScale) {
         this.minValue = minValue;
@@ -46,7 +47,7 @@ public class GradientClipper implements Serializable {
      *
      * @return clipped gradients array
      */
-    public double[] clipByNorm(double[] gradients) {
+    public double[] clipByNormOLD(double[] gradients) {
         double norm = 0;
         for (double grad : gradients) {
             norm += grad * grad;
@@ -55,6 +56,22 @@ public class GradientClipper implements Serializable {
 
         if (norm > clipNorm) {
             double scale = clipNorm / norm;
+            for (int i = 0; i < gradients.length; i++) {
+                gradients[i] *= scale;
+            }
+        }
+        return gradients;
+    }
+
+    public double[] clipByNorm(double[] gradients) {
+        double squaredNorm = 0;
+        for (double grad : gradients) {
+            squaredNorm += grad * grad;
+        }
+        double norm = Math.sqrt(squaredNorm + epsilon);
+
+        if (norm > clipNorm) {
+            double scale = clipNorm / (norm + epsilon);
             for (int i = 0; i < gradients.length; i++) {
                 gradients[i] *= scale;
             }
@@ -74,7 +91,7 @@ public class GradientClipper implements Serializable {
         for (int i = 0; i < gradients.length; i++) {
             scaledGradients[i] = gradients[i] * gradientScale;
         }
-        scaledGradients = clipByValue(scaledGradients);
-        return clipByNorm(scaledGradients);
+        clipByNorm(scaledGradients);
+        return clipByValue(scaledGradients);
     }
 }

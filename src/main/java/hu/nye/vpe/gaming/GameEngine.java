@@ -5,7 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferStrategy;
 
 import hu.nye.vpe.Tetris;
-import hu.nye.vpe.nn.NeuralNetworkVisualization;
+import hu.nye.vpe.nn.Visualization;
 
 /**
  * Game class. Runnable.
@@ -32,7 +32,7 @@ public class GameEngine implements Runnable {
         gameDisplay = new GameDisplay(title, this.fullWidth, height);
         tetris = new Tetris(gameWidth, height, gameDisplay.getInput(), learning);
         if (learning) {
-            nnVisualization = new NeuralNetworkVisualization(tetris.getBrain(), gameWidth, height);
+            nnVisualization = new Visualization(tetris.getBrain(), gameWidth, height);
         }
     }
 
