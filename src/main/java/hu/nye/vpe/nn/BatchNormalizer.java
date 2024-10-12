@@ -5,7 +5,8 @@ import java.util.Arrays;
 
 public class BatchNormalizer implements Serializable {
     private static final long serialVersionUID = 5L;
-    private final int size;
+    private final int inputSize;
+    private final int outputSize;
     private final double epsilon = 1e-5;
     private double[] gamma;
     private double[] beta;
@@ -19,32 +20,33 @@ public class BatchNormalizer implements Serializable {
     private double[] gammaGradients;
     private double[] betaGradients;
 
-    public BatchNormalizer(int size, double initialGamma, double initialBeta) {
-        this.size = size;
-        this.gamma = new double[size];
-        this.beta = new double[size];
-        this.runningMean = new double[size];
-        this.runningVariance = new double[size];
-        this.gammaGradients = new double[size];  // Új sor
-        this.betaGradients = new double[size];
+    public BatchNormalizer(int inputSize, int outputSize, double initialGamma, double initialBeta) {
+        this.inputSize = inputSize;
+        this.outputSize = outputSize;
+        this.gamma = new double[inputSize];
+        this.beta = new double[inputSize];
+        this.runningMean = new double[inputSize];
+        this.runningVariance = new double[inputSize];
+        this.gammaGradients = new double[inputSize];  // Új sor
+        this.betaGradients = new double[inputSize];
         Arrays.fill(gamma, initialGamma);
         Arrays.fill(beta, initialBeta);
     }
 
     public double[] normalize(double[] inputs, boolean training) {
-        double[] normalized = new double[size];
-        double[] mean = new double[size];
-        double[] variance = new double[size];
+        double[] normalized = new double[inputSize];
+        double[] mean = new double[inputSize];
+        double[] variance = new double[inputSize];
 
         if (training) {
             // Számítsuk ki az egyes neuronok átlagát és varianciáját
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < inputSize; i++) {
                 mean[i] = inputs[i];
                 variance[i] = Math.pow(inputs[i] - mean[i], 2);
             }
 
             // Frissítsük a runningMean és runningVariance értékeket neurononként
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < inputSize; i++) {
                 runningMean[i] = momentum * runningMean[i] + (1 - momentum) * mean[i];
                 runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * variance[i];
             }
@@ -55,8 +57,8 @@ public class BatchNormalizer implements Serializable {
         }
 
         // Számítsuk ki az egyes neuronok standard deviációját és normalizáljuk az inputot
-        double[] stddev = new double[size];
-        for (int i = 0; i < size; i++) {
+        double[] stddev = new double[inputSize];
+        for (int i = 0; i < inputSize; i++) {
             stddev[i] = Math.sqrt(variance[i] + epsilon);
             normalized[i] = gamma[i] * ((inputs[i] - mean[i]) / stddev[i]) + beta[i];
         }
@@ -71,25 +73,25 @@ public class BatchNormalizer implements Serializable {
     }
 
     public double[] backprop(double[] inputGradients) {
-        double[] gradients = new double[size];
-        double[] invStd = new double[size];
+        double[] gradients = new double[outputSize];
+        double[] invStd = new double[outputSize];
 
         // Számoljuk ki az inverz standard deviációt az utolsó varianciából
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < outputSize; i++) {
             invStd[i] = 1.0 / Math.sqrt(lastVariance[i] + epsilon);
         }
 
-        double[] sumDy = new double[size];
-        double[] sumDyXmu = new double[size];
-        for (int i = 0; i < size; i++) {
+        double[] sumDy = new double[outputSize];
+        double[] sumDyXmu = new double[outputSize];
+        for (int i = 0; i < outputSize; i++) {
             sumDy[i] = inputGradients[i];
             sumDyXmu[i] = inputGradients[i] * (lastInputs[i] - lastMean[i]);
         }
 
-        this.gammaGradients = new double[size];
-        this.betaGradients = new double[size];
+        this.gammaGradients = new double[outputSize];
+        this.betaGradients = new double[outputSize];
 
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < outputSize; i++) {
             double xHat = (lastInputs[i] - lastMean[i]) * invStd[i];
             gradients[i] = gamma[i] * invStd[i] * (
                     inputGradients[i]
@@ -109,7 +111,7 @@ public class BatchNormalizer implements Serializable {
             return;
         }
 
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < outputSize; i++) {
             gamma[i] -= learningRate * gammaGradients[i];
             beta[i] -= learningRate * betaGradients[i];
         }
@@ -121,5 +123,13 @@ public class BatchNormalizer implements Serializable {
 
     public double[] getBetaGradients() {
         return betaGradients;
+    }
+
+    public int getInputSize() {
+        return inputSize;
+    }
+
+    public int getOutputSize() {
+        return outputSize;
     }
 }

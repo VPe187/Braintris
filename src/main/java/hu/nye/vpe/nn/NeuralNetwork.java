@@ -17,12 +17,11 @@ public class NeuralNetwork implements Serializable {
     private double maxQValue;
     private double lastReward;
     private double[][] lastActivations;
-    private List<Double> rewardHistory = new ArrayList<>();
 
     private static final String FILENAME = "brain.dat";
     private static final double CLIP_MIN = -1.0;
     private static final double CLIP_MAX = 1.0;
-    private static final double CLIP_NORM = 3.0;
+    private static final double CLIP_NORM = 1.0;
     private static final double GRADIENT_SCALE = 1.0;
 
     private static final double INITIAL_LEARNING_RATE = 0.01;
@@ -111,7 +110,6 @@ public class NeuralNetwork implements Serializable {
             allOutputs.add(currentInputs);
         }
 
-        // Backward pass
         double[] deltas = new double[layers.get(layers.size() - 1).getSize()];
         double[] outputs = allOutputs.get(allOutputs.size() - 1);
         for (int i = 0; i < deltas.length; i++) {
@@ -143,12 +141,6 @@ public class NeuralNetwork implements Serializable {
         double normalizedReward = reward / Math.sqrt(reward * reward + 1);
         double target = normalizedReward + (gameOver ? 0 : discountFactor * maxNextQ);
         target = Math.max(MIN_Q, Math.min(MAX_Q, target));
-        /*
-        double target = reward;
-        if (!gameOver) {
-            target += discountFactor * maxNextQ;
-        }
-         */
 
         double[] targetQValues = currentQValues.clone();
         targetQValues[action] = target;

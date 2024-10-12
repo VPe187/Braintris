@@ -22,7 +22,7 @@ public class Layer implements Serializable {
         this.initStrategy = initStrategy;
         this.gradientClipper = gradientClipper;
         if (useBatchNorm) {
-            this.batchNormalizer = new BatchNormalizer(neuronCount, 1.0, 0.0);
+            this.batchNormalizer = new BatchNormalizer(inputSize, neuronCount, 1.0, 0.0);
         }
         for (int i = 0; i < neuronCount; i++) {
             neurons.add(new Neuron(inputSize, neuronCount, activation, initStrategy, gradientClipper, lambdaL2));

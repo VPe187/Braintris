@@ -18,7 +18,7 @@ import hu.nye.vpe.nn.WeightInitStrategy;
 public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
-    private static final int FEED_DATA_SIZE = 16;
+    private static final int FEED_DATA_SIZE = 28;
     private static final int OUTPUT_NODES = 4;
     private static final long DROP_SPEED = 10L;
     private static int moveCount = 0;
@@ -27,7 +27,7 @@ public class Tetris {
     private NeuralNetwork brain;
 
     private static final String[] NAMES = {"INP", "H1", "H2", "H3", "OUT"};
-    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 32, 16, 8, OUTPUT_NODES};
+    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 32, 16, OUTPUT_NODES};
     private static final Activation[] ACTIVATIONS = {
             Activation.LEAKY_RELU,
             Activation.LEAKY_RELU,
@@ -41,7 +41,7 @@ public class Tetris {
             WeightInitStrategy.HE
     };
     private static final boolean[] USE_BATCH_NORM = {false, true, true, false};
-    private static final double[] L2 = {0.0, 0.001, 0.001, 0.0};
+    private static final double[] L2 = {0.0, 0.0001, 0.0001, 0.0001};
 
     private final long speed = 1000L;
     private final long learningSpeed = 5L;
@@ -160,7 +160,6 @@ public class Tetris {
                     } else {
                         if (stack.moveShapeDown()) {
                             if (learning) {
-                                //System.out.println("Down: " + moveCount);
                                 learning(false);
                                 moveCount = 0;
                             }
@@ -172,7 +171,6 @@ public class Tetris {
         if (stack.getState() == State.GAMEOVER) {
             if (learning) {
                 learning(true);
-                //System.out.println("All movements: " + episodeMoveCount);
                 try {
                     brain.saveToFile();
                 } catch (Exception e) {
@@ -292,6 +290,12 @@ public class Tetris {
     private double[] getFeedData() {
         double[] feedData = new double[FEED_DATA_SIZE];
         int k = 0;
+
+        // Oszlopok
+        double[] columns = stack.getMetricColumnHeights();
+        for (int i = 0; i < columns.length; i++) {
+            feedData[k++] = columns[i];
+        }
 
         // Aktuális elem x és y poziciója
         if (stack.getCurrentShape() != null) {
