@@ -61,13 +61,6 @@ public class BatchNormalizer implements Serializable {
             normalized[i] = gamma[i] * ((inputs[i] - mean[i]) / stddev[i]) + beta[i];
         }
 
-        /*
-        System.out.println("Debug - BN input: " + Arrays.toString(inputs));
-        System.out.println("Debug - BN output: " + Arrays.toString(normalized));
-        System.out.println("Debug - BN gamma: " + Arrays.toString(gamma));
-        System.out.println("Debug - BN beta: " + Arrays.toString(beta));
-         */
-
         // Mentjük az utolsó normalizációhoz használt értékeket a visszaterjesztéshez
         this.lastInputs = inputs.clone();
         this.lastMean = mean.clone();
@@ -122,15 +115,11 @@ public class BatchNormalizer implements Serializable {
         }
     }
 
-    public double[] getGamma() {
-        return gamma;
+    public double[] getGammaGradients() {
+        return gammaGradients;
     }
 
-    public double[] getBeta() {
-        return beta;
-    }
-
-    public double[] getLastNormalized() {
-        return lastNormalized;
+    public double[] getBetaGradients() {
+        return betaGradients;
     }
 }

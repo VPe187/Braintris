@@ -1,8 +1,6 @@
 package hu.nye.vpe;
 
 import java.awt.Graphics2D;
-import java.util.ArrayList;
-import java.util.List;
 
 import hu.nye.vpe.gaming.GameAudio;
 import hu.nye.vpe.gaming.GameColorPalette;
@@ -43,7 +41,7 @@ public class Tetris {
             WeightInitStrategy.HE
     };
     private static final boolean[] USE_BATCH_NORM = {false, true, true, false};
-    private static final double[] L2 = {0.0, 0.0001, 0.0001, 0.0};
+    private static final double[] L2 = {0.0, 0.001, 0.001, 0.0};
 
     private final long speed = 1000L;
     private final long learningSpeed = 5L;
@@ -306,29 +304,6 @@ public class Tetris {
             feedData[k++] = 0;
         }
 
-        /*
-        // Oszlopmagasságok
-        double[] columnHeights = stack.getMetricColumnHeights();
-        for (double columnHeight : columnHeights) {
-            feedData[k++] = columnHeight;
-        }
-         */
-
-        //Aktuális elem
-        /*
-        if (stack.getCurrentShape() != null) {
-            double[] currentShape = sf.shapeToArray(stack.getCurrentShape());
-            for (int i = 0; i < currentShape.length; i++) {
-                feedData[k++] = currentShape[i];
-            }
-        } else {
-            for (int i = 0; i < 4; i++) {
-                feedData[i] = -1;
-                k++;
-            }
-        }
-         */
-
         // Összes sor
         feedData[k++] = stack.getAllFullRows();
 
@@ -362,12 +337,6 @@ public class Tetris {
         // Magasság különbségek
         feedData[k++] = stack.getMetricAvgColumnHeight();
 
-        // Játék állapot
-        /*
-        feedData[k++] = stack.getGameScore();
-        feedData[k++] = stack.getGameLevel();
-         */
-
         // Terület tömörsége
         feedData[k++] = stack.getMetricAvgDensity();
 
@@ -375,7 +344,6 @@ public class Tetris {
         feedData[k] = moveCount;
 
         // Normalizálás
-        //InputNormalizerMinmax normalizer = new InputNormalizerMinmax(FEED_DATA_SIZE);
         InputNormalizerZScore normalizer = new InputNormalizerZScore(FEED_DATA_SIZE);
         double[] normalizedData = normalizer.normalizeAutomatically(feedData);
         return normalizedData;

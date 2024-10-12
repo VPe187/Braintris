@@ -222,8 +222,8 @@ public class Visualization implements GameElement {
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
         String discountFactor = String.format("Discount Factor: %.4f", network.getDiscountFactor());
-        String reward = String.format("Reward: %.0f", network.getLastReward());
-        String bestReward = String.format("Best reward: %.0f", network.getBestScore());
+        String reward = String.format("Step reward: %.0f", network.getLastReward());
+        String bestReward = String.format("Best episode reward: %.0f", network.getBestScore());
         String episodes = String.format("Episodes: %d", network.getEpisodeCount());
         g2d.drawString(episodes, STAT_X, height - 140);
         g2d.drawString(bestReward, STAT_X, height - 120);

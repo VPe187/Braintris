@@ -38,7 +38,6 @@ public class Layer implements Serializable {
             normalizedInputs = batchNormalizer.normalize(normalizedInputs, isTraining);
         }
 
-
         for (int i = 0; i < neurons.size(); i++) {
             outputs[i] = neurons.get(i).activate(normalizedInputs);
         }
@@ -49,15 +48,13 @@ public class Layer implements Serializable {
     public LayerGradients backward(double[] nextLayerDeltas, double learningRate) {
         double[] deltas = nextLayerDeltas;
         double[] inputGradients = new double[lastInputs.length];
+
         double[] gammaGradients = null;
         double[] betaGradients = null;
-
         if (batchNormalizer != null) {
-            // Számoljuk ki a gamma és beta gradienseket, és frissítsük a batch norm paramétereket
-            gammaGradients = computeGammaGradients(deltas);
-            betaGradients = computeBetaGradients(deltas);
-            // Propagáljuk vissza a deltákat a batch normalizer-en keresztül
             deltas = batchNormalizer.backprop(deltas);
+            gammaGradients = batchNormalizer.getGammaGradients();
+            betaGradients = batchNormalizer.getBetaGradients();
         }
 
         // Számítsuk ki a gradiens visszaterjesztést és frissítsük a súlyokat
@@ -78,28 +75,6 @@ public class Layer implements Serializable {
         }
 
         return new LayerGradients(inputGradients, gammaGradients, betaGradients);
-    }
-
-    private double[] computeGammaGradients(double[] deltas) {
-        double[] gammaGradients = new double[neurons.size()];
-        for (int i = 0; i < neurons.size(); i++) {
-            gammaGradients[i] = deltas[i] * batchNormalizer.getLastNormalized()[i];
-        }
-        return gammaGradients;
-    }
-
-    private double[] computeBetaGradients(double[] deltas) {
-        double[] betaGradients = new double[neurons.size()];
-        for (int i = 0; i < neurons.size(); i++) {
-            betaGradients[i] = deltas[i];
-        }
-        return betaGradients;
-    }
-
-    public void updateBatchNormParameters(double learningRate) {
-        if (batchNormalizer != null) {
-            batchNormalizer.updateParameters(learningRate);
-        }
     }
 
     public int getSize() {

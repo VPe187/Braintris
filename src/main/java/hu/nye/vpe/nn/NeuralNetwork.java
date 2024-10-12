@@ -50,9 +50,12 @@ public class NeuralNetwork implements Serializable {
 
         this.gradientClipper = new GradientClipper(CLIP_MIN, CLIP_MAX, CLIP_NORM, GRADIENT_SCALE);
         this.layers = new ArrayList<>();
-        for (int i = 1; i < layerSizes.length; i++) {
-            layers.add(new Layer(names[i - 1], layerSizes[i - 1], layerSizes[i], activations[i - 1], initStrategies[i - 1],
-                    useBatchNorm[i - 1], gradientClipper, l2[i - 1]));
+
+        for (int i = 0; i < layerSizes.length - 1; i++) {
+            int inputSize = layerSizes[i];
+            int outputSize = layerSizes[i + 1];
+            layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i],
+                    useBatchNorm[i], gradientClipper, l2[i]));
         }
 
         this.learningRate = INITIAL_LEARNING_RATE;
