@@ -66,7 +66,6 @@ public class NeuralNetwork implements Serializable {
             layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i],
                     useBatchNorm[i], gradientClipper, l2[i]));
         }
-
         this.learningRate = INITIAL_LEARNING_RATE;
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
         this.epsilon = INITIAL_EPSILON;

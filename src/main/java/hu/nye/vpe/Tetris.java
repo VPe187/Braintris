@@ -30,9 +30,9 @@ public class Tetris {
     private static final String[] NAMES = {"INP", "H1", "H2", "H3", "OUT"};
     private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 40, 20, 10, OUTPUT_NODES};
     private static final Activation[] ACTIVATIONS = {
-            Activation.LINEAR,
-            Activation.LINEAR,
-            Activation.LINEAR,
+            Activation.LEAKY_RELU,
+            Activation.LEAKY_RELU,
+            Activation.RELU,
             Activation.LINEAR
     };
     private static final WeightInitStrategy[] INIT_STRATEGIES = {
