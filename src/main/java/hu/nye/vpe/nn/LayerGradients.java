@@ -1,5 +1,8 @@
 package hu.nye.vpe.nn;
 
+/**
+ * Layergradients class.
+ */
 public class LayerGradients {
     public final double[] inputGradients;
     public final double[] gammaGradients;

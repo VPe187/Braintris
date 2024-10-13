@@ -3,6 +3,9 @@ package hu.nye.vpe.nn;
 // Neuron.java
 import java.io.Serializable;
 
+/**
+ * Neuron class.
+ */
 public class Neuron implements Serializable {
     private double[] weights;
     private double bias;
@@ -25,6 +28,13 @@ public class Neuron implements Serializable {
         this.bias = WeightInitializer.initializeBias(initStrategy);
     }
 
+    /**
+     * Activate neuron.
+     *
+     * @param inputs data of inputs
+     *
+     * @return activated data of inputs
+     */
     public double activate(double[] inputs) {
         double sum = bias;
         for (int i = 0; i < inputs.length; i++) {
@@ -33,6 +43,15 @@ public class Neuron implements Serializable {
         return Activation.activate(sum, activation);
     }
 
+    /**
+     * Update weights to neuron.
+     *
+     * @param inputs input datas
+     *
+     * @param delta delta value
+     *
+     * @param learningRate learning rate
+     */
     public void updateWeights(double[] inputs, double delta, double learningRate) {
         // Számoljuk ki az aktivációs függvény deriváltját a neurális hálózat kimenetén
         double activationDerivative = Activation.derivative(activate(inputs), activation);

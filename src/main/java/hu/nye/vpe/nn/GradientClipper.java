@@ -63,28 +63,12 @@ public class GradientClipper implements Serializable {
         return gradients;
     }
 
-    public double[] clipByNormOLD(double[] gradients) {
-        double squaredNorm = 0;
-        for (double grad : gradients) {
-            squaredNorm += grad * grad;
-        }
-        double norm = Math.sqrt(squaredNorm + epsilon);
-
-        if (norm > clipNorm) {
-            double scale = clipNorm / (norm + epsilon);
-            for (int i = 0; i < gradients.length; i++) {
-                gradients[i] *= scale;
-            }
-        }
-        return gradients;
-    }
-
     /**
      * Scaling and clipping cradients.
      *
-     * @param gradients Gradinets array
+     * @param gradients gradients array
      *
-     * @return Clipped and scaled gradients array.
+     * @return clipped and scaled gradients array.
      */
     public double[] scaleAndClip(double[] gradients) {
         double[] scaledGradients = new double[gradients.length];

@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Replay experiences.
+ */
 public class ExperienceReplay implements Serializable {
     private final List<Experience> memory;
     private final int capacity;
@@ -16,6 +19,11 @@ public class ExperienceReplay implements Serializable {
         this.random = new Random();
     }
 
+    /**
+     * Add experinces to buffer.
+     *
+     * @param experience experience data
+     */
     public void add(Experience experience) {
         if (memory.size() >= capacity) {
             memory.remove(0);
@@ -23,6 +31,13 @@ public class ExperienceReplay implements Serializable {
         memory.add(experience);
     }
 
+    /**
+     * List experiences.
+     *
+     * @param batchSize batch size
+     *
+     * @return experience batch
+     */
     public List<Experience> sample(int batchSize) {
         batchSize = Math.min(batchSize, memory.size());
         List<Experience> batch = new ArrayList<>(batchSize);

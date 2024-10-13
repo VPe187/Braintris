@@ -5,6 +5,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Layer class.
+ */
 public class Layer implements Serializable {
     private final List<Neuron> neurons;
     private final Activation activation;
@@ -29,6 +32,15 @@ public class Layer implements Serializable {
         }
     }
 
+    /**
+     * Forward pass.
+     *
+     * @param inputs input values
+     *
+     * @param isTraining is training?
+     *
+     * @return outputs
+     */
     public double[] forward(double[] inputs, boolean isTraining) {
         this.lastInputs = inputs.clone();
         double[] outputs = new double[neurons.size()];
@@ -45,6 +57,15 @@ public class Layer implements Serializable {
         return outputs;
     }
 
+    /**
+     * Backward pass.
+     *
+     * @param nextLayerDeltas deltas
+     *
+     * @param learningRate learning rates
+     *
+     * @return new gradients
+     */
     public LayerGradients backward(double[] nextLayerDeltas, double learningRate) {
         double[] deltas = nextLayerDeltas;
         double[] inputGradients = new double[lastInputs.length];

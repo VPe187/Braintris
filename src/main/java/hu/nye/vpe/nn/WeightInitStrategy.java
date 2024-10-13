@@ -1,13 +1,26 @@
 package hu.nye.vpe.nn;
 
-// WeightInitStrategy.java
 import java.util.Random;
 
+/**
+ * Weight initializations strategy.
+ */
 public enum WeightInitStrategy {
     RANDOM, XAVIER, HE, UNIFORM, ZERO;
 
     private static final Random random = new Random();
 
+    /**
+     * Initalize data.
+     *
+     * @param fanIn start
+     *
+     * @param fanOut end
+     *
+     * @param strategy initialization strategy
+     *
+     * @return weight data
+     */
     public static double initialize(int fanIn, int fanOut, WeightInitStrategy strategy) {
         return switch (strategy) {
             case RANDOM -> random.nextGaussian() * 0.01;

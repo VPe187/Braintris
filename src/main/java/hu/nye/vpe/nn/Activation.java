@@ -1,8 +1,20 @@
 package hu.nye.vpe.nn;
 
+/**
+ * Activation enum.
+ */
 public enum Activation {
     SIGMOID, TANH, RELU, LEAKY_RELU, ELU, GELU, LINEAR, SWISH, MISH;
 
+    /**
+     * Activate method.
+     *
+     * @param x neuron
+     *
+     * @param type actviation type
+     *
+     * @return activated value
+     */
     public static double activate(double x, Activation type) {
         return switch (type) {
             case SIGMOID -> 1 / (1 + Math.exp(-x));
@@ -18,6 +30,15 @@ public enum Activation {
         };
     }
 
+    /**
+     * Derivation method.
+     *
+     * @param x neuron value
+     *
+     * @param type activation type
+     *
+     * @return derivated value
+     */
     public static double derivative(double x, Activation type) {
         return switch (type) {
             case SIGMOID -> {
@@ -46,6 +67,7 @@ public enum Activation {
             }
         };
     }
+
     // Szigmoid segédfüggvény
     private static double sigmoid(double x) {
         return 1 / (1 + Math.exp(-x));

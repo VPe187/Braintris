@@ -2,10 +2,23 @@ package hu.nye.vpe.nn;
 
 import java.util.Random;
 
-// WeightInitializer.java
+/**
+ * Weight initalizer class.
+ */
 public class WeightInitializer {
     private static final Random RANDOM = new Random();
 
+    /**
+     * Initialize weights.
+     *
+     * @param inputSize input size
+     *
+     * @param outputSize output size
+     *
+     * @param strategy strategy of weight initialization
+     *
+     * @return weight
+     */
     public static double[] initializeWeights(int inputSize, int outputSize, WeightInitStrategy strategy) {
         double[] weights = new double[inputSize];
         for (int i = 0; i < inputSize; i++) {
@@ -28,6 +41,13 @@ public class WeightInitializer {
         };
     }
 
+    /**
+     * Initialize bias.
+     *
+     * @param strategy initialization strategy
+     *
+     * @return initialization data
+     */
     public static double initializeBias(WeightInitStrategy strategy) {
         // Bias inicializálás stratégia alapján
         return switch (strategy) {

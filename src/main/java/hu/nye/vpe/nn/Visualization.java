@@ -13,14 +13,15 @@ import hu.nye.vpe.gaming.GameElement;
  */
 public class Visualization implements GameElement {
     private static final int NODE_SIZE = 6;
+    private static final int NODE_DISTANCE = 2;
     private static final int LAYER_DISTANCE = 150;
-    private static final int STAT_X = 500;
-    private static final int UP_OFFSET = 460;
+    private static final int STAT_X = 5;
+    private static final int UP_X_OFFSET = -360;
+    private static final int Y_OFFSET = 20;
     private static String FONT_NAME = "Truly Madly Dpad";
     private static final Color INACTIVE_NODE_COLOR = new Color(100, 100, 100, 100);
     private static final Color ACTIVE_NODE_COLOR = new Color(255, 255, 255, 200);
     private static final Color INACTIVE_OUTPUT_NODE_COLOR = new Color(0, 100, 0, 100);
-    private static final Color ACTIVE_OUTPUT_NODE_COLOR = new Color(0, 255, 0, 200);
     private static final Color FONT_COLOR = new Color(255, 255, 255, 120);
     private final NeuralNetwork network;
     private final int width;
@@ -101,17 +102,17 @@ public class Visualization implements GameElement {
         for (int i = 0; i < totalLayers - 1; i++) {
             int nodeCount = layerSizes[i];
             int nextNodeCount = layerSizes[i + 1];
-            int startY = height / 2 - (nodeCount * (NODE_SIZE + 5)) / 2;
-            int nextStartY = height / 2 - (nextNodeCount * (NODE_SIZE + 5)) / 2;
+            int startY = height / 2 - (nodeCount * (NODE_SIZE + NODE_DISTANCE)) / 2;
+            int nextStartY = height / 2 - (nextNodeCount * (NODE_SIZE + NODE_DISTANCE)) / 2;
 
             // Kapcsolatok rajzolása a következő réteggel
             for (int j = 0; j < nodeCount; j++) {
                 int x = i * LAYER_DISTANCE + 50;
-                int y = startY + j * (NODE_SIZE + 5);
+                int y = startY + j * (NODE_SIZE + NODE_DISTANCE);
 
                 for (int k = 0; k < nextNodeCount; k++) {
                     int nextX = (i + 1) * LAYER_DISTANCE + 50;
-                    int nextY = nextStartY + k * (NODE_SIZE + 5);
+                    int nextY = nextStartY + k * (NODE_SIZE + NODE_DISTANCE);
                     if (i < weights.length && k < weights[i].length && j < weights[i][k].length) {
                         double weight = weights[i][k][j];
                         Color lineColor = getColorForWeight(weight);
@@ -124,16 +125,15 @@ public class Visualization implements GameElement {
             // Csomópontok rajzolása
             for (int j = 0; j < nodeCount; j++) {
                 int x = i * LAYER_DISTANCE + 50;
-                int y = startY + j * (NODE_SIZE + 5);
+                int y = startY + j * (NODE_SIZE + NODE_DISTANCE);
 
                 Color nodeColor;
                 if (i < activations.length && j < activations[i].length) {
                     double activation = activations[i][j];
                     nodeColor = getColorForActivation(activation);
                 } else {
-                    nodeColor = Color.GRAY; // Default color for nodes without activation
+                    nodeColor = INACTIVE_NODE_COLOR;
                 }
-
                 g2d.setColor(nodeColor);
                 g2d.fill(new Rectangle2D.Double(x, y, NODE_SIZE, NODE_SIZE));
             }
@@ -142,17 +142,17 @@ public class Visualization implements GameElement {
         // Az utolsó réteg csomópontjainak rajzolása
         int lastLayer = totalLayers - 1;
         int nodeCount = layerSizes[lastLayer];
-        int startY = height / 2 - (nodeCount * (NODE_SIZE + 5)) / 2;
+        int startY = height / 2 - (nodeCount * (NODE_SIZE + NODE_DISTANCE)) / 2;
         for (int j = 0; j < nodeCount; j++) {
             int x = lastLayer * LAYER_DISTANCE + 50;
-            int y = startY + j * (NODE_SIZE + 5);
+            int y = startY + j * (NODE_SIZE + NODE_DISTANCE);
 
             Color nodeColor;
             if (lastLayer < activations.length && j < activations[lastLayer].length) {
                 double activation = activations[lastLayer][j];
                 nodeColor = getColorForActivation(activation);
             } else {
-                nodeColor = Color.GRAY;
+                nodeColor = INACTIVE_OUTPUT_NODE_COLOR;
             }
 
             g2d.setColor(nodeColor);
@@ -162,21 +162,20 @@ public class Visualization implements GameElement {
 
     private Color getColorForWeight(double weight) {
         double normalizedWeight = Math.tanh(weight);
-        int red, green, blue;
+        int red;
+        int green;
+        int blue;
         if (normalizedWeight > 0) {
-            // Pozitív súlyok: kék árnyalat
-            red = (int)(255 * normalizedWeight);
-            green = (int)(255 * normalizedWeight);
-            blue = (int)(255 * normalizedWeight);
+            red = (int) (255 * normalizedWeight);
+            green = (int) (255 * normalizedWeight);
+            blue = (int) (255 * normalizedWeight);
         } else {
-            // Negatív súlyok: piros árnyalat
-            red = (int)(255 * -normalizedWeight);
-            green = (int)(255 * -normalizedWeight);
-            blue = (int)(255 * -normalizedWeight);
+            red = (int) (255 * -normalizedWeight);
+            green = (int) (255 * -normalizedWeight);
+            blue = (int) (255 * -normalizedWeight);
         }
 
-        // Az átlátszóság a súly abszolút értékétől függ
-        int alpha = (int)(40 * Math.abs(normalizedWeight)) + 20;
+        int alpha = (int) (20 * Math.abs(normalizedWeight)) + 20;
 
         return new Color(red, green, blue, alpha);
     }
@@ -196,7 +195,7 @@ public class Visualization implements GameElement {
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
 
         String maxQ = String.format("Max Q: %.8f", network.getMaxQValue());
-        g2d.drawString(maxQ, STAT_X - UP_OFFSET, height - 720);
+        g2d.drawString(maxQ, STAT_X - UP_X_OFFSET, height - 8 * Y_OFFSET);
 
         if (rms > 1.0) {
             g2d.setColor(Color.ORANGE);
@@ -209,14 +208,14 @@ public class Visualization implements GameElement {
         g2d.setFont(new Font(FONT_NAME, Font.BOLD, 16));
         g2d.setColor(Color.WHITE);
         String rmsString = String.format("RMS: %.8f", rms);
-        g2d.drawString(rmsString, STAT_X - UP_OFFSET, height - 700);
+        g2d.drawString(rmsString, STAT_X - UP_X_OFFSET, height - 7 * Y_OFFSET);
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
         g2d.setColor(FONT_COLOR);
 
         for (int i = 0; i < layerSizes.length; i++) {
             String layerStats = String.format("%s: Min: %.4f, Max: %.4f, Mean: %.4f",
                     layerNames[i], layerMins[i], layerMaxs[i], layerMeans[i]);
-            g2d.drawString(layerStats, STAT_X - UP_OFFSET, height - 680 + i * 20);
+            g2d.drawString(layerStats, STAT_X - UP_X_OFFSET, (height - 6 * Y_OFFSET) + (i * Y_OFFSET));
         }
 
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());

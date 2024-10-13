@@ -26,12 +26,13 @@ public class Tetris {
 
     private NeuralNetwork brain;
 
+    private static final boolean NORMALIZE_DATA = false;
     private static final String[] NAMES = {"INP", "H1", "H2", "H3", "OUT"};
-    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 32, 16, OUTPUT_NODES};
+    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 40, 20, 10, OUTPUT_NODES};
     private static final Activation[] ACTIVATIONS = {
-            Activation.LEAKY_RELU,
-            Activation.LEAKY_RELU,
-            Activation.ELU,
+            Activation.LINEAR,
+            Activation.LINEAR,
+            Activation.LINEAR,
             Activation.LINEAR
     };
     private static final WeightInitStrategy[] INIT_STRATEGIES = {
@@ -41,7 +42,7 @@ public class Tetris {
             WeightInitStrategy.HE
     };
     private static final boolean[] USE_BATCH_NORM = {false, true, true, false};
-    private static final double[] L2 = {0.0, 0.0001, 0.0001, 0.0001};
+    private static final double[] L2 = {0.001, 0.01, 0.0, 0.0};
 
     private final long speed = 1000L;
     private final long learningSpeed = 5L;
@@ -347,10 +348,13 @@ public class Tetris {
         // Mozgatások száma
         feedData[k] = moveCount;
 
-        // Normalizálás
-        InputNormalizerZScore normalizer = new InputNormalizerZScore(FEED_DATA_SIZE);
-        double[] normalizedData = normalizer.normalizeAutomatically(feedData);
-        return normalizedData;
+        if (NORMALIZE_DATA) {
+            InputNormalizerZScore normalizer = new InputNormalizerZScore(FEED_DATA_SIZE);
+            double[] normalizedData = normalizer.normalizeAutomatically(feedData);
+            return normalizedData;
+        } else {
+            return feedData;
+        }
     }
 
     private double calculateReward() {

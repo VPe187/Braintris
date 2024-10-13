@@ -2,6 +2,9 @@ package hu.nye.vpe.nn;
 
 import java.io.Serializable;
 
+/**
+ * Experience play class.
+ */
 public class Experience implements Serializable {
     public final double[] state;
     public final int action;

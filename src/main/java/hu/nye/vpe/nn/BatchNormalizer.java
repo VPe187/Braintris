@@ -3,6 +3,9 @@ package hu.nye.vpe.nn;
 import java.io.Serializable;
 import java.util.Arrays;
 
+/**
+ * Batch normalizer class.
+ */
 public class BatchNormalizer implements Serializable {
     private static final long serialVersionUID = 5L;
     private final int inputSize;
@@ -33,6 +36,15 @@ public class BatchNormalizer implements Serializable {
         Arrays.fill(beta, initialBeta);
     }
 
+    /**
+     * Normalize.
+     *
+     * @param inputs values array
+     *
+     * @param training is training?
+     *
+     * @return normalized values
+     */
     public double[] normalize(double[] inputs, boolean training) {
         double[] normalized = new double[inputSize];
         double[] mean = new double[inputSize];
@@ -72,9 +84,18 @@ public class BatchNormalizer implements Serializable {
         return normalized;
     }
 
+    /**
+     * Backprop normalization.
+     *
+     * @param inputGradients gradiens values
+     *
+     * @return normalized gradiens values
+     */
     public double[] backprop(double[] inputGradients) {
         double[] gradients = new double[outputSize];
         double[] invStd = new double[outputSize];
+
+        System.out.println(inputGradients.length + " " + outputSize + " " + lastVariance.length);
 
         // Számoljuk ki az inverz standard deviációt az utolsó varianciából
         for (int i = 0; i < outputSize; i++) {
@@ -92,11 +113,11 @@ public class BatchNormalizer implements Serializable {
         this.betaGradients = new double[outputSize];
 
         for (int i = 0; i < outputSize; i++) {
-            double xHat = (lastInputs[i] - lastMean[i]) * invStd[i];
+            double xhat = (lastInputs[i] - lastMean[i]) * invStd[i];
             gradients[i] = gamma[i] * invStd[i] * (
                     inputGradients[i]
                             - sumDy[i]
-                            - xHat * sumDyXmu[i] * invStd[i]
+                            - xhat * sumDyXmu[i] * invStd[i]
             );
             this.gammaGradients[i] = sumDyXmu[i] * invStd[i];
             this.betaGradients[i] = sumDy[i];
@@ -105,6 +126,11 @@ public class BatchNormalizer implements Serializable {
         return gradients;
     }
 
+    /**
+     * Update normalizer parameters.
+     *
+     * @param learningRate learning rate
+     */
     public void updateParameters(double learningRate) {
         if (gammaGradients == null || betaGradients == null) {
             System.err.println("Warning: Gradients are null, skipping parameter update.");

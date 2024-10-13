@@ -1,10 +1,19 @@
 package hu.nye.vpe.nn;
 
-import java.io.*;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Neural network class.
+ */
 public class NeuralNetwork implements Serializable {
     private final List<Layer> layers;
     private double learningRate;
@@ -44,7 +53,8 @@ public class NeuralNetwork implements Serializable {
         if (layerSizes.length != activations.length + 1 ||
                 layerSizes.length != initStrategies.length + 1 ||
                 layerSizes.length != useBatchNorm.length + 1) {
-            throw new IllegalArgumentException("Invalid configuration: layerSizes length should be one more than the length of activations, initStrategies, and useBatchNorm arrays");
+            throw new IllegalArgumentException("Invalid configuration: layerSizes length should be one more than " +
+                    "the length of activations, initStrategies, and useBatchNorm arrays");
         }
 
         this.gradientClipper = new GradientClipper(CLIP_MIN, CLIP_MAX, CLIP_NORM, GRADIENT_SCALE);
@@ -65,6 +75,13 @@ public class NeuralNetwork implements Serializable {
         this.random = new Random();
     }
 
+    /**
+     * Forward pass.
+     *
+     * @param inputs input values
+     *
+     * @return forwarded input values
+     */
     public double[] forward(double[] inputs) {
         double[] currentInput = inputs;
         this.lastActivations = new double[layers.size() + 1][];
@@ -89,11 +106,11 @@ public class NeuralNetwork implements Serializable {
         return currentInput;
     }
 
-    private void updateMaxQValue(double[] qValues) {
-        double max = qValues[0];
-        for (int i = 1; i < qValues.length; i++) {
-            if (qValues[i] > max) {
-                max = qValues[i];
+    private void updateMaxQValue(double[] qvalues) {
+        double max = qvalues[0];
+        for (int i = 1; i < qvalues.length; i++) {
+            if (qvalues[i] > max) {
+                max = qvalues[i];
             }
         }
         this.maxQValue = max;
@@ -124,15 +141,35 @@ public class NeuralNetwork implements Serializable {
         }
     }
 
+    /**
+     * Select action from network.
+     *
+     * @param state metric datas
+     *
+     * @return action
+     */
     public int selectAction(double[] state) {
         if (random.nextDouble() < epsilon) {
             return random.nextInt(layers.get(layers.size() - 1).getSize());
         } else {
-            double[] qValues = forward(state);
-            return argmax(qValues);
+            double[] qvalues = forward(state);
+            return argmax(qvalues);
         }
     }
 
+    /**
+     * Learn method.
+     *
+     * @param state current metric data
+     *
+     * @param action last action
+     *
+     * @param reward reward
+     *
+     * @param nextState next state datas
+     *
+     * @param gameOver game is over?
+     */
     public void learn(double[] state, int action, double reward, double[] nextState, boolean gameOver) {
         double[] currentQValues = forward(state);
         double[] nextQValues = forward(nextState);
@@ -199,19 +236,38 @@ public class NeuralNetwork implements Serializable {
         return maxValue;
     }
 
+    /**
+     * Save class or brain data to file.
+     *
+     * @throws IOException file error
+     */
     public void saveToFile() throws IOException {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILENAME))) {
             oos.writeObject(this);
         }
     }
 
+    /**
+     * Load class or brain from file.
+     *
+     * @return class or brain
+     *
+     * @throws IOException file error
+     *
+     * @throws ClassNotFoundException class compatibility error
+     */
     public static NeuralNetwork loadFromFile() throws IOException, ClassNotFoundException {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILENAME))) {
             return (NeuralNetwork) ois.readObject();
         }
     }
 
-    // Getters
+
+    /**
+     * Get all weights for visualization.
+     *
+     * @return weights
+     */
     public double[][][] getAllWeights() {
         double[][][] allWeights = new double[layers.size()][][];
         for (int i = 0; i < layers.size(); i++) {
@@ -225,6 +281,11 @@ public class NeuralNetwork implements Serializable {
         return allWeights;
     }
 
+    /**
+     * Get layer sizes.
+     *
+     * @return int array of layer sizes for visualization
+     */
     public int[] getLayerSizes() {
         int[] sizes = new int[layers.size() + 1];
         sizes[0] = layers.get(0).getNeurons().get(0).getWeights().length;
@@ -234,15 +295,25 @@ public class NeuralNetwork implements Serializable {
         return sizes;
     }
 
+    /**
+     * Get names of layers.
+     *
+     * @return String array of names
+     */
     public String[] getLayerNames() {
         String[] names = new String[layers.size() + 1];
-        names[0] = "INP";
         for (int i = 0; i < layers.size(); i++) {
-            names[i + 1] = layers.get(i).getName();
+            names[i] = layers.get(i).getName();
         }
+        names[layers.size()] = "OUT";
         return names;
     }
 
+    /**
+     * Get last activations data for visualization.
+     *
+     * @return fouble matrices of activation data
+     */
     public double[][] getLastActivations() {
         if (this.lastActivations == null) {
             // Ha még nem történt forward pass, inicializáljunk egy üres aktivációs tömböt
