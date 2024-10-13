@@ -9,7 +9,6 @@ public class InputNormalizerMinmax {
     private boolean isFitted = false;
     private final int arraySize;
 
-    // Konstruktor, amely beállítja a tömb méretét
     public InputNormalizerMinmax(int arraySize) {
         this.arraySize = arraySize;
     }
@@ -23,6 +22,7 @@ public class InputNormalizerMinmax {
         if (data.length != arraySize) {
             throw new IllegalArgumentException("Data length does not match the expected array size.");
         }
+
         min = Double.POSITIVE_INFINITY;
         max = Double.NEGATIVE_INFINITY;
         for (double value : data) {
@@ -35,6 +35,7 @@ public class InputNormalizerMinmax {
                 }
             }
         }
+
         isFitted = true;
     }
 
@@ -58,14 +59,15 @@ public class InputNormalizerMinmax {
             double value = data[i];
             if (value > 1) {
                 if (max != min) {
-                    normalizedData[i] = (value - min) / (max - min); // Normalizálás 0 és 1 közé
+                    normalizedData[i] = (value - min) / (max - min);
                 } else {
-                    normalizedData[i] = 0.0; // Ha max és min azonos, minden érték 0-ra normalizálódik
+                    normalizedData[i] = 0.0;
                 }
             } else {
-                normalizedData[i] = value; // 1-nél kisebb vagy egyenlő értékek nem változnak
+                normalizedData[i] = value;
             }
         }
+
         return normalizedData;
     }
 

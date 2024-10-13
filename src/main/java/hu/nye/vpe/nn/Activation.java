@@ -45,15 +45,15 @@ public enum Activation {
                 double sigmoid = activate(x, SIGMOID);
                 yield sigmoid * (1 - sigmoid);
             }
-            //case TANH -> 1 - Math.pow(Math.tanh(x / 5), 2);
             case TANH -> 1 - Math.pow(Math.tanh(x), 2);
             case RELU -> x > 0 ? 1 : 0;
             case LEAKY_RELU -> x > 0 ? 1 : 0.01;
             case ELU -> x > 0 ? 1 : 0.01 * Math.exp(x);
             case GELU -> {
-                double cdf = 0.5 * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3))));
+                double x1 = Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3)));
+                double cdf = 0.5 * (1 + x1);
                 double pdf = Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
-                yield cdf + x * pdf * (1 - Math.pow(Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3))), 2));
+                yield cdf + x * pdf * (1 - Math.pow(x1, 2));
             }
             case LINEAR -> 1;
             case MISH -> {
@@ -68,7 +68,6 @@ public enum Activation {
         };
     }
 
-    // Szigmoid segédfüggvény
     private static double sigmoid(double x) {
         return 1 / (1 + Math.exp(-x));
     }

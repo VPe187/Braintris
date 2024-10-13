@@ -45,7 +45,7 @@ public class Tetris {
             WeightInitStrategy.HE
     };
     private static final boolean[] USE_BATCH_NORM = {true, true, true, true, false};
-    private static final double[] L2 = {0.0, 0.001, 0.001, 0.001, 0.001};
+    private static final double[] L2 = {0.001, 0.001, 0.001, 0.001, 0.001};
 
     private final long speed = 1000L;
     private final long learningSpeed = 5L;

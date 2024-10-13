@@ -38,6 +38,15 @@ public class BatchNormalizer implements Serializable {
         Arrays.fill(beta, 0.0);
     }
 
+    /**
+     * Forward normalizing.
+     *
+     * @param input input datas
+     *
+     * @param isTraining is training?
+     *
+     * @return output datas
+     */
     public double[] forward(double[] input, boolean isTraining) {
         if (input.length != size) {
             throw new IllegalArgumentException("Input size does not match BatchNormalizer size");
@@ -61,6 +70,15 @@ public class BatchNormalizer implements Serializable {
         return output;
     }
 
+    /**
+     * Backward normalize.
+     *
+     * @param input input datas
+     *
+     * @param gradOutput output gradient
+     *
+     * @return intput gradient
+     */
     public double[] backward(double[] input, double[] gradOutput) {
         if (input.length != size || gradOutput.length != size) {
             throw new IllegalArgumentException("Input or gradOutput size does not match BatchNormalizer size");

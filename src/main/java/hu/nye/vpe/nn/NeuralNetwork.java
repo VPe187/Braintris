@@ -26,6 +26,8 @@ public class NeuralNetwork implements Serializable {
     private double maxQValue;
     private double lastReward;
     private double[][] lastActivations;
+    private final List<Double> recentRewards;
+    private double movingAverage;
 
     private static final String FILENAME = "brain.dat";
     private static final double CLIP_MIN = -1.0;
@@ -48,6 +50,8 @@ public class NeuralNetwork implements Serializable {
     private static final double MIN_Q = -1000;
     private static final double MAX_Q = 1000;
 
+    private static final int MOVING_AVERAGE_WINDOW = 100;
+
     public NeuralNetwork(String[] names, int[] layerSizes, Activation[] activations, WeightInitStrategy[] initStrategies,
                          boolean[] useBatchNorm, double[] l2) {
         if (layerSizes.length != activations.length + 1 ||
@@ -63,13 +67,16 @@ public class NeuralNetwork implements Serializable {
         for (int i = 0; i < layerSizes.length - 1; i++) {
             int inputSize = layerSizes[i];
             int outputSize = layerSizes[i + 1];
-            layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i], gradientClipper, l2[i], useBatchNorm[i]));
+            layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i],
+                    gradientClipper, l2[i], useBatchNorm[i]));
         }
         this.learningRate = INITIAL_LEARNING_RATE;
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
         this.epsilon = INITIAL_EPSILON;
         this.episodeCount = 0;
         this.bestScore = 0.0;
+        this.recentRewards = new ArrayList<>();
+        this.movingAverage = 0.0;
         this.random = new Random();
     }
 
@@ -116,7 +123,6 @@ public class NeuralNetwork implements Serializable {
         List<double[]> allOutputs = new ArrayList<>();
         allOutputs.add(inputs);
 
-        // Forward pass to collect all outputs
         for (Layer layer : layers) {
             currentInputs = layer.forward(currentInputs, false);
             allOutputs.add(currentInputs);
@@ -128,7 +134,6 @@ public class NeuralNetwork implements Serializable {
             deltas[i] = targets[i] - outputs[i];
         }
 
-        // Súlyok frissítése
         for (int i = layers.size() - 1; i >= 0; i--) {
             Layer currentLayer = layers.get(i);
             LayerGradients gradients = currentLayer.backward(deltas, learningRate);
@@ -189,8 +194,22 @@ public class NeuralNetwork implements Serializable {
             updateDiscountFactor();
             updateLearningRate();
             this.episodeCount++;
+            updateMovingAverage(reward);
         }
 
+    }
+
+    private void updateMovingAverage(double reward) {
+        recentRewards.add(reward);
+        if (recentRewards.size() > MOVING_AVERAGE_WINDOW) {
+            recentRewards.remove(0);
+        }
+
+        double sum = 0;
+        for (Double r : recentRewards) {
+            sum += r;
+        }
+        movingAverage = sum / recentRewards.size();
     }
 
     private void updateEpsilon() {
@@ -307,7 +326,6 @@ public class NeuralNetwork implements Serializable {
      */
     public double[][] getLastActivations() {
         if (this.lastActivations == null) {
-            // Ha még nem történt forward pass, inicializáljunk egy üres aktivációs tömböt
             this.lastActivations = new double[layers.size() + 1][];
             for (int i = 0; i < layers.size() + 1; i++) {
                 this.lastActivations[i] = new double[0];
@@ -342,5 +360,14 @@ public class NeuralNetwork implements Serializable {
 
     public double getLastReward() {
         return lastReward;
+    }
+
+    /**
+     * Visszaadja a jutalmak mozgóátlagát.
+     *
+     * @return A jutalmak mozgóátlaga
+     */
+    public double getMovingAverage() {
+        return movingAverage;
     }
 }

@@ -19,15 +19,16 @@ public class Visualization implements GameElement {
     private static final int Y_OFFSET = 20;
     private static final int INFO_SECTION_HEIGHT = 200;
     private static final int MARGIN = 20;
-    private static String FONT_NAME = "Truly Madly Dpad";
+    private static final String FONT_NAME = "Truly Madly Dpad";
     private static final Color INACTIVE_NODE_COLOR = new Color(100, 100, 100, 100);
     private static final Color ACTIVE_NODE_COLOR = new Color(255, 255, 255, 200);
-    private static final Color INACTIVE_OUTPUT_NODE_COLOR = new Color(255, 165, 0, 100); // Changed to orange
-    private static final Color ACTIVE_OUTPUT_NODE_COLOR = new Color(255, 69, 0, 200); // Deep orange for active output
+    private static final Color INACTIVE_OUTPUT_NODE_COLOR = new Color(255, 165, 0, 100);
+    private static final Color ACTIVE_OUTPUT_NODE_COLOR = new Color(255, 69, 0, 200);
     private static final Color FONT_COLOR = new Color(255, 255, 255, 120);
     private static final Color RMS_GREEN = new Color(0, 255, 0);
     private static final Color RMS_ORANGE = new Color(255, 165, 0);
     private static final Color RMS_RED = new Color(255, 0, 0);
+
     private final NeuralNetwork network;
     private final int width;
     private final int height;
@@ -39,11 +40,9 @@ public class Visualization implements GameElement {
     private double[] layerMins;
     private double[] layerMaxs;
     private double[] layerMeans;
-    private int maxLayerSize;
     private int nodeSize;
     private int nodeDistance;
     private int layerDistance;
-    private int networkWidth;
     private int networkHeight;
     private int networkStartX;
     private int networkStartY;
@@ -81,7 +80,7 @@ public class Visualization implements GameElement {
     }
 
     private void calculateDynamicSizing() {
-        maxLayerSize = 0;
+        int maxLayerSize = 0;
         for (int size : layerSizes) {
             maxLayerSize = Math.max(maxLayerSize, size);
         }
@@ -89,14 +88,10 @@ public class Visualization implements GameElement {
         int availableHeight = height - INFO_SECTION_HEIGHT - 2 * MARGIN;
         int availableWidth = width - 2 * MARGIN - STAT_X - RIGHT_COLUMN_OFFSET;
 
-        nodeSize = Math.min(12, availableHeight / (maxLayerSize * 2)); // Maximum 12 pixel méretű node
+        nodeSize = Math.min(12, availableHeight / (maxLayerSize * 2));
         nodeDistance = Math.max(2, (availableHeight - maxLayerSize * nodeSize) / (maxLayerSize + 1));
-
         layerDistance = availableWidth / (layerSizes.length - 1);
-
-        networkWidth = availableWidth;
         networkHeight = maxLayerSize * (nodeSize + nodeDistance) - nodeDistance;
-
         networkStartX = MARGIN + STAT_X;
         networkStartY = MARGIN + (availableHeight - networkHeight) / 2;
     }
@@ -125,7 +120,8 @@ public class Visualization implements GameElement {
                     double weight = weights[layerIndex][k][j];
                     Color lineColor = getColorForWeight(weight);
                     g2d.setColor(lineColor);
-                    g2d.draw(new Line2D.Double(x + nodeSize, y + nodeSize / 2, nextX, nextY + nodeSize / 2));
+                    g2d.draw(new Line2D.Double(x + nodeSize, y + (double) nodeSize / 2, nextX,
+                            nextY + (double) nodeSize / 2));
                 }
             }
         }
@@ -146,6 +142,7 @@ public class Visualization implements GameElement {
             } else {
                 nodeColor = layerIndex == layerSizes.length - 1 ? INACTIVE_OUTPUT_NODE_COLOR : INACTIVE_NODE_COLOR;
             }
+
             g2d.setColor(nodeColor);
             g2d.fill(new Rectangle2D.Double(x, y, nodeSize, nodeSize));
         }
@@ -214,34 +211,40 @@ public class Visualization implements GameElement {
 
     private Color getColorForActivation(double activation, boolean isOutputLayer) {
         activation = Math.max(0, Math.min(1, activation));
+        int r;
+        int g;
+        int b;
+        int a;
         if (isOutputLayer) {
-            int r = (int) (INACTIVE_OUTPUT_NODE_COLOR.getRed() + (ACTIVE_OUTPUT_NODE_COLOR.getRed() - INACTIVE_OUTPUT_NODE_COLOR.getRed()) * activation);
-            int g = (int) (INACTIVE_OUTPUT_NODE_COLOR.getGreen() + (ACTIVE_OUTPUT_NODE_COLOR.getGreen() - INACTIVE_OUTPUT_NODE_COLOR.getGreen()) * activation);
-            int b = (int) (INACTIVE_OUTPUT_NODE_COLOR.getBlue() + (ACTIVE_OUTPUT_NODE_COLOR.getBlue() - INACTIVE_OUTPUT_NODE_COLOR.getBlue()) * activation);
-            int a = (int) (INACTIVE_OUTPUT_NODE_COLOR.getAlpha() + (ACTIVE_OUTPUT_NODE_COLOR.getAlpha() - INACTIVE_OUTPUT_NODE_COLOR.getAlpha()) * activation);
-            return new Color(r, g, b, a);
+            r = (int) (INACTIVE_OUTPUT_NODE_COLOR.getRed() + (ACTIVE_OUTPUT_NODE_COLOR.getRed() -
+                    INACTIVE_OUTPUT_NODE_COLOR.getRed()) * activation);
+            g = (int) (INACTIVE_OUTPUT_NODE_COLOR.getGreen() + (ACTIVE_OUTPUT_NODE_COLOR.getGreen() -
+                    INACTIVE_OUTPUT_NODE_COLOR.getGreen()) * activation);
+            b = (int) (INACTIVE_OUTPUT_NODE_COLOR.getBlue() + (ACTIVE_OUTPUT_NODE_COLOR.getBlue() -
+                    INACTIVE_OUTPUT_NODE_COLOR.getBlue()) * activation);
+            a = (int) (INACTIVE_OUTPUT_NODE_COLOR.getAlpha() + (ACTIVE_OUTPUT_NODE_COLOR.getAlpha() -
+                    INACTIVE_OUTPUT_NODE_COLOR.getAlpha()) * activation);
         } else {
-            int r = (int) (INACTIVE_NODE_COLOR.getRed() + (ACTIVE_NODE_COLOR.getRed() - INACTIVE_NODE_COLOR.getRed()) * activation);
-            int g = (int) (INACTIVE_NODE_COLOR.getGreen() + (ACTIVE_NODE_COLOR.getGreen() - INACTIVE_NODE_COLOR.getGreen()) * activation);
-            int b = (int) (INACTIVE_NODE_COLOR.getBlue() + (ACTIVE_NODE_COLOR.getBlue() - INACTIVE_NODE_COLOR.getBlue()) * activation);
-            int a = (int) (INACTIVE_NODE_COLOR.getAlpha() + (ACTIVE_NODE_COLOR.getAlpha() - INACTIVE_NODE_COLOR.getAlpha()) * activation);
-            return new Color(r, g, b, a);
+            r = (int) (INACTIVE_NODE_COLOR.getRed() + (ACTIVE_NODE_COLOR.getRed() - INACTIVE_NODE_COLOR.getRed()) * activation);
+            g = (int) (INACTIVE_NODE_COLOR.getGreen() + (ACTIVE_NODE_COLOR.getGreen() - INACTIVE_NODE_COLOR.getGreen()) * activation);
+            b = (int) (INACTIVE_NODE_COLOR.getBlue() + (ACTIVE_NODE_COLOR.getBlue() - INACTIVE_NODE_COLOR.getBlue()) * activation);
+            a = (int) (INACTIVE_NODE_COLOR.getAlpha() + (ACTIVE_NODE_COLOR.getAlpha() - INACTIVE_NODE_COLOR.getAlpha()) * activation);
         }
+        return new Color(r, g, b, a);
     }
 
     private void drawStats(Graphics2D g2d) {
         g2d.setColor(FONT_COLOR);
         g2d.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
         FontMetrics metrics = g2d.getFontMetrics();
-        drawLeftColumn(g2d, metrics);
+        drawLeftColumn(g2d);
         drawRightColumn(g2d, metrics);
     }
 
-    private void drawLeftColumn(Graphics2D g2d, FontMetrics metrics) {
+    private void drawLeftColumn(Graphics2D g2d) {
         String maxQ = String.format("Max Q: %.8f", network.getMaxQValue());
         g2d.drawString(maxQ, STAT_X, height - 9 * Y_OFFSET);
 
-        // RMS színezése
         Color rmsColor;
         if (rms <= 10) {
             rmsColor = RMS_GREEN;
@@ -267,6 +270,7 @@ public class Visualization implements GameElement {
 
     private void drawRightColumn(Graphics2D g2d, FontMetrics metrics) {
         String episodes = String.format("Episodes: %d", network.getEpisodeCount());
+        String movingAverage = String.format("Average reward: %.4f", network.getMovingAverage());
         String bestReward = String.format("Best episode reward: %.0f", network.getBestScore());
         String reward = String.format("Step reward: %.0f", network.getLastReward());
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
@@ -275,7 +279,8 @@ public class Visualization implements GameElement {
 
         int rightColumnX = width - STAT_X - RIGHT_COLUMN_OFFSET;
 
-        g2d.drawString(episodes, rightColumnX - metrics.stringWidth(episodes), height - 140);
+        g2d.drawString(episodes, rightColumnX - metrics.stringWidth(episodes), height - 160);
+        g2d.drawString(movingAverage, rightColumnX - metrics.stringWidth(movingAverage), height - 140);
         g2d.drawString(bestReward, rightColumnX - metrics.stringWidth(bestReward), height - 120);
         g2d.drawString(reward, rightColumnX - metrics.stringWidth(reward), height - 100);
         g2d.drawString(learningRate, rightColumnX - metrics.stringWidth(learningRate), height - 80);

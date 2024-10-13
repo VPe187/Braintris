@@ -1,6 +1,5 @@
 package hu.nye.vpe.nn;
 
-// Neuron.java
 import java.io.Serializable;
 
 /**
@@ -53,24 +52,19 @@ public class Neuron implements Serializable {
      * @param learningRate learning rate
      */
     public void updateWeights(double[] inputs, double delta, double learningRate) {
-        // Számoljuk ki az aktivációs függvény deriváltját a neurális hálózat kimenetén
         double activationDerivative = Activation.derivative(activate(inputs), activation);
-        // Szorozzuk meg a deltát az aktivációs deriválttal
         double adjustedDelta = delta * activationDerivative;
 
-        // Frissítsük a súlyokat
         for (int i = 0; i < weights.length; i++) {
             double gradient = adjustedDelta * inputs[i];
             gradient = gradientClipper.clip(gradient);
             weights[i] += learningRate * (gradient - lambdaL2 * weights[i]);
         }
 
-        // Frissítsük a bias-t
         double biasGradient = gradientClipper.clip(adjustedDelta);
         bias += learningRate * biasGradient;
     }
 
-    // Getters and setters
     public double[] getWeights() {
         return weights;
     }

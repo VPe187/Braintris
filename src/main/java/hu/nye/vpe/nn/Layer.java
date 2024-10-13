@@ -1,6 +1,5 @@
 package hu.nye.vpe.nn;
 
-// Layer.java
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,14 +48,11 @@ public class Layer implements Serializable {
         this.lastInputs = inputs.clone();
         double[] outputs = new double[neurons.size()];
 
-        // Compute neuron outputs (with activation)
         for (int i = 0; i < neurons.size(); i++) {
             outputs[i] = neurons.get(i).activate(inputs);
         }
 
         this.lastNormalizedOutputs = outputs.clone();
-
-        // Apply batch normalization if used
         if (useBatchNorm) {
             outputs = batchNormalizer.forward(outputs, isTraining);
         }
@@ -85,7 +81,6 @@ public class Layer implements Serializable {
         for (int i = 0; i < neurons.size(); i++) {
             Neuron neuron = neurons.get(i);
             double neuronDelta = deltas[i];
-            // Apply activation derivative
             if (lastNormalizedOutputs != null) {
                 neuronDelta *= Activation.derivative(lastNormalizedOutputs[i], activation);
             } else {

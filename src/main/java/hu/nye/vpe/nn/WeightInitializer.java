@@ -28,7 +28,6 @@ public class WeightInitializer {
     }
 
     private static double initializeWeight(int inputSize, int outputSize, WeightInitStrategy strategy) {
-        // Súly inicializálás a stratégia alapján
         return switch (strategy) {
             case RANDOM -> RANDOM.nextGaussian() * 0.01; // Véletlenszerű kis értékek
             case XAVIER -> RANDOM.nextGaussian() * Math.sqrt(2.0 / (inputSize + outputSize));
@@ -49,7 +48,6 @@ public class WeightInitializer {
      * @return initialization data
      */
     public static double initializeBias(WeightInitStrategy strategy) {
-        // Bias inicializálás stratégia alapján
         return switch (strategy) {
             case RANDOM -> RANDOM.nextGaussian() * 0.01; // Kis véletlenszerű érték
             case XAVIER -> RANDOM.nextGaussian() * Math.sqrt(1.0 / (1 + 1)); // XAVIER esetén kis véletlenszerű érték

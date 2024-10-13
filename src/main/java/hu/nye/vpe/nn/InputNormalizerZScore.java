@@ -11,7 +11,6 @@ public class InputNormalizerZScore {
     private boolean isFitted = false;
     private final int arraySize;
 
-    // Konstruktor, amely beállítja a tömb méretét
     public InputNormalizerZScore(int arraySize) {
         this.arraySize = arraySize;
     }
@@ -26,16 +25,12 @@ public class InputNormalizerZScore {
             throw new IllegalArgumentException("Data length does not match the expected array size.");
         }
 
-        // Számoljuk ki az átlagot
         mean = Arrays.stream(data).average().orElse(0.0);
-
-        // Számoljuk ki a szórást
         double variance = Arrays.stream(data)
                 .map(value -> Math.pow(value - mean, 2))
                 .average()
                 .orElse(0.0);
         standardDeviation = Math.sqrt(variance);
-
         isFitted = true;
     }
 
@@ -63,6 +58,7 @@ public class InputNormalizerZScore {
                 normalizedData[i] = 0.0; // Ha a szórás nulla, minden érték 0-ra normalizálódik
             }
         }
+
         return normalizedData;
     }
 
