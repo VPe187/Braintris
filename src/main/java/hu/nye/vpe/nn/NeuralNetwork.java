@@ -37,7 +37,7 @@ public class NeuralNetwork implements Serializable {
     private static final double LEARNING_RATE_DECAY = 0.999;
     private static final double MIN_LEARNING_RATE = 0.00001;
 
-    private static final double INITIAL_DISCOUNT_FACTOR = 0.95;
+    private static final double INITIAL_DISCOUNT_FACTOR = 0.9;
     private static final double MAX_DISCOUNT_FACTOR = 0.99;
     private static final double DISCOUNT_FACTOR_INCREMENT = 0.00001;
 
@@ -63,7 +63,7 @@ public class NeuralNetwork implements Serializable {
         for (int i = 0; i < layerSizes.length - 1; i++) {
             int inputSize = layerSizes[i];
             int outputSize = layerSizes[i + 1];
-            layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i], gradientClipper, l2[i]));
+            layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i], gradientClipper, l2[i], useBatchNorm[i]));
         }
         this.learningRate = INITIAL_LEARNING_RATE;
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
@@ -93,10 +93,7 @@ public class NeuralNetwork implements Serializable {
 
         double[] output = currentInput;
 
-        // Dinamikus Q-érték klippelés a teljesítmény függvényében
-        double performanceFactor = Math.exp(-bestScore / 100.0); // Példa: teljesítményhez igazított faktor
         for (int i = 0; i < output.length; i++) {
-            //output[i] = Math.max(MIN_Q * performanceFactor, Math.min(MAX_Q * performanceFactor, output[i]));
             output[i] = Math.max(MIN_Q, Math.min(MAX_Q, output[i]));
         }
 
@@ -197,14 +194,10 @@ public class NeuralNetwork implements Serializable {
     }
 
     private void updateEpsilon() {
-        //double performanceFactor = Math.exp(-bestScore / 1000); // Példa alapú dinamikus frissítés
-        //epsilon = Math.max(MIN_EPSILON, epsilon * EPSILON_DECAY * performanceFactor);
         epsilon = Math.max(MIN_EPSILON, epsilon * EPSILON_DECAY);
     }
 
     private void updateLearningRate() {
-        //double performanceFactor = Math.exp(-bestScore / 1000); // Példa alapú dinamikus frissítés
-        //learningRate = Math.max(MIN_LEARNING_RATE, learningRate * LEARNING_RATE_DECAY * performanceFactor);
         learningRate = Math.max(MIN_LEARNING_RATE, learningRate * LEARNING_RATE_DECAY);
     }
 

@@ -14,17 +14,25 @@ public class Layer implements Serializable {
     private final WeightInitStrategy initStrategy;
     private final GradientClipper gradientClipper;
     private double[] lastInputs;
+    private double[] lastOutputs;
+    private double[] lastNormalizedOutputs;
     private String name;
+    private BatchNormalizer batchNormalizer;
+    private boolean useBatchNorm;
 
     public Layer(String name, int inputSize, int neuronCount, Activation activation, WeightInitStrategy initStrategy,
-                 GradientClipper gradientClipper, double lambdaL2) {
+                 GradientClipper gradientClipper, double lambdaL2, boolean useBatchNorm) {
         this.name = name;
         this.neurons = new ArrayList<>();
         this.activation = activation;
         this.initStrategy = initStrategy;
         this.gradientClipper = gradientClipper;
+        this.useBatchNorm = useBatchNorm;
         for (int i = 0; i < neuronCount; i++) {
             neurons.add(new Neuron(inputSize, neuronCount, activation, initStrategy, gradientClipper, lambdaL2));
+        }
+        if (useBatchNorm) {
+            this.batchNormalizer = new BatchNormalizer(neuronCount);
         }
     }
 
@@ -41,10 +49,19 @@ public class Layer implements Serializable {
         this.lastInputs = inputs.clone();
         double[] outputs = new double[neurons.size()];
 
+        // Compute neuron outputs (with activation)
         for (int i = 0; i < neurons.size(); i++) {
             outputs[i] = neurons.get(i).activate(inputs);
         }
 
+        this.lastNormalizedOutputs = outputs.clone();
+
+        // Apply batch normalization if used
+        if (useBatchNorm) {
+            outputs = batchNormalizer.forward(outputs, isTraining);
+        }
+
+        this.lastOutputs = outputs.clone();
         return outputs;
     }
 
@@ -59,13 +76,25 @@ public class Layer implements Serializable {
      */
     public LayerGradients backward(double[] nextLayerDeltas, double learningRate) {
         double[] inputGradients = new double[lastInputs.length];
+        double[] deltas = nextLayerDeltas.clone();
+
+        if (useBatchNorm) {
+            deltas = batchNormalizer.backward(lastOutputs, deltas);
+        }
 
         for (int i = 0; i < neurons.size(); i++) {
             Neuron neuron = neurons.get(i);
-            neuron.updateWeights(lastInputs, nextLayerDeltas[i], learningRate);
+            double neuronDelta = deltas[i];
+            // Apply activation derivative
+            if (lastNormalizedOutputs != null) {
+                neuronDelta *= Activation.derivative(lastNormalizedOutputs[i], activation);
+            } else {
+                neuronDelta *= Activation.derivative(lastOutputs[i], activation);
+            }
+            neuron.updateWeights(lastInputs, neuronDelta, learningRate);
             double[] weights = neuron.getWeights();
             for (int j = 0; j < lastInputs.length; j++) {
-                inputGradients[j] += nextLayerDeltas[i] * weights[j];
+                inputGradients[j] += neuronDelta * weights[j];
             }
         }
 
