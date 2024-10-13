@@ -7,13 +7,13 @@ import java.util.Arrays;
  * Optimized Batch normalizer class.
  */
 public class BatchNormalizer implements Serializable {
-    private static final double DEFAULT_EPSILON = 1e-5;
+    private static final double DEFAULT_EPSILON = 1e-6;
     private static final double DEFAULT_MOMENTUM = 0.99;
     private static final double DEFAULT_LEARNING_RATE = 0.01;
 
     private final double epsilon;
     private final double momentum;
-    private final double learningRate;
+    private double learningRate;
     private final double[] runningMean;
     private final double[] runningVariance;
     private final double[] gamma;
@@ -139,5 +139,9 @@ public class BatchNormalizer implements Serializable {
             gamma[i] -= learningRate * gradGamma[i];
             beta[i] -= learningRate * gradBeta[i];
         }
+    }
+
+    public void setLearningRate(double learningRate) {
+        this.learningRate = learningRate;
     }
 }

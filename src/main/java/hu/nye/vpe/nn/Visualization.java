@@ -23,7 +23,8 @@ public class Visualization implements GameElement {
     private static final Color INACTIVE_NODE_COLOR = new Color(100, 100, 100, 100);
     private static final Color ACTIVE_NODE_COLOR = new Color(255, 255, 255, 200);
     private static final Color INACTIVE_OUTPUT_NODE_COLOR = new Color(255, 165, 0, 100);
-    private static final Color ACTIVE_OUTPUT_NODE_COLOR = new Color(255, 69, 0, 200);
+    private static final Color ACTIVE_OUTPUT_NODE_COLOR = new Color(227, 156, 21, 200);
+    private static final Color HIGHLIGHTED_OUTPUT_NODE_COLOR = new Color(255, 255, 0, 255);
     private static final Color FONT_COLOR = new Color(255, 255, 255, 120);
     private static final Color RMS_GREEN = new Color(0, 255, 0);
     private static final Color RMS_ORANGE = new Color(255, 165, 0);
@@ -131,6 +132,11 @@ public class Visualization implements GameElement {
         int nodeCount = layerSizes[layerIndex];
         boolean isOutputLayer = (layerIndex == layerSizes.length - 1);
 
+        int maxOutputIndex = -1;
+        if (isOutputLayer) {
+            maxOutputIndex = findMaxOutputIndex(activations[layerIndex]);
+        }
+
         for (int j = 0; j < nodeCount; j++) {
             int x = networkStartX + layerIndex * layerDistance;
             int y = networkStartY + calculateNodeY(j, nodeCount);
@@ -138,7 +144,11 @@ public class Visualization implements GameElement {
             Color nodeColor;
             if (layerIndex < activations.length && j < activations[layerIndex].length) {
                 double activation = activations[layerIndex][j];
-                nodeColor = getColorForActivation(activation, isOutputLayer);
+                if (isOutputLayer && j == maxOutputIndex) {
+                    nodeColor = HIGHLIGHTED_OUTPUT_NODE_COLOR;
+                } else {
+                    nodeColor = getColorForActivation(activation, isOutputLayer);
+                }
             } else {
                 nodeColor = layerIndex == layerSizes.length - 1 ? INACTIVE_OUTPUT_NODE_COLOR : INACTIVE_NODE_COLOR;
             }
@@ -146,6 +156,16 @@ public class Visualization implements GameElement {
             g2d.setColor(nodeColor);
             g2d.fill(new Rectangle2D.Double(x, y, nodeSize, nodeSize));
         }
+    }
+
+    private int findMaxOutputIndex(double[] outputActivations) {
+        int maxIndex = 0;
+        for (int i = 1; i < outputActivations.length; i++) {
+            if (outputActivations[i] > outputActivations[maxIndex]) {
+                maxIndex = i;
+            }
+        }
+        return maxIndex;
     }
 
     private int calculateNodeY(int nodeIndex, int layerSize) {

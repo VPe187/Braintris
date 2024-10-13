@@ -18,7 +18,7 @@ import hu.nye.vpe.nn.WeightInitStrategy;
 public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
-    private static final int FEED_DATA_SIZE = 28;
+    private static final int FEED_DATA_SIZE = 30;
     private static final int OUTPUT_NODES = 4;
     private static final long DROP_SPEED = 10L;
     private static int moveCount = 0;
@@ -26,12 +26,11 @@ public class Tetris {
 
     private NeuralNetwork brain;
 
-    private static final boolean NORMALIZE_FEED_DATA = false;
-    private static final String[] NAMES = {"INP", "H1", "H2", "H3", "H4", "OUT"};
-    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 48, 32, 64, OUTPUT_NODES};
+    private static final boolean NORMALIZE_FEED_DATA = true;
+    private static final String[] NAMES = {"INP", "H1", "H2", "H3", "OUT"};
+    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 32, 16, OUTPUT_NODES};
     private static final Activation[] ACTIVATIONS = {
-            Activation.LEAKY_RELU,
-            Activation.LEAKY_RELU,
+            Activation.RELU,
             Activation.LEAKY_RELU,
             Activation.LEAKY_RELU,
             Activation.LINEAR
@@ -40,11 +39,10 @@ public class Tetris {
             WeightInitStrategy.HE,
             WeightInitStrategy.HE,
             WeightInitStrategy.HE,
-            WeightInitStrategy.HE,
-            WeightInitStrategy.HE
+            WeightInitStrategy.XAVIER
     };
-    private static final boolean[] USE_BATCH_NORM = {true, true, true, true, false};
-    private static final double[] L2 = {0.001, 0.001, 0.001, 0.001, 0.001};
+    private static final boolean[] USE_BATCH_NORM = {false, true, false, false };
+    private static final double[] L2 = {0.0001, 0.0001, 0.0001, 0.0001, 0.0001};
 
     private final long speed = 1000L;
     private final long learningSpeed = 5L;
@@ -163,7 +161,7 @@ public class Tetris {
                     } else {
                         if (stack.moveShapeDown()) {
                             if (learning) {
-                                learning(false);
+                                learning(true, false);
                                 moveCount = 0;
                             }
                         }
@@ -173,7 +171,7 @@ public class Tetris {
         }
         if (stack.getState() == State.GAMEOVER) {
             if (learning) {
-                learning(true);
+                learning(true, true);
                 try {
                     brain.saveToFile();
                 } catch (Exception e) {
@@ -206,32 +204,32 @@ public class Tetris {
                 switch (action) {
                     case 0:
                         stack.rotateShapeRight();
-                        learning(false);
+                        learning(false, false);
                         moveCount++;
                         episodeMoveCount++;
                         break;
                     case 1:
                         stack.rotateShapeLeft();
-                        learning(false);
+                        learning(false, false);
                         moveCount++;
                         episodeMoveCount++;
                         break;
                     case 2:
                         stack.moveShapeRight();
-                        learning(false);
+                        learning(false, false);
                         moveCount++;
                         episodeMoveCount++;
                         break;
                     case 3:
                         stack.moveShapeLeft();
-                        learning(false);
+                        learning(false, false);
                         moveCount++;
                         episodeMoveCount++;
                         break;
                     case 4:
                         tickDown.setPeriodMilliSecond(DROP_SPEED);
                         stack.moveShapeDown();
-                        learning(false);
+                        learning(false, false);
                         break;
                     default:
                         tickDown.setPeriodMilliSecond(stack.getCurrentSpeed());
@@ -292,6 +290,9 @@ public class Tetris {
     private double[] getFeedData() {
         double[] feedData = new double[FEED_DATA_SIZE];
         int k = 0;
+
+        feedData[k++] = (stack.getCurrentShape() != null) ? stack.getCurrentShape().getId() : -1;
+        feedData[k++] = (nextShape != null) ? nextShape.getId() : -1;
 
         // Oszlopok
         double[] columns = stack.getMetricColumnHeights();
@@ -382,15 +383,15 @@ public class Tetris {
         }
 
         // Jutalom az alacsonyra lerakásért
-        if (stack.getMetricMaxHeight() <= 8) {
+        if (stack.getMetricMaxHeight() <= 6) {
             reward += 10;
         } else {
-            reward -= 5;
+            reward -= 1;
         }
 
         // Büntetés a lyukakért
         double numberofHoles = stack.getMetricNumberOfHoles();
-        reward -= (numberofHoles - lastNumberofHoles) * 0.3;
+        reward -= (numberofHoles - lastNumberofHoles) * 0.1;
 
         // Büntetés a végleges lyukakért
         double surroundingHoles = stack.getMetricSurroundingHoles();
@@ -453,7 +454,7 @@ public class Tetris {
 
         // Büntetés a lyukakért
         double numberofHoles = stack.getMetricNumberOfHoles();
-        reward -= numberofHoles * 0.3;
+        reward -= numberofHoles * 0.1;
 
         // Büntetés a végleges lyukakért
         double surroundingHoles = stack.getMetricSurroundingHoles();
@@ -488,13 +489,17 @@ public class Tetris {
         return reward;
     }
 
-    private void learning(boolean gameOver) {
+    private void learning(boolean dropped, boolean gameOver) {
         double[] currentState = getFeedData();
         double reward;
         if (gameOver) {
             reward = calculateFinishReward();
         } else {
-            reward = calculateReward();
+            if (dropped) {
+                reward = calculateReward();
+            } else {
+                reward = moveCount * 0.0001;
+            }
         }
         brain.learn(lastState, lastAction, reward, currentState, gameOver);
         lastState = currentState;

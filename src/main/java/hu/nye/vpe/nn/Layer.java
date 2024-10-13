@@ -17,19 +17,23 @@ public class Layer implements Serializable {
     private double[] lastNormalizedOutputs;
     private String name;
     private BatchNormalizer batchNormalizer;
+    private double learningRate;
     private boolean useBatchNorm;
 
     public Layer(String name, int inputSize, int neuronCount, Activation activation, WeightInitStrategy initStrategy,
-                 GradientClipper gradientClipper, double lambdaL2, boolean useBatchNorm) {
+                 GradientClipper gradientClipper, double lambdaL2, boolean useBatchNorm, double learningRate) {
         this.name = name;
         this.neurons = new ArrayList<>();
         this.activation = activation;
         this.initStrategy = initStrategy;
         this.gradientClipper = gradientClipper;
         this.useBatchNorm = useBatchNorm;
+        this.learningRate = learningRate;
+
         for (int i = 0; i < neuronCount; i++) {
             neurons.add(new Neuron(inputSize, neuronCount, activation, initStrategy, gradientClipper, lambdaL2));
         }
+
         if (useBatchNorm) {
             this.batchNormalizer = new BatchNormalizer(neuronCount);
         }
@@ -116,5 +120,17 @@ public class Layer implements Serializable {
 
     public List<Neuron> getNeurons() {
         return neurons;
+    }
+
+    /**
+     * Set learning rate.
+     *
+     * @param learningRate learningrate
+     */
+    public void setLearningRate(double learningRate) {
+        this.learningRate = learningRate;
+        if (useBatchNorm) {
+            batchNormalizer.setLearningRate(learningRate);
+        }
     }
 }

@@ -1,4 +1,4 @@
-#Sun Oct 13 16:59:21 CEST 2024
+#Sun Oct 13 21:21:53 CEST 2024
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\Audio.java=1726674628974
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\BonusType.java=1727197088798
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\Cell.java=1727328240230
@@ -17,7 +17,7 @@ D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\ShapePool.java
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\Stack.java=1728649709243
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\Starfield.java=1725948475107
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\State.java=1726755128138
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\Tetris.java=1728829945187
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\Tetris.java=1728847309264
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\TimeTicker.java=1726675422278
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameAudio.java=1727105676993
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameColorPalette.java=1727197352288
@@ -28,26 +28,26 @@ D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameIn
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GamePanel.java=1727197723522
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameStarfield.java=1727197749979
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameTimeTicker.java=1726686845393
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Activation.java=1728762251700
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Activation.java=1728832125388
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\AdaptiveLearningRate.java=1727551276883
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\BatchNormalizer.java=1728831512232
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\BatchNormalizer.java=1728846829080
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Experience.java=1728762451318
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\ExperienceReplay.java=1728762528382
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\GradientClipper.java=1728762554492
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\InputNormalizer.java=1728421273954
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\InputNormalizerMinmax.java=1728550313197
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\InputNormalizerZScore.java=1728550354894
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Layer.java=1728828464573
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\InputNormalizerMinmax.java=1728832256255
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\InputNormalizerZScore.java=1728832294805
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Layer.java=1728847253039
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\LayerGradients.java=1728762676365
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\NeuralNetwork.java=1728831536423
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\NeuralNetwork.java=1728847288326
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\NeuralNetworkGenetic.java=1727551640021
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\NeuralNetworkPool.java=1727246739547
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\NeuralNetworkQLearning.java=1728499745236
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\NeuralNetworkVisualization.java=1728499902930
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Neuron.java=1728816483072
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Visualization.java=1728831557581
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Neuron.java=1728832364127
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Visualization.java=1728842797895
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\WeightInitStrategy.java=1728763427418
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\WeightInitializer.java=1728763364525
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\WeightInitializer.java=1728832402976
 configuration*?=82AE86B4BA4C726E22D0E994242B0E51388390F5
 module-resource*?\:checkstyle-suppressions.xml=E5340ED14E80F6B319EF0B3C7E21F26CDD77AF51
 module-resource*?\:checkstyle-xpath-suppressions.xml=71B906BDD4D5AF844EA47ADC27A91AD4004740B

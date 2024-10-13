@@ -35,7 +35,7 @@ public class NeuralNetwork implements Serializable {
     private static final double CLIP_NORM = 1.0;
     private static final double GRADIENT_SCALE = 1.0;
 
-    private static final double INITIAL_LEARNING_RATE = 0.01;
+    private static final double INITIAL_LEARNING_RATE = 0.05;
     private static final double LEARNING_RATE_DECAY = 0.999;
     private static final double MIN_LEARNING_RATE = 0.00001;
 
@@ -56,21 +56,23 @@ public class NeuralNetwork implements Serializable {
                          boolean[] useBatchNorm, double[] l2) {
         if (layerSizes.length != activations.length + 1 ||
                 layerSizes.length != initStrategies.length + 1 ||
-                layerSizes.length != useBatchNorm.length + 1) {
+                layerSizes.length != useBatchNorm.length + 1 ||
+                layerSizes.length != l2.length) {
             throw new IllegalArgumentException("Invalid configuration: layerSizes length should be one more than " +
                     "the length of activations, initStrategies, and useBatchNorm arrays");
         }
 
         this.gradientClipper = new GradientClipper(CLIP_MIN, CLIP_MAX, CLIP_NORM, GRADIENT_SCALE);
         this.layers = new ArrayList<>();
+        this.learningRate = INITIAL_LEARNING_RATE;
 
         for (int i = 0; i < layerSizes.length - 1; i++) {
             int inputSize = layerSizes[i];
             int outputSize = layerSizes[i + 1];
             layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i],
-                    gradientClipper, l2[i], useBatchNorm[i]));
+                    gradientClipper, l2[i], useBatchNorm[i], learningRate));
         }
-        this.learningRate = INITIAL_LEARNING_RATE;
+
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
         this.epsilon = INITIAL_EPSILON;
         this.episodeCount = 0;
@@ -218,6 +220,9 @@ public class NeuralNetwork implements Serializable {
 
     private void updateLearningRate() {
         learningRate = Math.max(MIN_LEARNING_RATE, learningRate * LEARNING_RATE_DECAY);
+        for (Layer layer : layers) {
+            layer.setLearningRate(learningRate);
+        }
     }
 
     private void updateDiscountFactor() {
