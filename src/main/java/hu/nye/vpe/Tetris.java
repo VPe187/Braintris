@@ -28,11 +28,11 @@ public class Tetris {
 
     private static final boolean NORMALIZE_DATA = false;
     private static final String[] NAMES = {"INP", "H1", "H2", "H3", "OUT"};
-    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 40, 20, 10, OUTPUT_NODES};
+    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 20, 40, 20, OUTPUT_NODES};
     private static final Activation[] ACTIVATIONS = {
             Activation.LEAKY_RELU,
             Activation.LEAKY_RELU,
-            Activation.RELU,
+            Activation.LEAKY_RELU,
             Activation.LINEAR
     };
     private static final WeightInitStrategy[] INIT_STRATEGIES = {

@@ -12,21 +12,17 @@ public class Layer implements Serializable {
     private final List<Neuron> neurons;
     private final Activation activation;
     private final WeightInitStrategy initStrategy;
-    private BatchNormalizer batchNormalizer;
     private final GradientClipper gradientClipper;
     private double[] lastInputs;
     private String name;
 
     public Layer(String name, int inputSize, int neuronCount, Activation activation, WeightInitStrategy initStrategy,
-                 boolean useBatchNorm, GradientClipper gradientClipper, double lambdaL2) {
+                 GradientClipper gradientClipper, double lambdaL2) {
         this.name = name;
         this.neurons = new ArrayList<>();
         this.activation = activation;
         this.initStrategy = initStrategy;
         this.gradientClipper = gradientClipper;
-        if (useBatchNorm) {
-            this.batchNormalizer = new BatchNormalizer(neuronCount, 1.0, 0.0);
-        }
         for (int i = 0; i < neuronCount; i++) {
             neurons.add(new Neuron(inputSize, neuronCount, activation, initStrategy, gradientClipper, lambdaL2));
         }
@@ -45,13 +41,8 @@ public class Layer implements Serializable {
         this.lastInputs = inputs.clone();
         double[] outputs = new double[neurons.size()];
 
-        double[] normalizedInputs = inputs.clone();
-        if (batchNormalizer != null) {
-            normalizedInputs = batchNormalizer.normalize(normalizedInputs, isTraining);
-        }
-
         for (int i = 0; i < neurons.size(); i++) {
-            outputs[i] = neurons.get(i).activate(normalizedInputs);
+            outputs[i] = neurons.get(i).activate(inputs);
         }
 
         return outputs;
@@ -67,35 +58,20 @@ public class Layer implements Serializable {
      * @return new gradients
      */
     public LayerGradients backward(double[] nextLayerDeltas, double learningRate) {
-        double[] deltas = nextLayerDeltas;
         double[] inputGradients = new double[lastInputs.length];
 
-        double[] gammaGradients = null;
-        double[] betaGradients = null;
-        if (batchNormalizer != null) {
-            deltas = batchNormalizer.backprop(deltas);
-            gammaGradients = batchNormalizer.getGammaGradients();
-            betaGradients = batchNormalizer.getBetaGradients();
-        }
-
-        // Számítsuk ki a gradiens visszaterjesztést és frissítsük a súlyokat
         for (int i = 0; i < neurons.size(); i++) {
             Neuron neuron = neurons.get(i);
-            neuron.updateWeights(lastInputs, deltas[i], learningRate);
+            neuron.updateWeights(lastInputs, nextLayerDeltas[i], learningRate);
             double[] weights = neuron.getWeights();
             for (int j = 0; j < lastInputs.length; j++) {
-                inputGradients[j] += deltas[i] * weights[j];
+                inputGradients[j] += nextLayerDeltas[i] * weights[j];
             }
         }
 
-        // Skálázás és klippelés az input gradienteken
         inputGradients = gradientClipper.scaleAndClip(inputGradients);
 
-        if (batchNormalizer != null) {
-            batchNormalizer.updateParameters(learningRate);
-        }
-
-        return new LayerGradients(inputGradients, gammaGradients, betaGradients);
+        return new LayerGradients(inputGradients, null, null);
     }
 
     public int getSize() {
@@ -116,9 +92,5 @@ public class Layer implements Serializable {
 
     public List<Neuron> getNeurons() {
         return neurons;
-    }
-
-    public BatchNormalizer getBatchNormalizer() {
-        return batchNormalizer;
     }
 }
