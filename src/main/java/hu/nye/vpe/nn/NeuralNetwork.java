@@ -41,16 +41,16 @@ public class NeuralNetwork implements Serializable {
 
     private static final double INITIAL_DISCOUNT_FACTOR = 0.9;
     private static final double MAX_DISCOUNT_FACTOR = 0.99;
-    private static final double DISCOUNT_FACTOR_INCREMENT = 0.00001;
+    private static final double DISCOUNT_FACTOR_INCREMENT = 0.0001;
 
     private static final double INITIAL_EPSILON = 0.6;
     private static final double EPSILON_DECAY = 0.995;
     private static final double MIN_EPSILON = 0.01;
 
-    private static final double MIN_Q = -1000;
-    private static final double MAX_Q = 1000;
+    private static final double MIN_Q = -500;
+    private static final double MAX_Q = 500;
 
-    private static final int MOVING_AVERAGE_WINDOW = 100;
+    private static final int MOVING_AVERAGE_WINDOW = 1000;
 
     public NeuralNetwork(String[] names, int[] layerSizes, Activation[] activations, WeightInitStrategy[] initStrategies,
                          boolean[] useBatchNorm, double[] l2) {
