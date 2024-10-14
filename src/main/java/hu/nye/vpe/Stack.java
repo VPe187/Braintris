@@ -1315,7 +1315,7 @@ public class Stack implements GameElement {
         return metricAvgColumnHeight;
     }
 
-    public double getMetricSurroundingHoles() {
+    public double getMetricSurroundedHoles() {
         return metricSurroundingHoles;
     }
 

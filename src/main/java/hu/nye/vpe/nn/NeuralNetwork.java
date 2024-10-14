@@ -35,7 +35,7 @@ public class NeuralNetwork implements Serializable {
     private static final double CLIP_NORM = 1.0;
     private static final double GRADIENT_SCALE = 1.0;
 
-    private static final double INITIAL_LEARNING_RATE = 0.05;
+    private static final double INITIAL_LEARNING_RATE = 0.03;
     private static final double LEARNING_RATE_DECAY = 0.999;
     private static final double MIN_LEARNING_RATE = 0.00001;
 

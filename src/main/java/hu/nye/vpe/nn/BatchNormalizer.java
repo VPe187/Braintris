@@ -10,6 +10,8 @@ public class BatchNormalizer implements Serializable {
     private static final double DEFAULT_EPSILON = 1e-6;
     private static final double DEFAULT_MOMENTUM = 0.99;
     private static final double DEFAULT_LEARNING_RATE = 0.01;
+    private static final double DEFAULT_GAMMA = 1.5;
+    private static final double DEFAULT_BETA = 0.2;
 
     private final double epsilon;
     private final double momentum;
@@ -34,8 +36,8 @@ public class BatchNormalizer implements Serializable {
         this.gamma = new double[size];
         this.beta = new double[size];
 
-        Arrays.fill(gamma, 1.0);
-        Arrays.fill(beta, 0.0);
+        Arrays.fill(gamma, DEFAULT_GAMMA);
+        Arrays.fill(beta, DEFAULT_BETA);
     }
 
     /**
