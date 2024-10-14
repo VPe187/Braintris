@@ -49,9 +49,9 @@ public class WeightInitializer {
      */
     public static double initializeBias(WeightInitStrategy strategy) {
         return switch (strategy) {
-            case RANDOM -> RANDOM.nextGaussian() * 0.01; // Kis véletlenszerű érték
-            case XAVIER -> RANDOM.nextGaussian() * Math.sqrt(1.0 / (1 + 1)); // XAVIER esetén kis véletlenszerű érték
-            case HE -> RANDOM.nextGaussian() * Math.sqrt(2.0 / (1 + 1)); // HE kis véletlenszerű szám
+            case RANDOM, XAVIER, HE -> RANDOM.nextGaussian() * 0.01; // Kis véletlenszerű érték
+            //case XAVIER -> RANDOM.nextGaussian() * Math.sqrt(1.0 / (1 + 1)); // XAVIER esetén kis véletlenszerű érték
+            //case HE -> RANDOM.nextGaussian() * Math.sqrt(2.0 / (1 + 1)); // HE kis véletlenszerű szám
             case UNIFORM -> {
                 double limit = Math.sqrt(6.0 / 1); // Könnyíthetjük is 6-ra
                 yield RANDOM.nextDouble() * 2 * limit - limit;

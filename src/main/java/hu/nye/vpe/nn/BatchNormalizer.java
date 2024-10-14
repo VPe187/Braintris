@@ -10,8 +10,6 @@ public class BatchNormalizer implements Serializable {
     private static final double DEFAULT_EPSILON = 1e-6;
     private static final double DEFAULT_MOMENTUM = 0.99;
     private static final double DEFAULT_LEARNING_RATE = 0.01;
-    private static final double DEFAULT_GAMMA = 1.5;
-    private static final double DEFAULT_BETA = 0.2;
 
     private final double epsilon;
     private final double momentum;
@@ -22,21 +20,21 @@ public class BatchNormalizer implements Serializable {
     private final double[] beta;
     private final int size;
 
-    public BatchNormalizer(int size, double gamma, double beta) {
-        this(size, DEFAULT_EPSILON, DEFAULT_MOMENTUM, DEFAULT_LEARNING_RATE);
-        Arrays.fill(this.gamma, gamma);
-        Arrays.fill(this.beta, beta);
+    public BatchNormalizer(int size, double gamma, double beta, double learningRate) {
+        this(size, gamma, beta, DEFAULT_LEARNING_RATE, DEFAULT_EPSILON, DEFAULT_MOMENTUM);
     }
 
-    public BatchNormalizer(int size, double epsilon, double momentum, double learningRate) {
+    public BatchNormalizer(int size, double gamma, double beta, double learningRate, double epsilon, double momentum) {
         this.size = size;
-        this.epsilon = epsilon;
-        this.momentum = momentum;
-        this.learningRate = learningRate;
-        this.runningMean = new double[size];
-        this.runningVariance = new double[size];
         this.gamma = new double[size];
         this.beta = new double[size];
+        Arrays.fill(this.gamma, gamma);
+        Arrays.fill(this.beta, beta);
+        this.learningRate = learningRate;
+        this.epsilon = epsilon;
+        this.momentum = momentum;
+        this.runningMean = new double[size];
+        this.runningVariance = new double[size];
     }
 
     /**
@@ -53,21 +51,48 @@ public class BatchNormalizer implements Serializable {
             throw new IllegalArgumentException("Input size does not match BatchNormalizer size");
         }
 
+        //System.out.println("Debug: Input statistics:");
+        //System.out.println("  Min: " + Arrays.stream(input).min().orElse(0));
+        //System.out.println("  Max: " + Arrays.stream(input).max().orElse(0));
+        //System.out.println("  Average: " + Arrays.stream(input).average().orElse(0));
+
+
         double[] output = new double[size];
         double mean = calculateMean(input);
         double variance = calculateVariance(input, mean);
 
+        //System.out.println("Debug: Mean: " + mean);
+        //System.out.println("Debug: Variance: " + variance);
+
         if (isTraining) {
             updateRunningStatistics(mean, variance);
+            //System.out.println("Debug: Updated running mean: " + Arrays.toString(runningMean));
+            //System.out.println("Debug: Updated running variance: " + Arrays.toString(runningVariance));
         }
 
         double invStd = 1.0 / Math.sqrt(variance + epsilon);
+        //System.out.println("Debug: Inverse standard deviation: " + invStd);
+
+        //System.out.println("Debug: Gamma statistics:");
+        //System.out.println("  Min: " + Arrays.stream(gamma).min().orElse(0));
+        //System.out.println("  Max: " + Arrays.stream(gamma).max().orElse(0));
+        //System.out.println("  Average: " + Arrays.stream(gamma).average().orElse(0));
+
+        //System.out.println("Debug: Beta statistics:");
+        //System.out.println("  Min: " + Arrays.stream(beta).min().orElse(0));
+        //System.out.println("  Max: " + Arrays.stream(beta).max().orElse(0));
+        //System.out.println("  Average: " + Arrays.stream(beta).average().orElse(0));
 
         for (int i = 0; i < size; i++) {
             double normalized = (input[i] - mean) * invStd;
             output[i] = gamma[i] * normalized + beta[i];
+            //System.out.printf("Debug: Element %d - Input: %.4f, Normalized: %.4f, Gamma: %.4f, Beta: %.4f, Output: %.4f%n",
+                   // i, input[i], normalized, gamma[i], beta[i], output[i]);
         }
-
+        //System.out.println("Debug: Output statistics:");
+        //System.out.println("  Min: " + Arrays.stream(output).min().orElse(0));
+        //System.out.println("  Max: " + Arrays.stream(output).max().orElse(0));
+        //System.out.println("  Average: " + Arrays.stream(output).average().orElse(0));
         return output;
     }
 

@@ -30,7 +30,7 @@ public class Tetris {
     private static final double REWARD_BLOCKED_ROW = 1.2;
     private static final double REWARD_BUMPINESS = 0.3;
     private static final double REWARD_AVG_COLUMN_HEIGHT = 0.5;
-    private static final double REWARD_MAXIMUM_HEIGHT = 0.6;
+    private static final double REWARD_MAXIMUM_HEIGHT = 0.9;
 
 
     private static final int ROWS = 24;
@@ -44,24 +44,27 @@ public class Tetris {
     private NeuralNetwork brain;
 
     private static final boolean NORMALIZE_FEED_DATA = true;
-    private static final String[] NAMES = {"INP", "H1", "H2", "H3", "OUT"};
-    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 32, 16, OUTPUT_NODES};
+    private static final String[] NAMES = {"INP", "H1", "H2", "H3", "H4", "OUT"};
+    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 48, 32, 48, OUTPUT_NODES};
     private static final Activation[] ACTIVATIONS = {
+            Activation.LEAKY_RELU,
             Activation.LEAKY_RELU,
             Activation.LEAKY_RELU,
             Activation.LEAKY_RELU,
             Activation.LINEAR
     };
     private static final WeightInitStrategy[] INIT_STRATEGIES = {
-            WeightInitStrategy.HE,
-            WeightInitStrategy.HE,
-            WeightInitStrategy.HE,
+            WeightInitStrategy.XAVIER,
+            WeightInitStrategy.XAVIER,
+            WeightInitStrategy.XAVIER,
+            WeightInitStrategy.XAVIER,
             WeightInitStrategy.XAVIER
     };
     private static final BatchNormParameters[] USE_BATCH_NORM = {
-            new BatchNormParameters(true, 1.0, 0.0), //H1
-            new BatchNormParameters(true, 1.0, 0.0), //H2
-            new BatchNormParameters(true, 1.0, 0.0), //H3
+            new BatchNormParameters(true, 1.0, 0.001), //H1
+            new BatchNormParameters(true, 1.0, 0.001), //H2
+            new BatchNormParameters(true, 1.0, 0.001), //H3
+            new BatchNormParameters(true, 1.0, 0.001), //H4
             new BatchNormParameters(false, 1.0, 0.0), // OUT
     };
 
@@ -70,11 +73,12 @@ public class Tetris {
             0.0, // H1
             0.0, // H2
             0.0, // H3
+            0.0, // H4
             0.0 // OUT
     };
 
     private final long speed = 1000L;
-    private final long learningSpeed = 5L;
+    private final long learningSpeed = 50L;
     private Shape nextShape = null;
     private static final ShapeFactory sf = ShapeFactory.getInstance();
     private final Stack stack;
@@ -411,12 +415,16 @@ public class Tetris {
             reward += REWARD_PLACE_WITHOUT_HOLE;
         }
 
+        reward += stack.getCurrentShape().getStackRow() * 1;
         // Jutalom az alacsonyra lerakásért
+        /*
         if (stack.getMetricMaxHeight() <= 6) {
             reward += REWARD_DROP_LOWER;
         } else {
             reward -= REWARD_DROP_HIGHER;
         }
+
+         */
 
         // Büntetés a lyukakért
         double numberofHoles = stack.getMetricNumberOfHoles();
@@ -436,8 +444,7 @@ public class Tetris {
 
         // Büntetés a magasra helyezésért
         double maxHeight = stack.getMetricMaxHeight();
-        reward -= (maxHeight - lastMaxHeight) * REWARD_MAXIMUM_HEIGHT;
-
+        //reward -= (maxHeight - lastMaxHeight) * REWARD_MAXIMUM_HEIGHT;
         // Büntetés az átlagos magasságért
         double avgColumnHeights = stack.getMetricAvgColumnHeight();
         reward -= (avgColumnHeights - lastAvgColumnHeights) * REWARD_AVG_COLUMN_HEIGHT;
@@ -499,7 +506,7 @@ public class Tetris {
         reward -= avgColumnHeights * REWARD_AVG_COLUMN_HEIGHT;
 
         if (droppedElements > 0) {
-            reward += episodeMoveCount / droppedElements;
+            reward += droppedElements / episodeMoveCount;
         }
 
         lastFullRows = 0;
@@ -517,14 +524,16 @@ public class Tetris {
 
     private void learning(boolean dropped, boolean gameOver) {
         double[] currentState = getFeedData();
-        double reward;
+        double reward = 0;
         if (gameOver) {
             reward = calculateFinishReward();
         } else {
             if (dropped) {
                 reward = calculateReward();
             } else {
-                reward = moveCount * 0.0001;
+                reward += stack.getCurrentShape().getStackRow();
+                System.out.println(reward);
+                reward += moveCount * 0.01 * -1;
             }
         }
         brain.learn(lastState, lastAction, reward, currentState, gameOver);

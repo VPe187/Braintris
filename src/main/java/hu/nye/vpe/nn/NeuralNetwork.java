@@ -31,9 +31,9 @@ public class NeuralNetwork implements Serializable {
     private ExperienceReplay experienceReplay;
 
     private static final String FILENAME = "brain.dat";
-    private static final double CLIP_MIN = -5.0;
-    private static final double CLIP_MAX = 5.0;
-    private static final double CLIP_NORM = 1.0;
+    private static final double CLIP_MIN = -0.2;
+    private static final double CLIP_MAX = 0.2;
+    private static final double CLIP_NORM = 0.5;
     private static final double GRADIENT_SCALE = 1.0;
 
     private static final double INITIAL_LEARNING_RATE = 0.03;

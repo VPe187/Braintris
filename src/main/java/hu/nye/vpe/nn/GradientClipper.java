@@ -52,10 +52,10 @@ public class GradientClipper implements Serializable {
         for (double grad : gradients) {
             norm += grad * grad;
         }
-        norm = Math.sqrt(norm);
+        norm = Math.sqrt(norm + epsilon);
 
         if (norm > clipNorm) {
-            double scale = clipNorm / norm;
+            double scale = clipNorm / (norm + epsilon);
             for (int i = 0; i < gradients.length; i++) {
                 gradients[i] *= scale;
             }

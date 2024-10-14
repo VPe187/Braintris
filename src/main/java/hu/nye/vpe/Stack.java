@@ -243,6 +243,7 @@ public class Stack implements GameElement {
             return false;
         } else {
             itemFalled();
+            calculateGameMetrics();
             return true;
         }
     }
@@ -744,7 +745,7 @@ public class Stack implements GameElement {
             }
 
             if (foundNonEmptyRow) {
-                if (filledCells >= COLS - 2 && filledCells < COLS) {  // 10 vagy 11 kitöltött cella 12-ből
+                if (filledCells >= COLS - 3 && filledCells < COLS) {  // 9 - 11 kitöltött cella 12-ből
                     nearlyFullRows++;
                 }
 
@@ -813,10 +814,7 @@ public class Stack implements GameElement {
             totalDifference += Math.abs(columnHeights[i] - columnHeights[i + 1]);
             comparisons++;
         }
-        // Calculate the average difference
         double averageDifference = (comparisons > 0) ? totalDifference / comparisons : 0;
-        // Normalize the result
-        // The maximum possible difference is the height of the game board (ROWS)
         return averageDifference / ROWS;
     }
 
@@ -828,8 +826,6 @@ public class Stack implements GameElement {
                 if (stackArea[i][j].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
                     blockAbove = true;
                 } else if (blockAbove) {
-                    // Lyuk felfedezése
-                    // Ellenőrzi a szomszédos cellákat (balra és jobbra)
                     if (j > 0 && stackArea[i][j - 1].getShapeId() != Shape.ShapeType.EMPTY.getShapeTypeId()) {
                         surroundings++;
                     }
@@ -913,7 +909,7 @@ public class Stack implements GameElement {
      * @param g2D Graphics2D
      */
     private void renderStack(Graphics2D g2D) {
-        if (state == State.RUNNING || state == State.DELETINGROWS || state == State.GAMEOVER) {
+        if (state == State.RUNNING || state == State.DELETINGROWS || state == State.GAMEOVER || state == State.PAUSED) { // PAUSE remove
             for (int i = 0; i < ROWS; i++) {
                 for (int j = 0; j < COLS; j++) {
                     if (i >= ROW_OFFSET) {

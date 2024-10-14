@@ -36,7 +36,7 @@ public class Layer implements Serializable {
         }
 
         if (useBatchNorm) {
-            this.batchNormalizer = new BatchNormalizer(neuronCount, batchNormParameters.gamma, batchNormParameters.beta);
+            this.batchNormalizer = new BatchNormalizer(neuronCount, batchNormParameters.gamma, batchNormParameters.beta, learningRate);
         }
     }
 
