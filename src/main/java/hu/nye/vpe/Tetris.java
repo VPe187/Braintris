@@ -8,6 +8,7 @@ import hu.nye.vpe.gaming.GameInput;
 import hu.nye.vpe.gaming.GameStarfield;
 import hu.nye.vpe.gaming.GameTimeTicker;
 import hu.nye.vpe.nn.Activation;
+import hu.nye.vpe.nn.BatchNormParameters;
 import hu.nye.vpe.nn.InputNormalizerMinmax;
 import hu.nye.vpe.nn.NeuralNetwork;
 import hu.nye.vpe.nn.WeightInitStrategy;
@@ -16,19 +17,20 @@ import hu.nye.vpe.nn.WeightInitStrategy;
  * Tetris class.
  */
 public class Tetris {
-    private static final double REWARD_FULLROW = 10;
-    private static final double REWARD_NEARLY_FULLROW = 5;
+    private static final double REWARD_FULLROW = 100;
+    private static final double REWARD_NEARLY_FULLROW = 8;
+    private static final double REWARD_PLACE_WITHOUT_HOLE = 30;
+    private static final double REWARD_DROP_LOWER = 20;
+
     private static final double REWARD_DROPPED_ELEMENTS = 0.01;
     private static final double REWARD_AVG_DENSITY = 100;
     private static final double REWARD_NUMBER_OF_HOLES = 0.1;
     private static final double REWARD_SURROUNDED_HOLES = 0.2;
-    private static final double REWARD_PLACE_WITHOUT_HOLE = 10;
-    private static final double REWARD_DROP_LOWER = 10;
     private static final double REWARD_DROP_HIGHER = 1;
-    private static final double REWARD_BLOCKED_ROW = 0.3;
-    private static final double REWARD_BUMPINESS = 0.1;
-    private static final double REWARD_AVG_COLUMN_HEIGHT = 0.1;
-    private static final double REWARD_MAXIMUM_HEIGHT = 0.1;
+    private static final double REWARD_BLOCKED_ROW = 1.2;
+    private static final double REWARD_BUMPINESS = 0.3;
+    private static final double REWARD_AVG_COLUMN_HEIGHT = 0.5;
+    private static final double REWARD_MAXIMUM_HEIGHT = 0.6;
 
 
     private static final int ROWS = 24;
@@ -56,8 +58,20 @@ public class Tetris {
             WeightInitStrategy.HE,
             WeightInitStrategy.XAVIER
     };
-    private static final boolean[] USE_BATCH_NORM = {false, true, true, false };
-    private static final double[] L2 = {0.0, 0.0002, 0.0001, 0.0001, 0.0001};
+    private static final BatchNormParameters[] USE_BATCH_NORM = {
+            new BatchNormParameters(true, 1.0, 0.0), //H1
+            new BatchNormParameters(true, 1.0, 0.0), //H2
+            new BatchNormParameters(true, 1.0, 0.0), //H3
+            new BatchNormParameters(false, 1.0, 0.0), // OUT
+    };
+
+    private static final double[] L2 = {
+            0.0, // INP
+            0.0, // H1
+            0.0, // H2
+            0.0, // H3
+            0.0 // OUT
+    };
 
     private final long speed = 1000L;
     private final long learningSpeed = 5L;

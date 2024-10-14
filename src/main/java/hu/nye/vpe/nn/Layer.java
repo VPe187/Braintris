@@ -16,18 +16,19 @@ public class Layer implements Serializable {
     private double[] lastOutputs;
     private double[] lastNormalizedOutputs;
     private String name;
+    private BatchNormParameters batchNormaparameters;
     private BatchNormalizer batchNormalizer;
     private double learningRate;
     private boolean useBatchNorm;
 
     public Layer(String name, int inputSize, int neuronCount, Activation activation, WeightInitStrategy initStrategy,
-                 GradientClipper gradientClipper, double lambdaL2, boolean useBatchNorm, double learningRate) {
+                 GradientClipper gradientClipper, double lambdaL2, BatchNormParameters batchNormParameters, double learningRate) {
         this.name = name;
         this.neurons = new ArrayList<>();
         this.activation = activation;
         this.initStrategy = initStrategy;
         this.gradientClipper = gradientClipper;
-        this.useBatchNorm = useBatchNorm;
+        this.useBatchNorm = batchNormParameters.useBatchNorm;
         this.learningRate = learningRate;
 
         for (int i = 0; i < neuronCount; i++) {
@@ -35,7 +36,7 @@ public class Layer implements Serializable {
         }
 
         if (useBatchNorm) {
-            this.batchNormalizer = new BatchNormalizer(neuronCount);
+            this.batchNormalizer = new BatchNormalizer(neuronCount, batchNormParameters.gamma, batchNormParameters.beta);
         }
     }
 
@@ -56,12 +57,13 @@ public class Layer implements Serializable {
             outputs[i] = neurons.get(i).activate(inputs);
         }
 
-        this.lastNormalizedOutputs = outputs.clone();
         if (useBatchNorm) {
             outputs = batchNormalizer.forward(outputs, isTraining);
+            this.lastNormalizedOutputs = outputs.clone();
         }
 
         this.lastOutputs = outputs.clone();
+
         return outputs;
     }
 

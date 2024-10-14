@@ -28,10 +28,11 @@ public class NeuralNetwork implements Serializable {
     private double[][] lastActivations;
     private final List<Double> recentRewards;
     private double movingAverage;
+    private ExperienceReplay experienceReplay;
 
     private static final String FILENAME = "brain.dat";
-    private static final double CLIP_MIN = -1.0;
-    private static final double CLIP_MAX = 1.0;
+    private static final double CLIP_MIN = -5.0;
+    private static final double CLIP_MAX = 5.0;
     private static final double CLIP_NORM = 1.0;
     private static final double GRADIENT_SCALE = 1.0;
 
@@ -52,11 +53,15 @@ public class NeuralNetwork implements Serializable {
 
     private static final int MOVING_AVERAGE_WINDOW = 1000;
 
+    private static final Boolean USE_EXPERIENCE = false;
+    private static final int EXPERIENCE_REPLAY_CAPACITY = 10000;
+    private static final int BATCH_SIZE = 32;
+
     public NeuralNetwork(String[] names, int[] layerSizes, Activation[] activations, WeightInitStrategy[] initStrategies,
-                         boolean[] useBatchNorm, double[] l2) {
+                         BatchNormParameters[] batchNormParameters, double[] l2) {
         if (layerSizes.length != activations.length + 1 ||
                 layerSizes.length != initStrategies.length + 1 ||
-                layerSizes.length != useBatchNorm.length + 1 ||
+                layerSizes.length != batchNormParameters.length + 1 ||
                 layerSizes.length != l2.length) {
             throw new IllegalArgumentException("Invalid configuration: layerSizes length should be one more than " +
                     "the length of activations, initStrategies, and useBatchNorm arrays");
@@ -70,7 +75,7 @@ public class NeuralNetwork implements Serializable {
             int inputSize = layerSizes[i];
             int outputSize = layerSizes[i + 1];
             layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i],
-                    gradientClipper, l2[i], useBatchNorm[i], learningRate));
+                    gradientClipper, l2[i], batchNormParameters[i], learningRate));
         }
 
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
@@ -80,6 +85,7 @@ public class NeuralNetwork implements Serializable {
         this.recentRewards = new ArrayList<>();
         this.movingAverage = 0.0;
         this.random = new Random();
+        this.experienceReplay = new ExperienceReplay(EXPERIENCE_REPLAY_CAPACITY);
     }
 
     /**
@@ -173,20 +179,32 @@ public class NeuralNetwork implements Serializable {
      * @param gameOver game is over?
      */
     public void learn(double[] state, int action, double reward, double[] nextState, boolean gameOver) {
-        double[] currentQValues = forward(state);
-        double[] nextQValues = forward(nextState);
-        double maxNextQ = max(nextQValues);
+        if (USE_EXPERIENCE) {
+            Experience experience = new Experience(state, action, reward, nextState, gameOver);
+            experienceReplay.add(experience);
 
-        double normalizedReward = reward / Math.sqrt(reward * reward + 1);
-        double target = normalizedReward + (gameOver ? 0 : discountFactor * maxNextQ);
-        target = Math.max(MIN_Q, Math.min(MAX_Q, target));
+            if (experienceReplay.size() >= BATCH_SIZE) {
+                List<Experience> batch = experienceReplay.sample(BATCH_SIZE);
+                for (Experience exp : batch) {
+                    learnFromExperience(exp);
+                }
+            }
+        } else {
+            double[] currentQValues = forward(state);
+            double[] nextQValues = forward(nextState);
+            double maxNextQ = max(nextQValues);
 
-        double[] targetQValues = currentQValues.clone();
-        targetQValues[action] = target;
+            double normalizedReward = reward / Math.sqrt(reward * reward + 1);
+            double target = normalizedReward + (gameOver ? 0 : discountFactor * maxNextQ);
+            target = Math.max(MIN_Q, Math.min(MAX_Q, target));
 
-        backward(state, targetQValues);
+            double[] targetQValues = currentQValues.clone();
+            targetQValues[action] = target;
 
-        lastReward = reward;
+            backward(state, targetQValues);
+
+            lastReward = reward;
+        }
 
         if (gameOver) {
             if (reward > this.bestScore) {
@@ -199,6 +217,23 @@ public class NeuralNetwork implements Serializable {
             updateMovingAverage(reward);
         }
 
+    }
+
+    private void learnFromExperience(Experience experience) {
+        double[] currentQValues = forward(experience.state);
+        double[] nextQValues = forward(experience.nextState);
+        double maxNextQ = max(nextQValues);
+
+        double normalizedReward = experience.reward / Math.sqrt(experience.reward * experience.reward + 1);
+        double target = normalizedReward + (experience.done ? 0 : discountFactor * maxNextQ);
+        target = Math.max(MIN_Q, Math.min(MAX_Q, target));
+
+        double[] targetQValues = currentQValues.clone();
+        targetQValues[experience.action] = target;
+
+        backward(experience.state, targetQValues);
+
+        lastReward = experience.reward;
     }
 
     private void updateMovingAverage(double reward) {
@@ -375,4 +410,50 @@ public class NeuralNetwork implements Serializable {
     public double getMovingAverage() {
         return movingAverage;
     }
+
+    /**
+     * Activate method for SoftMax (vector input).
+     *
+     * @param x vector of input values
+     *
+     * @return activated values
+     */
+    public static double[] activateSoftMax(double[] x) {
+        double[] output = new double[x.length];
+        double sum = 0.0;
+        double max = x[0];
+        for (int i = 1; i < x.length; i++) {
+            if (x[i] > max) {
+                max = x[i];
+            }
+        }
+        for (int i = 0; i < x.length; i++) {
+            output[i] = Math.exp(x[i] - max);
+            sum += output[i];
+        }
+        for (int i = 0; i < x.length; i++) {
+            output[i] /= sum;
+        }
+        return output;
+    }
+
+    /**
+     * Derivative method for SoftMax (vector input and output).
+     *
+     * @param output the output of the SoftMax function
+     * @param index the index of the output for which we're computing the derivative
+     * @return the partial derivatives
+     */
+    public static double[] derivativeSoftMax(double[] output, int index) {
+        double[] derivatives = new double[output.length];
+        for (int i = 0; i < output.length; i++) {
+            if (i == index) {
+                derivatives[i] = output[i] * (1 - output[i]);
+            } else {
+                derivatives[i] = -output[index] * output[i];
+            }
+        }
+        return derivatives;
+    }
+
 }

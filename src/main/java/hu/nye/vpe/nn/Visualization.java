@@ -53,7 +53,15 @@ public class Visualization implements GameElement {
         this.network = network;
         this.width = width;
         this.height = height;
+
+        int layerCount = network.getLayerSizes().length;
+        this.layerMins = new double[layerCount];
+        this.layerMaxs = new double[layerCount];
+        this.layerMeans = new double[layerCount];
+        this.layerNames = network.getLayerNames();
+
         infoTicker = new GameTimeTicker(200);
+
         updateNetworkData();
         calculateDynamicSizing();
     }
@@ -176,25 +184,18 @@ public class Visualization implements GameElement {
 
     private void calculateStatistics() {
         this.rms = calculateRMS(activations[activations.length - 1]);
-        this.layerNames = new String[activations.length];
-        this.layerMins = new double[activations.length];
-        this.layerMaxs = new double[activations.length];
-        this.layerMeans = new double[activations.length];
 
         for (int i = 0; i < activations.length; i++) {
-            String name = "";
             double min = Double.POSITIVE_INFINITY;
             double max = Double.NEGATIVE_INFINITY;
             double sum = 0;
 
             for (double activation : activations[i]) {
-                name = network.getLayerNames()[i];
                 min = Math.min(min, activation);
                 max = Math.max(max, activation);
                 sum += activation;
             }
 
-            layerNames[i] = name;
             layerMins[i] = min;
             layerMaxs[i] = max;
             layerMeans[i] = sum / activations[i].length;
@@ -292,7 +293,7 @@ public class Visualization implements GameElement {
         String episodes = String.format("Episodes: %d", network.getEpisodeCount());
         String movingAverage = String.format("Average reward: %.4f", network.getMovingAverage());
         String bestReward = String.format("Best episode reward: %.0f", network.getBestScore());
-        String reward = String.format("Step reward: %.0f", network.getLastReward());
+        String reward = String.format("Step reward: %.4f", network.getLastReward());
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
         String discountFactor = String.format("Discount Factor: %.4f", network.getDiscountFactor());

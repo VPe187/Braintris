@@ -22,8 +22,10 @@ public class BatchNormalizer implements Serializable {
     private final double[] beta;
     private final int size;
 
-    public BatchNormalizer(int size) {
+    public BatchNormalizer(int size, double gamma, double beta) {
         this(size, DEFAULT_EPSILON, DEFAULT_MOMENTUM, DEFAULT_LEARNING_RATE);
+        Arrays.fill(this.gamma, gamma);
+        Arrays.fill(this.beta, beta);
     }
 
     public BatchNormalizer(int size, double epsilon, double momentum, double learningRate) {
@@ -35,9 +37,6 @@ public class BatchNormalizer implements Serializable {
         this.runningVariance = new double[size];
         this.gamma = new double[size];
         this.beta = new double[size];
-
-        Arrays.fill(gamma, DEFAULT_GAMMA);
-        Arrays.fill(beta, DEFAULT_BETA);
     }
 
     /**
