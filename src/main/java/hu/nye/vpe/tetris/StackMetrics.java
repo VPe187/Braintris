@@ -2,6 +2,9 @@ package hu.nye.vpe.tetris;
 
 import hu.nye.vpe.gaming.GameConstans;
 
+/**
+ * Stack metric class.
+ */
 public class StackMetrics implements StackComponent {
     private StackManager manager;
     private double metricNumberOfHoles;
@@ -18,19 +21,24 @@ public class StackMetrics implements StackComponent {
     public StackMetrics() {
     }
 
-    public void calculateGameMetrics() {
-        metricBumpiness = calculateBumpiness();
-        metricMaxHeight = calculateMaxHeight();
-        metricColumnHeights = calculateColumnHeights();
-        metricAvgColumnHeight = calculateAverageHeightDifference();
-        metricSurroundingHoles = calculateHolesSurroundings();
-        metricNumberOfHoles = countHoles();
-        metricBlockedRows = countBlockedRows();
-        metricNearlyFullRows = countNearlyFullRows();
-        metricAvgDensity = calculateAverageDensity();
+    /**
+     * Calculate metrics.
+     *
+     * @param stack current or simulated stack
+     */
+    public void calculateGameMetrics(Cell[][] stack) {
+        metricBumpiness = calculateBumpiness(stack);
+        metricMaxHeight = calculateMaxHeight(stack);
+        metricColumnHeights = calculateColumnHeights(stack);
+        metricAvgColumnHeight = calculateAverageHeightDifference(stack);
+        metricSurroundingHoles = calculateHolesSurroundings(stack);
+        metricNumberOfHoles = countHoles(stack);
+        metricBlockedRows = countBlockedRows(stack);
+        metricNearlyFullRows = countNearlyFullRows(stack);
+        metricAvgDensity = calculateAverageDensity(stack);
     }
 
-    private int countHoles() {
+    private int countHoles(Cell[][] stack) {
         if (manager.getCurrentTetromino() != null) {
             manager.removeTetromino();
         }
@@ -38,10 +46,9 @@ public class StackMetrics implements StackComponent {
         for (int col = 0; col < GameConstans.COLS; col++) {
             boolean blockFound = false;
             for (int row = 0; row < GameConstans.ROWS; row++) {
-                if (manager.getStackArea()[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     blockFound = true;
                 } else if (blockFound) {
-                    // If we have already found a block in this column and now find an empty cell, it is a hole.
                     holes++;
                 }
             }
@@ -52,13 +59,13 @@ public class StackMetrics implements StackComponent {
         return holes;
     }
 
-    private double calculateAverageDensity() {
-        int lowestEmptyRow = findLowestEmptyRow();
+    private double calculateAverageDensity(Cell[][] stack) {
+        int lowestEmptyRow = findLowestEmptyRow(stack);
         int activeCells = lowestEmptyRow * GameConstans.COLS; // Az összes cella a legalacsonyabb üres sor alatt
         int filledCells = 0;
         for (int row = GameConstans.ROWS - 1; row >= GameConstans.ROWS - lowestEmptyRow; row--) {
             for (int col = 0; col < GameConstans.COLS; col++) {
-                if (manager.getStackArea()[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     filledCells++;
                 }
             }
@@ -66,11 +73,11 @@ public class StackMetrics implements StackComponent {
         return activeCells > 0 ? (double) filledCells / activeCells : 0.0;
     }
 
-    private int findLowestEmptyRow() {
+    private int findLowestEmptyRow(Cell[][] stack) {
         for (int row = 0; row < GameConstans.ROWS; row++) {
             boolean isEmpty = true;
             for (int col = 0; col < GameConstans.COLS; col++) {
-                if (manager.getStackArea()[GameConstans.ROWS - 1 - row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[GameConstans.ROWS - 1 - row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     isEmpty = false;
                     break;
                 }
@@ -82,14 +89,14 @@ public class StackMetrics implements StackComponent {
         return GameConstans.ROWS;
     }
 
-    private int countAccessibleEmptyCells() {
+    private int countAccessibleEmptyCells(Cell[][] stack) {
         int accessibleEmptyCells = 0;
         boolean[] columnBlocked = new boolean[GameConstans.COLS];
         for (int row = 0; row < GameConstans.ROWS; row++) {
             for (int col = 0; col < GameConstans.COLS; col++) {
-                if (manager.getStackArea()[row][col].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId() && !columnBlocked[col]) {
+                if (stack[row][col].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId() && !columnBlocked[col]) {
                     accessibleEmptyCells++;
-                } else if (manager.getStackArea()[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                } else if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     columnBlocked[col] = true;
                 }
             }
@@ -97,7 +104,7 @@ public class StackMetrics implements StackComponent {
         return accessibleEmptyCells;
     }
 
-    private double calculateBumpiness() {
+    private double calculateBumpiness(Cell[][] stack) {
         if (manager.getCurrentTetromino() != null) {
             manager.removeTetromino();
         }
@@ -105,7 +112,7 @@ public class StackMetrics implements StackComponent {
         // Calculate columns height.
         for (int col = 0; col < GameConstans.COLS; col++) {
             for (int row = 0; row < GameConstans.ROWS; row++) {
-                if (manager.getStackArea()[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     columnHeights[col] = GameConstans.ROWS - row;
                     break;
                 }
@@ -122,14 +129,14 @@ public class StackMetrics implements StackComponent {
         return bumpiness;
     }
 
-    private int calculateMaxHeight() {
+    private int calculateMaxHeight(Cell[][] stack) {
         if (manager.getCurrentTetromino() != null) {
             manager.removeTetromino();
         }
         int maxHeight = 0;
         for (int col = 0; col < GameConstans.COLS; col++) {
             for (int row = 0; row < GameConstans.ROWS; row++) {
-                if (manager.getStackArea()[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     int height = GameConstans.ROWS - row;
                     if (height > maxHeight) {
                         maxHeight = height;
@@ -144,7 +151,7 @@ public class StackMetrics implements StackComponent {
         return maxHeight;
     }
 
-    private int[] getHighestOccupiedCells() {
+    private int[] getHighestOccupiedCells(Cell[][] stack) {
         if (manager.getCurrentTetromino() != null) {
             manager.removeTetromino();
         }
@@ -152,7 +159,7 @@ public class StackMetrics implements StackComponent {
         for (int col = 0; col < GameConstans.COLS; col++) {
             highestOccupied[col] = -1; // Initialize with -1 to indicate an empty column
             for (int row = 0; row < GameConstans.ROWS; row++) {
-                if (manager.getStackArea()[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     highestOccupied[col] = row;
                     break; // Stop at the first occupied cell found
                 }
@@ -164,14 +171,14 @@ public class StackMetrics implements StackComponent {
         return highestOccupied;
     }
 
-    private double countNearlyFullRows() {
+    private double countNearlyFullRows(Cell[][] stack) {
         int nearlyFullRows = 0;
         boolean foundNonEmptyRow = false;
 
         for (int i = GameConstans.ROWS - 1; i >= 0; i--) {  // Alulról felfelé haladunk
             int filledCells = 0;
             for (int j = 0; j < GameConstans.COLS; j++) {
-                if (manager.getStackArea()[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     filledCells++;
                 }
             }
@@ -193,7 +200,7 @@ public class StackMetrics implements StackComponent {
         return nearlyFullRows;
     }
 
-    private int countBlockedRows() {
+    private int countBlockedRows(Cell[][] stack) {
         int blockedRows = 0;
         boolean[] hasHole = new boolean[GameConstans.COLS];
 
@@ -202,7 +209,7 @@ public class StackMetrics implements StackComponent {
             boolean rowHasBlock = false;
 
             for (int j = 0; j < GameConstans.COLS; j++) {
-                if (manager.getStackArea()[i][j].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[i][j].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId()) {
                     hasHole[j] = true;
                 } else {
                     rowHasBlock = true;
@@ -220,11 +227,11 @@ public class StackMetrics implements StackComponent {
         return blockedRows;
     }
 
-    private double[] calculateColumnHeights() {
+    private double[] calculateColumnHeights(Cell[][] stack) {
         double[] columnHeights = new double[GameConstans.COLS];
         for (int j = 0; j < GameConstans.COLS; j++) {
             for (int i = 0; i < GameConstans.ROWS; i++) {
-                if (manager.getStackArea()[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     columnHeights[j] = GameConstans.ROWS - i;
                     break;
                 }
@@ -233,8 +240,8 @@ public class StackMetrics implements StackComponent {
         return columnHeights;
     }
 
-    private double[] calculateHeightDifferences() {
-        double[] columnHeights = calculateColumnHeights();
+    private double[] calculateHeightDifferences(Cell[][] stack) {
+        double[] columnHeights = calculateColumnHeights(stack);
         double[] heightDifferences = new double[GameConstans.COLS - 1];
         for (int j = 0; j < GameConstans.COLS - 1; j++) {
             heightDifferences[j] = Math.abs(columnHeights[j] - columnHeights[j + 1]);
@@ -242,8 +249,8 @@ public class StackMetrics implements StackComponent {
         return heightDifferences;
     }
 
-    private double calculateAverageHeightDifference() {
-        double[] columnHeights = calculateColumnHeights();
+    private double calculateAverageHeightDifference(Cell[][] stack) {
+        double[] columnHeights = calculateColumnHeights(stack);
         double totalDifference = 0;
         int comparisons = 0;
         for (int i = 0; i < columnHeights.length - 1; i++) {
@@ -254,18 +261,18 @@ public class StackMetrics implements StackComponent {
         return averageDifference / GameConstans.ROWS;
     }
 
-    private int calculateHolesSurroundings() {
+    private int calculateHolesSurroundings(Cell[][] stack) {
         int surroundings = 0;
         for (int j = 0; j < GameConstans.COLS; j++) {
             boolean blockAbove = false;
             for (int i = 0; i < GameConstans.ROWS; i++) {
-                if (manager.getStackArea()[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                if (stack[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     blockAbove = true;
                 } else if (blockAbove) {
-                    if (j > 0 && manager.getStackArea()[i][j - 1].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                    if (j > 0 && stack[i][j - 1].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                         surroundings++;
                     }
-                    if (j < GameConstans.COLS - 1 && manager.getStackArea()[i][j + 1].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                    if (j < GameConstans.COLS - 1 && stack[i][j + 1].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                         surroundings++;
                     }
                 }
@@ -273,8 +280,6 @@ public class StackMetrics implements StackComponent {
         }
         return surroundings;
     }
-
-
 
     public double getMetricNumberOfHoles() {
         return metricNumberOfHoles;

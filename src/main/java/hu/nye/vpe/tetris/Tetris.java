@@ -2,11 +2,11 @@ package hu.nye.vpe.tetris;
 
 import java.awt.Graphics2D;
 
-import hu.nye.vpe.gaming.GameState;
 import hu.nye.vpe.gaming.GameAudio;
 import hu.nye.vpe.gaming.GameColorPalette;
 import hu.nye.vpe.gaming.GameInput;
 import hu.nye.vpe.gaming.GameStarfield;
+import hu.nye.vpe.gaming.GameState;
 import hu.nye.vpe.gaming.GameTimeTicker;
 import hu.nye.vpe.nn.Activation;
 import hu.nye.vpe.nn.BatchNormParameters;
@@ -200,7 +200,8 @@ public class Tetris {
                 if (stackManager.getGameLevel() == 0) {
                     stackManager.nextLevel();
                 }
-                if (stackManager.getGameState() != GameState.GAMEOVER && stackManager.getGameState() != GameState.PAUSED && stackManager.getGameState() != GameState.CHANGINGLEVEL) {
+                if (stackManager.getGameState() != GameState.GAMEOVER && stackManager.getGameState() !=
+                        GameState.PAUSED && stackManager.getGameState() != GameState.CHANGINGLEVEL) {
                     if (stackManager.getCurrentTetromino() == null) {
                         nextTetromino();
                     } else {
@@ -307,6 +308,11 @@ public class Tetris {
                         gameAudio.musicBackgroundPlay();
                         musicOn = true;
                     }
+                }
+
+                if (gameInput.ctrlDown()) {
+                    //stackManager.moveAndRotateTetrominoTo(1,270);
+                    //stackManager.rotateTetrominoLeft();
                 }
             }
         } else {
@@ -465,11 +471,11 @@ public class Tetris {
         reward -= (avgColumnHeights - lastAvgColumnHeights) * REWARD_AVG_COLUMN_HEIGHT;
 
         lastFullRows = fullRows;
+        lastMaxHeight = maxHeight;
         lastNearlyFullRows = nearlyFullRows;
         lastDroppedElements = droppedElements;
         lastNumberofHoles = numberofHoles;
         lastSurroundingHoles = surroundingHoles;
-        lastMaxHeight = maxHeight;
         lastAvgColumnHeights = avgColumnHeights;
         lastBlockedRows = blockedRows;
         lastBumpiness = bumpiness;

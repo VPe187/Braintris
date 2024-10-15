@@ -1,7 +1,10 @@
 package hu.nye.vpe.gaming;
 
-import java.awt.*;
+import java.awt.Color;
 
+/**
+ * Game constant class.
+ */
 public class GameConstans {
     public static final String FONT_NAME = "Truly Madly Dpad";
     public static final int COLS = 12;

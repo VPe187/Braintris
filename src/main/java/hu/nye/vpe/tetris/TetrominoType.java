@@ -9,6 +9,7 @@ public enum TetrominoType {
         TetrominoType(int typeId) {
             this.typeId = typeId;
         }
+
         public int getTetrominoTypeId() {
             return typeId;
         }

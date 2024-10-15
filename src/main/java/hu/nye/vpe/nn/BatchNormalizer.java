@@ -86,13 +86,7 @@ public class BatchNormalizer implements Serializable {
         for (int i = 0; i < size; i++) {
             double normalized = (input[i] - mean) * invStd;
             output[i] = gamma[i] * normalized + beta[i];
-            //System.out.printf("Debug: Element %d - Input: %.4f, Normalized: %.4f, Gamma: %.4f, Beta: %.4f, Output: %.4f%n",
-                   // i, input[i], normalized, gamma[i], beta[i], output[i]);
         }
-        //System.out.println("Debug: Output statistics:");
-        //System.out.println("  Min: " + Arrays.stream(output).min().orElse(0));
-        //System.out.println("  Max: " + Arrays.stream(output).max().orElse(0));
-        //System.out.println("  Average: " + Arrays.stream(output).average().orElse(0));
         return output;
     }
 
