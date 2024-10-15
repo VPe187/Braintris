@@ -11,7 +11,7 @@ public class GradientClipper implements Serializable {
     private final double maxValue;
     private final double clipNorm;
     private final double gradientScale;
-    private final double epsilon = 1e-8;
+    private final double epsilon = 1e-5;
 
     public GradientClipper(double minValue, double maxValue, double clipNorm, double gradientScale) {
         this.minValue = minValue;

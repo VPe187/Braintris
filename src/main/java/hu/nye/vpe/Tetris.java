@@ -45,27 +45,27 @@ public class Tetris {
 
     private static final boolean NORMALIZE_FEED_DATA = true;
     private static final String[] NAMES = {"INP", "H1", "H2", "H3", "H4", "OUT"};
-    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 48, 32, 48, OUTPUT_NODES};
+    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 48, 32, 16, OUTPUT_NODES};
     private static final Activation[] ACTIVATIONS = {
-            Activation.LEAKY_RELU,
-            Activation.LEAKY_RELU,
-            Activation.LEAKY_RELU,
-            Activation.LEAKY_RELU,
+            Activation.RELU,
+            Activation.RELU,
+            Activation.RELU,
+            Activation.RELU,
             Activation.LINEAR
     };
     private static final WeightInitStrategy[] INIT_STRATEGIES = {
-            WeightInitStrategy.XAVIER,
-            WeightInitStrategy.XAVIER,
-            WeightInitStrategy.XAVIER,
-            WeightInitStrategy.XAVIER,
+            WeightInitStrategy.HE,
+            WeightInitStrategy.HE,
+            WeightInitStrategy.HE,
+            WeightInitStrategy.HE,
             WeightInitStrategy.XAVIER
     };
     private static final BatchNormParameters[] USE_BATCH_NORM = {
-            new BatchNormParameters(true, 1.0, 0.001), //H1
-            new BatchNormParameters(true, 1.0, 0.001), //H2
-            new BatchNormParameters(true, 1.0, 0.001), //H3
-            new BatchNormParameters(true, 1.0, 0.001), //H4
-            new BatchNormParameters(false, 1.0, 0.0), // OUT
+            new BatchNormParameters(true, 1.1, 0.1), //H1
+            new BatchNormParameters(true, 1.1, 0.1), //H2
+            new BatchNormParameters(true, 1.1, 0.1), //H3
+            new BatchNormParameters(true, 1.1, 0.1), //H4
+            new BatchNormParameters(false, 1.1, 0.1), // OUT
     };
 
     private static final double[] L2 = {
@@ -78,7 +78,7 @@ public class Tetris {
     };
 
     private final long speed = 1000L;
-    private final long learningSpeed = 50L;
+    private final long learningSpeed = 10L;
     private Shape nextShape = null;
     private static final ShapeFactory sf = ShapeFactory.getInstance();
     private final Stack stack;
@@ -415,7 +415,10 @@ public class Tetris {
             reward += REWARD_PLACE_WITHOUT_HOLE;
         }
 
-        reward += stack.getCurrentShape().getStackRow() * 1;
+        if (stack.getCurrentShape() != null) {
+            reward += stack.getCurrentShape().getStackRow() * 1;
+        }
+
         // Jutalom az alacsonyra lerakásért
         /*
         if (stack.getMetricMaxHeight() <= 6) {
@@ -532,7 +535,6 @@ public class Tetris {
                 reward = calculateReward();
             } else {
                 reward += stack.getCurrentShape().getStackRow();
-                System.out.println(reward);
                 reward += moveCount * 0.01 * -1;
             }
         }
