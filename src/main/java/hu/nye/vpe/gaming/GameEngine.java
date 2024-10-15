@@ -4,7 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferStrategy;
 
-import hu.nye.vpe.Tetris;
+import hu.nye.vpe.tetris.Tetris;
 import hu.nye.vpe.nn.Visualization;
 
 /**

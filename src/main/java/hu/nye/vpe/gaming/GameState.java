@@ -1,9 +1,9 @@
-package hu.nye.vpe;
+package hu.nye.vpe.gaming;
 
 /**
  * State enum.
  */
-public enum State {
+public enum GameState {
     GAMEOVER,
     DELETINGROWS,
     RUNNING,

@@ -1,11 +1,11 @@
-package hu.nye.vpe;
+package hu.nye.vpe.tetris;
 
 import java.awt.Color;
 
 /**
- * Shape class.
+ * Tetromino class.
  */
-public class Shape {
+public class Tetromino {
 
     private int[][] pixels;
     private Color color;
@@ -15,23 +15,7 @@ public class Shape {
     private int rowPosition;
     private int colPosition;
 
-    /**
-     * Shape type enum.
-     */
-    protected enum ShapeType {
-        COMMON(100), EMPTY(0), ERASED(99), LOADED(90), HIDDEN(80);
-        private final int typeId;
-
-        ShapeType(int typeId) {
-            this.typeId = typeId;
-        }
-
-        public int getShapeTypeId() {
-            return typeId;
-        }
-    }
-
-    public Shape(int id, int score, Color color, int weight, int[][] pixels) {
+    public Tetromino(int id, int score, Color color, int weight, int[][] pixels) {
         this.id = id;
         this.score = score;
         this.color = color;

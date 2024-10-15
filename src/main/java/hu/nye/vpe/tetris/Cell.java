@@ -1,4 +1,4 @@
-package hu.nye.vpe;
+package hu.nye.vpe.tetris;
 
 import java.awt.Color;
 
@@ -8,13 +8,13 @@ import java.awt.Color;
 public class Cell {
 
     private Color color;
-    private final int shapeId;
+    private final int tetrominoId;
     private int score;
 
     private BonusType bonus;
 
-    public Cell(int shapeId, Color color) {
-        this.shapeId = shapeId;
+    public Cell(int tetrominoId, Color color) {
+        this.tetrominoId = tetrominoId;
         this.color = color;
     }
 
@@ -30,12 +30,12 @@ public class Cell {
         return this.score;
     }
 
-    public int getShapeId() {
-        return this.shapeId;
+    public int getTetrominoId() {
+        return this.tetrominoId;
     }
 
-    public int getShapeQId() {
-        return this.getShapeQId();
+    public int getTetrmonioQId() {
+        return this.getTetrmonioQId();
     }
 
     public BonusType getBonus() {

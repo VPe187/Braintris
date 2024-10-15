@@ -1,4 +1,4 @@
-package hu.nye.vpe;
+package hu.nye.vpe.tetris;
 
 /***
  * Bonus types.
