@@ -7,9 +7,8 @@ import java.util.Arrays;
  * Optimized Batch normalizer class.
  */
 public class BatchNormalizer implements Serializable {
-    private static final double DEFAULT_EPSILON = 1e-6;
-    private static final double DEFAULT_MOMENTUM = 0.99;
-    private static final double DEFAULT_LEARNING_RATE = 0.01;
+    private static final double DEFAULT_EPSILON = 1e-3;
+    private static final double DEFAULT_MOMENTUM = 0.9;
 
     private final double epsilon;
     private final double momentum;
@@ -21,7 +20,7 @@ public class BatchNormalizer implements Serializable {
     private final int size;
 
     public BatchNormalizer(int size, double gamma, double beta, double learningRate) {
-        this(size, gamma, beta, DEFAULT_LEARNING_RATE, DEFAULT_EPSILON, DEFAULT_MOMENTUM);
+        this(size, gamma, beta, learningRate, DEFAULT_EPSILON, DEFAULT_MOMENTUM);
     }
 
     public BatchNormalizer(int size, double gamma, double beta, double learningRate, double epsilon, double momentum) {
@@ -47,41 +46,19 @@ public class BatchNormalizer implements Serializable {
      * @return output datas
      */
     public double[] forward(double[] input, boolean isTraining) {
-        if (input.length != size) {
-            throw new IllegalArgumentException("Input size does not match BatchNormalizer size");
-        }
-
-        //System.out.println("Debug: Input statistics:");
-        //System.out.println("  Min: " + Arrays.stream(input).min().orElse(0));
-        //System.out.println("  Max: " + Arrays.stream(input).max().orElse(0));
-        //System.out.println("  Average: " + Arrays.stream(input).average().orElse(0));
-
-
         double[] output = new double[size];
-        double mean = calculateMean(input);
-        double variance = calculateVariance(input, mean);
-
-        //System.out.println("Debug: Mean: " + mean);
-        //System.out.println("Debug: Variance: " + variance);
-
+        double mean;
+        double variance;
         if (isTraining) {
+            mean = calculateMean(input);
+            variance = calculateVariance(input, mean);
             updateRunningStatistics(mean, variance);
-            //System.out.println("Debug: Updated running mean: " + Arrays.toString(runningMean));
-            //System.out.println("Debug: Updated running variance: " + Arrays.toString(runningVariance));
+        } else {
+            mean = calculateMean(runningMean);
+            variance = calculateMean(runningVariance);
         }
 
         double invStd = 1.0 / Math.sqrt(variance + epsilon);
-        //System.out.println("Debug: Inverse standard deviation: " + invStd);
-
-        //System.out.println("Debug: Gamma statistics:");
-        //System.out.println("  Min: " + Arrays.stream(gamma).min().orElse(0));
-        //System.out.println("  Max: " + Arrays.stream(gamma).max().orElse(0));
-        //System.out.println("  Average: " + Arrays.stream(gamma).average().orElse(0));
-
-        //System.out.println("Debug: Beta statistics:");
-        //System.out.println("  Min: " + Arrays.stream(beta).min().orElse(0));
-        //System.out.println("  Max: " + Arrays.stream(beta).max().orElse(0));
-        //System.out.println("  Average: " + Arrays.stream(beta).average().orElse(0));
 
         for (int i = 0; i < size; i++) {
             double normalized = (input[i] - mean) * invStd;
@@ -100,10 +77,6 @@ public class BatchNormalizer implements Serializable {
      * @return intput gradient
      */
     public double[] backward(double[] input, double[] gradOutput) {
-        if (input.length != size || gradOutput.length != size) {
-            throw new IllegalArgumentException("Input or gradOutput size does not match BatchNormalizer size");
-        }
-
         double[] gradInput = new double[size];
         double[] gradGamma = new double[size];
         double[] gradBeta = new double[size];
@@ -118,15 +91,36 @@ public class BatchNormalizer implements Serializable {
         return gradInput;
     }
 
+    /*
     private double calculateMean(double[] input) {
         return Arrays.stream(input).average().orElse(0.0);
     }
+     */
 
+    private double calculateMean(double[] input) {
+        double sum = 0;
+        for (double value : input) {
+            sum += value;
+        }
+        return sum / input.length;
+    }
+
+    /*
     private double calculateVariance(double[] input, double mean) {
         return Arrays.stream(input)
                 .map(x -> Math.pow(x - mean, 2))
                 .average()
                 .orElse(0.0);
+    }
+     */
+
+    private double calculateVariance(double[] input, double mean) {
+        double sumSquaredDiff = 0;
+        for (double value : input) {
+            double diff = value - mean;
+            sumSquaredDiff += diff * diff;
+        }
+        return sumSquaredDiff / input.length;
     }
 
     private void updateRunningStatistics(double mean, double variance) {
@@ -148,10 +142,16 @@ public class BatchNormalizer implements Serializable {
             sumGradOutputTimesInput += gradOutput[i] * (input[i] - mean);
         }
 
+        /*
         double factor = gamma[0] * invStd / size;
         for (int i = 0; i < size; i++) {
             gradInput[i] = factor * (size * gradOutput[i] - sumGradOutput - (input[i] - mean) * invStd * sumGradOutputTimesInput);
         }
+         */
+        for (int i = 0; i < size; i++) {
+            gradInput[i] = gamma[i] * invStd / size * (size * gradOutput[i] - sumGradOutput - (input[i] - mean) * invStd * sumGradOutputTimesInput);
+        }
+
     }
 
     private void updateParameters(double[] gradGamma, double[] gradBeta) {

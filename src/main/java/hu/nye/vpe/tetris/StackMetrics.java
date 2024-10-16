@@ -39,9 +39,6 @@ public class StackMetrics implements StackComponent {
     }
 
     private int countHoles(Cell[][] stack) {
-        if (manager.getCurrentTetromino() != null) {
-            manager.removeTetromino();
-        }
         int holes = 0;
         for (int col = 0; col < GameConstans.COLS; col++) {
             boolean blockFound = false;
@@ -53,15 +50,12 @@ public class StackMetrics implements StackComponent {
                 }
             }
         }
-        if (manager.getCurrentTetromino() != null) {
-            manager.putTetromino();
-        }
         return holes;
     }
 
     private double calculateAverageDensity(Cell[][] stack) {
         int lowestEmptyRow = findLowestEmptyRow(stack);
-        int activeCells = lowestEmptyRow * GameConstans.COLS; // Az összes cella a legalacsonyabb üres sor alatt
+        int activeCells = lowestEmptyRow * GameConstans.COLS;
         int filledCells = 0;
         for (int row = GameConstans.ROWS - 1; row >= GameConstans.ROWS - lowestEmptyRow; row--) {
             for (int col = 0; col < GameConstans.COLS; col++) {
@@ -105,11 +99,7 @@ public class StackMetrics implements StackComponent {
     }
 
     private double calculateBumpiness(Cell[][] stack) {
-        if (manager.getCurrentTetromino() != null) {
-            manager.removeTetromino();
-        }
         int[] columnHeights = new int[GameConstans.COLS];
-        // Calculate columns height.
         for (int col = 0; col < GameConstans.COLS; col++) {
             for (int row = 0; row < GameConstans.ROWS; row++) {
                 if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
@@ -118,21 +108,14 @@ public class StackMetrics implements StackComponent {
                 }
             }
         }
-        // Calculate bumpiness
         double bumpiness = 0;
         for (int i = 0; i < GameConstans.COLS - 1; i++) {
             bumpiness += Math.abs(columnHeights[i] - columnHeights[i + 1]);
-        }
-        if (manager.getCurrentTetromino() != null) {
-            manager.putTetromino();
         }
         return bumpiness;
     }
 
     private int calculateMaxHeight(Cell[][] stack) {
-        if (manager.getCurrentTetromino() != null) {
-            manager.removeTetromino();
-        }
         int maxHeight = 0;
         for (int col = 0; col < GameConstans.COLS; col++) {
             for (int row = 0; row < GameConstans.ROWS; row++) {
@@ -145,28 +128,19 @@ public class StackMetrics implements StackComponent {
                 }
             }
         }
-        if (manager.getCurrentTetromino() != null) {
-            manager.putTetromino();
-        }
         return maxHeight;
     }
 
     private int[] getHighestOccupiedCells(Cell[][] stack) {
-        if (manager.getCurrentTetromino() != null) {
-            manager.removeTetromino();
-        }
         int[] highestOccupied = new int[GameConstans.COLS];
         for (int col = 0; col < GameConstans.COLS; col++) {
-            highestOccupied[col] = -1; // Initialize with -1 to indicate an empty column
+            highestOccupied[col] = -1;
             for (int row = 0; row < GameConstans.ROWS; row++) {
                 if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     highestOccupied[col] = row;
-                    break; // Stop at the first occupied cell found
+                    break;
                 }
             }
-        }
-        if (manager.getCurrentTetromino() != null) {
-            manager.putTetromino();
         }
         return highestOccupied;
     }
@@ -175,7 +149,7 @@ public class StackMetrics implements StackComponent {
         int nearlyFullRows = 0;
         boolean foundNonEmptyRow = false;
 
-        for (int i = GameConstans.ROWS - 1; i >= 0; i--) {  // Alulról felfelé haladunk
+        for (int i = GameConstans.ROWS - 1; i >= 0; i--) {
             int filledCells = 0;
             for (int j = 0; j < GameConstans.COLS; j++) {
                 if (stack[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
@@ -192,7 +166,7 @@ public class StackMetrics implements StackComponent {
                     nearlyFullRows++;
                 }
 
-                if (filledCells == 0) {  // Ha üres sort találunk az első nem üres sor után, kilépünk
+                if (filledCells == 0) {
                     break;
                 }
             }

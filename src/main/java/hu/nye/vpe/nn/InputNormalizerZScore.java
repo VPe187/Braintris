@@ -53,9 +53,9 @@ public class InputNormalizerZScore {
         for (int i = 0; i < data.length; i++) {
             double value = data[i];
             if (standardDeviation != 0) {
-                normalizedData[i] = (value - mean) / standardDeviation; // Z-score normalizálás
+                normalizedData[i] = (value - mean) / standardDeviation;
             } else {
-                normalizedData[i] = 0.0; // Ha a szórás nulla, minden érték 0-ra normalizálódik
+                normalizedData[i] = 0.0;
             }
         }
 
@@ -85,7 +85,6 @@ public class InputNormalizerZScore {
         return fitTransform(data);
     }
 
-    // Getter metódusok az átlag és szórás lekérdezéséhez
     public double getMean() {
         return mean;
     }

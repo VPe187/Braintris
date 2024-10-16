@@ -2,6 +2,7 @@ package hu.nye.vpe.tetris;
 
 import java.awt.Color;
 import java.util.Random;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import hu.nye.vpe.gaming.GameAudio;
@@ -13,6 +14,7 @@ import hu.nye.vpe.gaming.GameState;
  */
 public class StackManager implements StackComponent {
     private Cell[][] stackArea = new Cell[GameConstans.ROWS][GameConstans.COLS];
+    private Cell[][] simStackArea = new Cell[GameConstans.ROWS][GameConstans.COLS];
     private boolean learning;
     private Tetromino currentTetromino;
     private Tetromino nextTetromino;
@@ -40,7 +42,7 @@ public class StackManager implements StackComponent {
     }
 
     private void initializeGameState() {
-        initStack();
+        initializeStack();
         gameScore = 0;
         gameLevel = 0;
         noFullRows = 0;
@@ -56,7 +58,7 @@ public class StackManager implements StackComponent {
         metrics.calculateGameMetrics(this.stackArea);
     }
 
-    private void initStack() {
+    private void initializeStack() {
         if (stackArea == null) {
             stackArea = new Cell[GameConstans.ROWS][GameConstans.COLS];
         }
@@ -64,23 +66,58 @@ public class StackManager implements StackComponent {
             for (int j = 0; j < GameConstans.COLS; j++) {
                 stackArea[i][j] = new Cell(TetrominoFactory.getInstance().getEmptyTetromino().getId(),
                         TetrominoFactory.getInstance().getEmptyTetromino().getColor());
+                simStackArea[i][j] = new Cell(TetrominoFactory.getInstance().getEmptyTetromino().getId(),
+                        TetrominoFactory.getInstance().getEmptyTetromino().getColor());
             }
         }
+    }
+
+    public void simulateStackDrop() {
+        if (currentTetromino == null) {
+            return;
+        }
+
+        for (int i = 0; i < GameConstans.ROWS; i++) {
+            System.arraycopy(stackArea[i], 0, simStackArea[i], 0, GameConstans.COLS);
+        }
+
+        Tetromino simTetromino = copyTetromino(currentTetromino);
+
+
+        while (!isTetrominoDown(simStackArea, simTetromino)) {
+            removeTetromino(simStackArea, simTetromino);
+            simTetromino.setRowPosition(simTetromino.getStackRow() + 1);
+            putTetromino(simStackArea, simTetromino);
+        }
+        metrics.calculateGameMetrics(simStackArea);
+    }
+
+    private Tetromino copyTetromino(Tetromino original) {
+        Tetromino copy = new Tetromino(
+                original.getId(),
+                original.getScore(),
+                original.getColor(),
+                original.getWeight(),
+                original.getPixels()
+        );
+        copy.setColPosition(original.getStackCol());
+        copy.setRowPosition(original.getStackRow());
+        return copy;
     }
 
     /**
      * putTetromino method.
      */
-    public void putTetromino() {
-        for (int i = 0; i < currentTetromino.getPixels().length; i++) {
-            for (int j = 0; j < currentTetromino.getPixels()[i].length; j++) {
-                if (currentTetromino.getPixels()[i][j] != 0) {
-                    stackArea[currentTetromino.getStackRow() + i][currentTetromino.getStackCol() + j] =
-                            new Cell(currentTetromino.getId(), currentTetromino.getColor());
-                    if (currentTetromino.getPixels()[i][j] == 2) {
-                        stackArea[currentTetromino.getStackRow() + i][currentTetromino.getStackCol() + j].setBonus(BonusType.BOMB);
+    public void putTetromino(Cell[][] stackArea,Tetromino tetromino) {
+        for (int i = 0; i < tetromino.getPixels().length; i++) {
+            for (int j = 0; j < tetromino.getPixels()[i].length; j++) {
+                if (tetromino.getPixels()[i][j] != 0) {
+                    stackArea[tetromino.getStackRow() + i][tetromino.getStackCol() + j] =
+                            new Cell(tetromino.getId(), tetromino.getColor());
+                    if (tetromino.getPixels()[i][j] == 2) {
+                        stackArea[tetromino.getStackRow() + i][tetromino.getStackCol() + j].setBonus(BonusType.BOMB);
                     } else {
-                        stackArea[currentTetromino.getStackRow() + i][currentTetromino.getStackCol() + j].setBonus(BonusType.NONE);
+                        stackArea[tetromino.getStackRow() + i][tetromino.getStackCol() + j].setBonus(BonusType.NONE);
                     }
                 }
             }
@@ -90,11 +127,11 @@ public class StackManager implements StackComponent {
     /**
      * removeTetromino method.
      */
-    protected void removeTetromino() {
-        for (int i = 0; i < currentTetromino.getPixels().length; i++) {
-            for (int j = 0; j < currentTetromino.getPixels()[i].length; j++) {
-                if (currentTetromino.getPixels()[i][j] != 0) {
-                    stackArea[currentTetromino.getStackRow() + i][currentTetromino.getStackCol() + j] =
+    protected void removeTetromino(Cell[][] stackArea, Tetromino tetromino) {
+        for (int i = 0; i < tetromino.getPixels().length; i++) {
+            for (int j = 0; j < tetromino.getPixels()[i].length; j++) {
+                if (tetromino.getPixels()[i][j] != 0) {
+                    stackArea[tetromino.getStackRow() + i][tetromino.getStackCol() + j] =
                             new Cell(TetrominoFactory.getInstance().getEmptyTetromino().getId(),
                                     TetrominoFactory.getInstance().getEmptyTetromino().getColor());
                 }
@@ -102,11 +139,11 @@ public class StackManager implements StackComponent {
         }
     }
 
-    private boolean isTetrominoDown() {
-        for (int i = 0; i < currentTetromino.getPixels().length; i++) {
-            for (int j = 0; j < currentTetromino.getPixels()[i].length; j++) {
-                if (currentTetromino.getPixels()[i][j] != 0) {
-                    if (isBottomCollision(i, j) || isDownCollision(i, j)) {
+    private boolean isTetrominoDown(Cell[][] stackArea, Tetromino tetromino) {
+        for (int i = 0; i < tetromino.getPixels().length; i++) {
+            for (int j = 0; j < tetromino.getPixels()[i].length; j++) {
+                if (tetromino.getPixels()[i][j] != 0) {
+                    if (isBottomCollision(stackArea, tetromino, i) || isDownCollision(stackArea, tetromino, i, j)) {
                         return true;
                     }
                 }
@@ -115,55 +152,56 @@ public class StackManager implements StackComponent {
         return false;
     }
 
-    private boolean isBottomCollision(int i, int j) {
-        return currentTetromino.getStackRow() + i + 1 > stackArea.length - 1;
+    private boolean isBottomCollision(Cell[][] stackArea, Tetromino tetromino, int i) {
+        return tetromino.getStackRow() + i + 1 > stackArea.length - 1;
     }
 
-    private boolean isDownCollision(int i, int j) {
-        int nextRow = currentTetromino.getStackRow() + i + 1;
-        int col = currentTetromino.getStackCol() + j;
+    private boolean isDownCollision(Cell[][] stackArea, Tetromino tetromino, int i, int j) {
+        int nextRow = tetromino.getStackRow() + i + 1;
+        int col = tetromino.getStackCol() + j;
         return col <= stackArea[0].length - 1 &&
                 nextRow <= stackArea.length - 1 &&
                 stackArea[nextRow][col].getTetrominoId() != 0 &&
-                !isPartOfCurrentTetromino(nextRow, col);
+                !isPartOfCurrentTetromino(tetromino, nextRow, col);
     }
 
-    private boolean isPartOfCurrentTetromino(int row, int col) {
-        int localRow = row - currentTetromino.getStackRow();
-        int localCol = col - currentTetromino.getStackCol();
-        return localRow >= 0 && localRow < currentTetromino.getPixels().length &&
-                localCol >= 0 && localCol < currentTetromino.getPixels()[0].length &&
-                currentTetromino.getPixels()[localRow][localCol] != 0;
+    private boolean isPartOfCurrentTetromino(Tetromino tetromino, int row, int col) {
+        int localRow = row - tetromino.getStackRow();
+        int localCol = col - tetromino.getStackCol();
+        return localRow >= 0 && localRow < tetromino.getPixels().length &&
+                localCol >= 0 && localCol < tetromino.getPixels()[0].length &&
+                tetromino.getPixels()[localRow][localCol] != 0;
     }
 
     /**
      * moveTetrominoDown method.
      */
-    protected boolean moveTetrominoDown() {
-        if (!isTetrominoDown()) {
-            removeTetromino();
-            currentTetromino.setRowPosition(currentTetromino.getStackRow() + 1);
-            putTetromino();
+    protected boolean moveTetrominoDown(Cell[][] stackArea, Tetromino tetromino) {
+        if (!isTetrominoDown(stackArea, tetromino)) {
+            removeTetromino(stackArea,tetromino);
+            tetromino.setRowPosition(tetromino.getStackRow() + 1);
+            putTetromino(stackArea,tetromino);
+            simulateStackDrop();
             return false;
         } else {
-            itemFalled();
+            itemFalled(stackArea, tetromino);
             metrics.calculateGameMetrics(this.stackArea);
             return true;
         }
     }
 
-    private boolean checkTetrominoIsLeft() {
-        for (int i = 0; i < currentTetromino.getPixels().length; i++) {
-            for (int j = 0; j < currentTetromino.getPixels()[i].length; j++) {
-                if (currentTetromino.getPixels()[i][j] != 0) {
-                    int newCol = currentTetromino.getStackCol() - 1 + j;
-                    int row = currentTetromino.getStackRow() + i;
+    private boolean checkTetrominoIsLeft(Cell[][] stackArea, Tetromino tetromino) {
+        for (int i = 0; i < tetromino.getPixels().length; i++) {
+            for (int j = 0; j < tetromino.getPixels()[i].length; j++) {
+                if (tetromino.getPixels()[i][j] != 0) {
+                    int newCol = tetromino.getStackCol() - 1 + j;
+                    int row = tetromino.getStackRow() + i;
                     if (newCol < 0) {
                         return true;
                     }
                     if (row >= 0 && row < stackArea.length && newCol < stackArea[0].length) {
                         if (stackArea[row][newCol].getTetrominoId() != 0 &&
-                                !isPartOfCurrentTetromino(row, newCol)) {
+                                !isPartOfCurrentTetromino(tetromino, row, newCol)) {
                             return true;
                         }
                     }
@@ -176,29 +214,30 @@ public class StackManager implements StackComponent {
     /**
      * Move tetromino left.
      */
-    protected boolean moveTetrominoLeft() {
-        if (!checkTetrominoIsLeft()) {
-            removeTetromino();
-            currentTetromino.setColPosition(currentTetromino.getStackCol() - 1);
-            putTetromino();
+    protected boolean moveTetrominoLeft(Cell[][] stackArea, Tetromino tetromino) {
+        if (!checkTetrominoIsLeft(stackArea, tetromino)) {
+            removeTetromino(stackArea, tetromino);
+            tetromino.setColPosition(tetromino.getStackCol() - 1);
+            putTetromino(stackArea, tetromino);
+            simulateStackDrop();
             return true;
         } else {
             return false;
         }
     }
 
-    private boolean checkTetrominoIsRight() {
-        for (int i = 0; i < currentTetromino.getPixels().length; i++) {
-            for (int j = 0; j < currentTetromino.getPixels()[i].length; j++) {
-                if (currentTetromino.getPixels()[i][j] != 0) {
-                    int newCol = currentTetromino.getStackCol() + 1 + j;
-                    int row = currentTetromino.getStackRow() + i;
+    private boolean checkTetrominoIsRight(Cell[][] stackArea, Tetromino tetromino) {
+        for (int i = 0; i < tetromino.getPixels().length; i++) {
+            for (int j = 0; j < tetromino.getPixels()[i].length; j++) {
+                if (tetromino.getPixels()[i][j] != 0) {
+                    int newCol = tetromino.getStackCol() + 1 + j;
+                    int row = tetromino.getStackRow() + i;
                     if (newCol >= stackArea[0].length) {
                         return true;
                     }
                     if (row >= 0 && row < stackArea.length) {
                         if (stackArea[row][newCol].getTetrominoId() != 0 &&
-                                !isPartOfCurrentTetromino(row, newCol)) {
+                                !isPartOfCurrentTetromino(tetromino, row, newCol)) {
                             return true;
                         }
                     }
@@ -211,46 +250,43 @@ public class StackManager implements StackComponent {
     /**
      * Move tetromino right.
      */
-    public boolean moveTetrominoRight() {
-        if (!checkTetrominoIsRight()) {
-            removeTetromino();
-            currentTetromino.setColPosition(currentTetromino.getStackCol() + 1);
-            putTetromino();
+    public boolean moveTetrominoRight(Cell[][] stackArea, Tetromino tetromino) {
+        if (!checkTetrominoIsRight(stackArea, tetromino)) {
+            removeTetromino(stackArea, tetromino);
+            tetromino.setColPosition(tetromino.getStackCol() + 1);
+            putTetromino(stackArea, tetromino);
+            simulateStackDrop();
             return true;
         } else {
             return false;
         }
     }
 
-    private boolean checkTetrominoCanRotateRight() {
-        int[][] rotatedPixels = getRotatedPixelsRight(currentTetromino.getPixels());
-        return checkRotatedTetrominoPosition(rotatedPixels);
+    private boolean checkTetrominoCanRotateRight(Cell[][] stackArea, Tetromino tetromino) {
+        int[][] rotatedPixels = getRotatedPixelsRight(tetromino.getPixels());
+        return checkRotatedTetrominoPosition(stackArea, tetromino, rotatedPixels);
     }
 
-    private boolean checkTetrominoCanRotateLeft() {
-        int[][] rotatedPixels = getRotatedPixelsLeft(currentTetromino.getPixels());
-        return checkRotatedTetrominoPosition(rotatedPixels);
+    private boolean checkTetrominoCanRotateLeft(Cell[][] stackArea, Tetromino tetromino) {
+        int[][] rotatedPixels = getRotatedPixelsLeft(tetromino.getPixels());
+        return checkRotatedTetrominoPosition(stackArea, tetromino, rotatedPixels);
     }
 
-    private boolean checkRotatedTetrominoPosition(int[][] rotatedPixels) {
+    private boolean checkRotatedTetrominoPosition(Cell[][] stackArea, Tetromino tetromino, int[][] rotatedPixels) {
         int x = rotatedPixels.length;
         int y = rotatedPixels[0].length;
 
         for (int i = 0; i < x; i++) {
             for (int j = 0; j < y; j++) {
                 if (rotatedPixels[i][j] != 0) {
-                    int newRow = currentTetromino.getStackRow() + i;
-                    int newCol = currentTetromino.getStackCol() + j;
-
-                    // Ellenőrizzük, hogy nem lépünk-e ki a játéktérből
+                    int newRow = tetromino.getStackRow() + i;
+                    int newCol = tetromino.getStackCol() + j;
                     if (newRow < 0 || newRow >= stackArea.length ||
                             newCol < 0 || newCol >= stackArea[0].length) {
                         return false;
                     }
-
-                    // Ellenőrizzük az ütközést más elemekkel, de kizárjuk az önmagával való ütközést
                     if (stackArea[newRow][newCol].getTetrominoId() != 0 &&
-                            !isPartOfCurrentTetromino(newRow, newCol)) {
+                            !isPartOfCurrentTetromino(tetromino, newRow, newCol)) {
                         return false;
                     }
                 }
@@ -287,12 +323,13 @@ public class StackManager implements StackComponent {
     /**
      * Rotate tetromino (right).
      */
-    protected boolean rotateTetrominoRight() {
-        if (checkTetrominoCanRotateRight()) {
-            removeTetromino();
-            currentTetromino.rotateRight();
-            putTetromino();
+    protected boolean rotateTetrominoRight(Cell[][] stackArea, Tetromino tetromino) {
+        if (checkTetrominoCanRotateRight(stackArea, tetromino)) {
+            removeTetromino(stackArea, tetromino);
+            tetromino.rotateRight();
             tetrominoRotation = (tetrominoRotation + 90) % 360;
+            putTetromino(stackArea, tetromino);
+            simulateStackDrop();
             return true;
         } else {
             return false;
@@ -302,20 +339,15 @@ public class StackManager implements StackComponent {
     /**
      * Rotate tetromino (left).
      */
-    public void rotateTetrominoLeft() {
-        if (checkTetrominoCanRotateLeft()) {
-            removeTetromino();
-            currentTetromino.rotateLeft();
+    public void rotateTetrominoLeft(Cell[][] stackArea, Tetromino tetromino) {
+        if (checkTetrominoCanRotateLeft(stackArea, tetromino)) {
+            removeTetromino(stackArea, tetromino);
+            tetromino.rotateLeft();
             tetrominoRotation = (tetrominoRotation + 270) % 360; // 270 fokkal való forgatás megegyezik a -90 fokkal
+            putTetromino(stackArea, tetromino);
+            simulateStackDrop();
         }
     }
-
-
-
-
-
-
-
 
     /**
      * Return number of full rows.
@@ -451,18 +483,17 @@ public class StackManager implements StackComponent {
         }
     }
 
-    private void itemFalled() {
-        metrics.calculateGameMetrics(this.stackArea);
-        putTetromino();
+    private void itemFalled(Cell[][] stackArea, Tetromino tetromino) {
+        putTetromino(stackArea, tetromino);
         boolean wasFullRow = getFullRowsNum() > 0;
         if (!wasFullRow) {
             if (!learning) {
                 audio.soundDown();
             }
-            gameScore += currentTetromino.getScore() + (gameLevel * 10);
+            gameScore += tetromino.getScore() + (gameLevel * 10);
             noFullRows++;
             checkPenalty();
-            if (currentTetromino.getStackRow() <= GameConstans.ROW_OFFSET) {
+            if (tetromino.getStackRow() <= GameConstans.ROW_OFFSET) {
                 gameState = GameState.GAMEOVER;
                 if (!learning) {
                     audio.soundLose();
@@ -477,13 +508,13 @@ public class StackManager implements StackComponent {
         metrics.setMetricDroppedElements(droppedElements);
     }
 
-    private boolean tetrominoIsDownAfter(int p) {
-        for (int i = 0; i < currentTetromino.getPixels().length; i++) {
-            for (int j = 0; j < currentTetromino.getPixels()[i].length; j++) {
-                if (currentTetromino.getPixels()[i][j] != 0) {
-                    if ((currentTetromino.getStackRow() + i + p > stackArea.length - 1) ||
-                            (currentTetromino.getStackCol() + j > stackArea[i].length - 1) ||
-                            (stackArea[currentTetromino.getStackRow() + i + p][currentTetromino.getStackCol() + j]).getTetrominoId() != 0) {
+    private boolean tetrominoIsDownAfter(Cell[][] stackArea, Tetromino tetromino, int p) {
+        for (int i = 0; i < tetromino.getPixels().length; i++) {
+            for (int j = 0; j < tetromino.getPixels()[i].length; j++) {
+                if (tetromino.getPixels()[i][j] != 0) {
+                    if ((tetromino.getStackRow() + i + p > stackArea.length - 1) ||
+                            (tetromino.getStackCol() + j > stackArea[i].length - 1) ||
+                            (stackArea[tetromino.getStackRow() + i + p][tetromino.getStackCol() + j]).getTetrominoId() != 0) {
                         return true;
                     }
                 }
@@ -492,16 +523,16 @@ public class StackManager implements StackComponent {
         return false;
     }
 
-    protected int howFarFromDown() {
+    protected int howFarFromDown(Cell[][] stackArea, Tetromino tetromino) {
         boolean down = false;
         int p = 0;
-        removeTetromino();
+        removeTetromino(stackArea, tetromino);
         while (!down) {
             p++;
-            down = tetrominoIsDownAfter(p);
+            down = tetrominoIsDownAfter(stackArea, tetromino, p);
 
         }
-        putTetromino();
+        putTetromino(stackArea, tetromino);
         return p;
     }
 
@@ -540,39 +571,39 @@ public class StackManager implements StackComponent {
      * @param targetX        A célpozíció x koordinátája
      * @param targetRotation A célforgatás állapota (0-3, ahol 0 az eredeti állapot)
      */
-    public void moveAndRotateTetrominoTo(int targetX, int targetRotation) {
-        if (currentTetromino == null) {
+    public void moveAndRotateTetrominoTo(Cell[][] stackArea, Tetromino tetromino, int targetX, int targetRotation) {
+        if (tetromino == null) {
             return;
         }
-        rotateToTarget(targetRotation);
-        moveHorizontally(targetX);
-        dropTetrominoToBottom();
+        rotateToTarget(stackArea, tetromino, targetRotation);
+        moveHorizontally(stackArea, tetromino, targetX);
+        dropTetrominoToBottom(stackArea, tetromino);
     }
 
-    private void rotateToTarget(int targetRotation) {
+    private void rotateToTarget(Cell[][] stackArea, Tetromino tetromino, int targetRotation) {
         while (tetrominoRotation != targetRotation) {
-            if (!rotateTetrominoRight()) {
+            if (!rotateTetrominoRight(stackArea, tetromino)) {
                 break;
             }
         }
     }
 
-    private void moveHorizontally(int targetX) {
-        while (currentTetromino.getStackCol() != targetX) {
-            if (currentTetromino.getStackCol() < targetX) {
-                if (!moveTetrominoRight()) {
+    private void moveHorizontally(Cell[][] stackArea, Tetromino tetromino, int targetX) {
+        while (tetromino.getStackCol() != targetX) {
+            if (tetromino.getStackCol() < targetX) {
+                if (!moveTetrominoRight(stackArea, tetromino)) {
                     break; // Ha nem tudunk jobbra mozogni, kilépünk
                 }
             } else {
-                if (!moveTetrominoLeft()) {
+                if (!moveTetrominoLeft(stackArea, tetromino)) {
                     break; // Ha nem tudunk balra mozogni, kilépünk
                 }
             }
         }
     }
 
-    private void dropTetrominoToBottom() {
-        while (!moveTetrominoDown()) {
+    private void dropTetrominoToBottom(Cell[][] stackArea, Tetromino tetromino) {
+        while (!moveTetrominoDown(stackArea, tetromino)) {
         }
     }
 
@@ -586,6 +617,10 @@ public class StackManager implements StackComponent {
 
     public Cell[][] getStackArea() {
         return stackArea;
+    }
+
+    public Cell[][] getSimStackArea() {
+        return simStackArea;
     }
 
     public int getAllFullRows() {

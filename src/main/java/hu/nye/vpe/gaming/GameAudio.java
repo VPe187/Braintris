@@ -44,7 +44,7 @@ public class GameAudio {
             clip = AudioSystem.getClip();
             clip.open(audioIn);
         } catch (IOException | LineUnavailableException | UnsupportedAudioFileException e) {
-            //e.printStackTrace();
+            e.printStackTrace();
         }
         return clip;
     }

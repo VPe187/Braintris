@@ -19,8 +19,8 @@ import hu.nye.vpe.nn.WeightInitStrategy;
  */
 public class Tetris {
     private static final double REWARD_FULLROW = 100;
-    private static final double REWARD_NEARLY_FULLROW = 8;
-    private static final double REWARD_PLACE_WITHOUT_HOLE = 30;
+    private static final double REWARD_NEARLY_FULLROW = 40;
+    private static final double REWARD_PLACE_WITHOUT_HOLE = 60;
     private static final double REWARD_DROP_LOWER = 20;
 
     private static final double REWARD_DROPPED_ELEMENTS = 0.01;
@@ -47,10 +47,10 @@ public class Tetris {
     private static final String[] NAMES = {"INP", "H1", "H2", "H3", "H4", "OUT"};
     private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 48, 32, 16, OUTPUT_NODES};
     private static final Activation[] ACTIVATIONS = {
-            Activation.RELU,
-            Activation.RELU,
-            Activation.RELU,
-            Activation.RELU,
+            Activation.LEAKY_RELU,
+            Activation.LEAKY_RELU,
+            Activation.LEAKY_RELU,
+            Activation.LEAKY_RELU,
             Activation.LINEAR
     };
     private static final WeightInitStrategy[] INIT_STRATEGIES = {
@@ -61,11 +61,11 @@ public class Tetris {
             WeightInitStrategy.XAVIER
     };
     private static final BatchNormParameters[] USE_BATCH_NORM = {
-            new BatchNormParameters(true, 1.1, 0.1), //H1
-            new BatchNormParameters(true, 1.1, 0.1), //H2
-            new BatchNormParameters(true, 1.1, 0.1), //H3
-            new BatchNormParameters(true, 1.1, 0.1), //H4
-            new BatchNormParameters(false, 1.1, 0.1), // OUT
+            new BatchNormParameters(true, 1.0, 0.0), //H1
+            new BatchNormParameters(true, 1.0, 0.0), //H2
+            new BatchNormParameters(true, 1.0, 0.0), //H3
+            new BatchNormParameters(true, 1.0, 0.0), //H4
+            new BatchNormParameters(false, 1.0, 0.0), // OUT
     };
 
     private static final double[] L2 = {
@@ -84,6 +84,7 @@ public class Tetris {
     private StackUI stackUI;
     private StackManager stackManager;
     private StackMetrics stackMetrics;
+    private StackMetrics simStackMetrics;
     private GameTimeTicker tickDown;
     private final GameTimeTicker tickBackground;
     private final GameTimeTicker tickControl;
@@ -176,13 +177,13 @@ public class Tetris {
     }
 
     private Tetromino createNextTetromino() {
-        Tetromino nb = sf.getRandomTetromino(-1);
-        if (nb != null) {
-            nb.setColPosition((COLS / 2) - 2);
-            nb.setRowPosition(0);
-            nb.rotateRight();
+        Tetromino newNextTetromino = sf.getRandomTetromino(-1);
+        if (newNextTetromino != null) {
+            newNextTetromino.setColPosition((COLS / 2) - 2);
+            newNextTetromino.setRowPosition(0);
+            newNextTetromino.rotateRight();
         }
-        return nb;
+        return newNextTetromino;
     }
 
     /**
@@ -205,7 +206,7 @@ public class Tetris {
                     if (stackManager.getCurrentTetromino() == null) {
                         nextTetromino();
                     } else {
-                        if (stackManager.moveTetrominoDown()) {
+                        if (stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino())) {
                             if (learning) {
                                 learning(true, false);
                                 moveCount = 0;
@@ -249,32 +250,32 @@ public class Tetris {
                 lastState = currentState;
                 switch (action) {
                     case 0:
-                        stackManager.rotateTetrominoRight();
+                        stackManager.rotateTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
                         learning(false, false);
                         moveCount++;
                         episodeMoveCount++;
                         break;
                     case 1:
-                        stackManager.rotateTetrominoLeft();
+                        stackManager.rotateTetrominoLeft(stackManager.getStackArea(), stackManager.getCurrentTetromino());
                         learning(false, false);
                         moveCount++;
                         episodeMoveCount++;
                         break;
                     case 2:
-                        stackManager.moveTetrominoRight();
+                        stackManager.moveTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
                         learning(false, false);
                         moveCount++;
                         episodeMoveCount++;
                         break;
                     case 3:
-                        stackManager.moveTetrominoLeft();
+                        stackManager.moveTetrominoLeft(stackManager.getStackArea(), stackManager.getCurrentTetromino());
                         learning(false, false);
                         moveCount++;
                         episodeMoveCount++;
                         break;
                     case 4:
                         tickDown.setPeriodMilliSecond(DROP_SPEED);
-                        stackManager.moveTetrominoDown();
+                        stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino());
                         learning(false, false);
                         break;
                     default:
@@ -283,15 +284,15 @@ public class Tetris {
                 }
             } else {
                 if (gameInput.left()) {
-                    stackManager.moveTetrominoLeft();
+                    stackManager.moveTetrominoLeft(stackManager.getStackArea(), stackManager.getCurrentTetromino());
                 }
 
                 if (gameInput.right()) {
-                    stackManager.moveTetrominoRight();
+                    stackManager.moveTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
                 }
 
                 if (gameInput.space()) {
-                    stackManager.rotateTetrominoRight();
+                    stackManager.rotateTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
                 }
 
                 if (gameInput.downRepeat()) {
@@ -308,11 +309,6 @@ public class Tetris {
                         gameAudio.musicBackgroundPlay();
                         musicOn = true;
                     }
-                }
-
-                if (gameInput.ctrlDown()) {
-                    //stackManager.moveAndRotateTetrominoTo(1,270);
-                    //stackManager.rotateTetrominoLeft();
                 }
             }
         } else {
@@ -411,6 +407,7 @@ public class Tetris {
 
     private double calculateReward() {
         double reward = 0;
+        stackMetrics.calculateGameMetrics(stackManager.getStackArea());
 
         // Jutalom teljes kirakott sorokra
         double fullRows = stackManager.getAllFullRows();
@@ -485,6 +482,7 @@ public class Tetris {
 
     private double calculateFinishReward() {
         double reward = 0;
+        stackMetrics.calculateGameMetrics(stackManager.getStackArea());
 
         // Jutalom a teljes kirakott sorokra
         double fullRows = stackManager.getAllFullRows();
@@ -552,8 +550,47 @@ public class Tetris {
             if (dropped) {
                 reward = calculateReward();
             } else {
-                reward += stackManager.getCurrentTetromino().getStackRow();
                 reward += moveCount * 0.01 * -1;
+                stackMetrics.calculateGameMetrics(stackManager.getSimStackArea());
+
+                if (stackMetrics.getMetricMaxHeight() <= 6) {
+                    reward += REWARD_DROP_LOWER;
+                } else {
+                    reward -= REWARD_DROP_HIGHER;
+                }
+
+                if (stackMetrics.getMetricNumberOfHoles() == 0) {
+                    reward += REWARD_PLACE_WITHOUT_HOLE;
+                }
+
+                double fullRows = stackManager.getAllFullRows();
+                reward += fullRows * REWARD_FULLROW;
+
+                double nearlyFullRows = stackMetrics.getMetricNearlyFullRows();
+                reward += nearlyFullRows * REWARD_NEARLY_FULLROW;
+
+                double bumpiness = stackMetrics.getMetricBumpiness();
+                reward -= bumpiness * REWARD_BUMPINESS;
+
+                double maxHeight = stackMetrics.getMetricMaxHeight();
+                reward -= maxHeight * REWARD_MAXIMUM_HEIGHT;
+
+                double blockedRows = stackMetrics.getMetricBlockedRows();
+                reward -= blockedRows * REWARD_BLOCKED_ROW;
+
+                double avgDensity = stackMetrics.getMetricAvgDensity();
+                reward -= avgDensity * REWARD_AVG_DENSITY;
+
+                double numberOfHoles = stackMetrics.getMetricNumberOfHoles();
+                reward -= numberOfHoles * REWARD_NUMBER_OF_HOLES;
+
+                double surroundedHoles = stackMetrics.getMetricSurroundingHoles();
+                reward -= surroundedHoles * REWARD_SURROUNDED_HOLES;
+
+                double avgColumnHeights = stackMetrics.getMetricAvgColumnHeight();
+                reward -= avgColumnHeights * REWARD_AVG_COLUMN_HEIGHT;
+
+                reward = 50 + reward;
             }
         }
         brain.learn(lastState, lastAction, reward, currentState, gameOver);

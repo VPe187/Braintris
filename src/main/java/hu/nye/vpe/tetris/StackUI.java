@@ -14,8 +14,8 @@ import hu.nye.vpe.gaming.GameState;
  * Stack class.
  */
 public class StackUI implements GameElement, StackComponent {
-    private StackManager manager;
-    private StackMetrics metrics;
+    private StackManager stackManager;
+    private StackMetrics stackMetrics;
     private int clearBlockSize = GameConstans.BLOCK_SIZE;
     private boolean upSideDown;
     private boolean tickAnim;
@@ -117,7 +117,7 @@ public class StackUI implements GameElement, StackComponent {
     public void render(Graphics2D g2D) {
         renderPlayArea(g2D);
         renderStack(g2D);
-        if (manager.getNextTetromino() != null) {
+        if (stackManager.getNextTetromino() != null) {
             renderNextTetrominoPanel(g2D);
         }
         renderScorePanel(g2D);
@@ -128,13 +128,13 @@ public class StackUI implements GameElement, StackComponent {
             renderStatisticPanel(g2D);
         }
 
-        if (manager.getGameState() == GameState.CHANGINGLEVEL) {
-            renderLevelText(g2D, "L E V E L  " + manager.getGameLevel() + ".");
+        if (stackManager.getGameState() == GameState.CHANGINGLEVEL) {
+            renderLevelText(g2D, "L E V E L  " + stackManager.getGameLevel() + ".");
         }
-        if (manager.getGameState() == GameState.GAMEOVER) {
+        if (stackManager.getGameState() == GameState.GAMEOVER) {
             renderText(g2D, "G A M E  O V E R");
         }
-        if (manager.getGameState() == GameState.PAUSED) {
+        if (stackManager.getGameState() == GameState.PAUSED) {
             renderText(g2D, "P A U S E D");
         }
     }
@@ -182,20 +182,21 @@ public class StackUI implements GameElement, StackComponent {
      * @param g2D Graphics2D
      */
     private void renderStack(Graphics2D g2D) {
-        if (manager.getGameState() == GameState.RUNNING || manager.getGameState() == GameState.DELETINGROWS ||
-                manager.getGameState() == GameState.GAMEOVER || manager.getGameState() == GameState.PAUSED) { // PAUSE remove
+        if (stackManager.getGameState() == GameState.RUNNING || stackManager.getGameState() == GameState.DELETINGROWS ||
+                stackManager.getGameState() == GameState.GAMEOVER || stackManager.getGameState() == GameState.PAUSED) { // PAUSE remove
+
             for (int i = 0; i < GameConstans.ROWS; i++) {
                 for (int j = 0; j < GameConstans.COLS; j++) {
                     if (i >= GameConstans.ROW_OFFSET) {
                         int i1 = GameConstans.STACK_Y + ((GameConstans.ROWS + 1 - i - GameConstans.ROW_OFFSET) * GameConstans.BLOCK_SIZE);
-                        if (manager.getStackArea()[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                        if (stackManager.getStackArea()[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                             // Deleted blocks
-                            if (manager.getStackArea()[i][j].getTetrominoId() == TetrominoType.ERASED.getTetrominoTypeId()) {
-                                if (manager.getGameState() == GameState.DELETINGROWS) {
+                            if (stackManager.getStackArea()[i][j].getTetrominoId() == TetrominoType.ERASED.getTetrominoTypeId()) {
+                                if (stackManager.getGameState() == GameState.DELETINGROWS) {
                                     for (int k = 0; k < GameConstans.COLS; k++) {
-                                        g2D.setColor(new Color(manager.getStackArea()[i][j].getColor().getRed(),
-                                            manager.getStackArea()[i][j].getColor().getGreen(),
-                                            manager.getStackArea()[i][j].getColor().getBlue(), clearBlockSize / 2));
+                                        g2D.setColor(new Color(stackManager.getStackArea()[i][j].getColor().getRed(),
+                                            stackManager.getStackArea()[i][j].getColor().getGreen(),
+                                            stackManager.getStackArea()[i][j].getColor().getBlue(), clearBlockSize / 2));
                                         if (upSideDown) {
                                             g2D.fill3DRect(GameConstans.STACK_X + j * GameConstans.BLOCK_SIZE, i1,
                                                 GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE, true);
@@ -212,7 +213,7 @@ public class StackUI implements GameElement, StackComponent {
                                                 GameConstans.STACK_Y + ((i - GameConstans.ROW_OFFSET) * GameConstans.BLOCK_SIZE),
                                                 GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE, false);
                                         }
-                                        g2D.setColor(manager.getStackArea()[i][j].getColor());
+                                        g2D.setColor(stackManager.getStackArea()[i][j].getColor());
                                         if (upSideDown) {
                                             g2D.fill3DRect((GameConstans.STACK_X + j * GameConstans.BLOCK_SIZE) +
                                                 (GameConstans.BLOCK_SIZE - clearBlockSize), i1 + (GameConstans.BLOCK_SIZE - clearBlockSize),
@@ -233,13 +234,13 @@ public class StackUI implements GameElement, StackComponent {
                                             }
                                         } else {
                                             clearBlockSize = GameConstans.BLOCK_SIZE;
-                                            manager.setGameState(GameState.RUNNING);
-                                            manager.clearRows();
+                                            stackManager.setGameState(GameState.RUNNING);
+                                            stackManager.clearRows();
                                         }
                                     }
                                 }
                                 // Inserted penalty blocks
-                            } else if (manager.getStackArea()[i][j].getTetrominoId() == TetrominoType.LOADED.getTetrominoTypeId()) {
+                            } else if (stackManager.getStackArea()[i][j].getTetrominoId() == TetrominoType.LOADED.getTetrominoTypeId()) {
                                 g2D.setColor(Color.DARK_GRAY);
                                 if (upSideDown) {
                                     g2D.fill3DRect(GameConstans.STACK_X + j * GameConstans.BLOCK_SIZE, i1, GameConstans.BLOCK_SIZE,
@@ -251,7 +252,7 @@ public class StackUI implements GameElement, StackComponent {
                                 }
                                 // Ordinary blocks
                             } else {
-                                g2D.setColor(manager.getStackArea()[i][j].getColor());
+                                g2D.setColor(stackManager.getStackArea()[i][j].getColor());
                                 if (upSideDown) {
                                     g2D.fill3DRect(GameConstans.STACK_X + j * GameConstans.BLOCK_SIZE, i1,
                                             GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE, true);
@@ -260,17 +261,17 @@ public class StackUI implements GameElement, StackComponent {
                                             GameConstans.STACK_Y + (i - GameConstans.ROW_OFFSET) * GameConstans.BLOCK_SIZE,
                                             GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE, true);
                                 }
-                                if (manager.getStackArea()[i][j].getBonus() != BonusType.NONE) {
+                                if (stackManager.getStackArea()[i][j].getBonus() != BonusType.NONE) {
                                     renderBonus(g2D, i, j);
                                 }
                             }
                         } else {
-                            if (manager.getCurrentTetromino() != null && j >= manager.getCurrentTetromino().getStackCol() &&
-                                j <= manager.getCurrentTetromino().getStackCol() + manager.getCurrentTetromino().getHeightPoints() - 1 &&
-                                i >= manager.getCurrentTetromino().getStackRow()) {
-                                g2D.setColor(new Color(manager.getCurrentTetromino().getColor().getRed(),
-                                    manager.getCurrentTetromino().getColor().getGreen(),
-                                    manager.getCurrentTetromino().getColor().getBlue(), 10));
+                            if (stackManager.getCurrentTetromino() != null && j >= stackManager.getCurrentTetromino().getStackCol() &&
+                                j <= stackManager.getCurrentTetromino().getStackCol() + stackManager.getCurrentTetromino().getHeightPoints() - 1 &&
+                                i >= stackManager.getCurrentTetromino().getStackRow()) {
+                                g2D.setColor(new Color(stackManager.getCurrentTetromino().getColor().getRed(),
+                                    stackManager.getCurrentTetromino().getColor().getGreen(),
+                                    stackManager.getCurrentTetromino().getColor().getBlue(), 10));
                                 g2D.setColor(GameConstans.COLOR_HELPER_LINE);
                                 if (upSideDown) {
                                     g2D.fillRect(GameConstans.STACK_X + j * GameConstans.BLOCK_SIZE, i1,
@@ -295,21 +296,21 @@ public class StackUI implements GameElement, StackComponent {
      * @param g2D Graphics2D
      */
     private void renderHelper(Graphics2D g2D) {
-        if (manager.getCurrentTetromino() != null) {
-            int yoffset = manager.howFarFromDown() - GameConstans.ROW_OFFSET + 1;
-            for (int i = 0; i < manager.getCurrentTetromino().getPixels().length; i++) {
-                for (int j = 0; j < manager.getCurrentTetromino().getPixels()[i].length; j++) {
-                    if (manager.getCurrentTetromino().getPixels()[i][j] != 0) {
+        if (stackManager.getCurrentTetromino() != null) {
+            int yoffset = stackManager.howFarFromDown(stackManager.getStackArea(), stackManager.getCurrentTetromino()) - GameConstans.ROW_OFFSET + 1;
+            for (int i = 0; i < stackManager.getCurrentTetromino().getPixels().length; i++) {
+                for (int j = 0; j < stackManager.getCurrentTetromino().getPixels()[i].length; j++) {
+                    if (stackManager.getCurrentTetromino().getPixels()[i][j] != 0) {
                         g2D.setColor(GameConstans.COLOR_HELPER);
                         if (upSideDown) {
-                            g2D.fill3DRect(GameConstans.STACK_X + (j + manager.getCurrentTetromino().getStackCol()) *
+                            g2D.fill3DRect(GameConstans.STACK_X + (j + stackManager.getCurrentTetromino().getStackCol()) *
                                             GameConstans.BLOCK_SIZE, GameConstans.STACK_Y + ((GameConstans.ROWS + 1) -
-                                            (yoffset + (i + manager.getNextTetromino().getStackRow() + GameConstans.ROW_OFFSET))) *
+                                            (yoffset + (i + stackManager.getNextTetromino().getStackRow() + GameConstans.ROW_OFFSET))) *
                                             GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE, true);
                         } else {
-                            g2D.fill3DRect(GameConstans.STACK_X + (j + manager.getCurrentTetromino().getStackCol()) *
+                            g2D.fill3DRect(GameConstans.STACK_X + (j + stackManager.getCurrentTetromino().getStackCol()) *
                                     GameConstans.BLOCK_SIZE, GameConstans.STACK_Y +
-                                    (yoffset + (i + manager.getCurrentTetromino().getStackRow() - GameConstans.ROW_OFFSET)) *
+                                    (yoffset + (i + stackManager.getCurrentTetromino().getStackRow() - GameConstans.ROW_OFFSET)) *
                                     GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE, true);
                         }
                     }
@@ -340,8 +341,8 @@ public class StackUI implements GameElement, StackComponent {
                     (GameConstans.BLOCK_SIZE / 4), GameConstans.BLOCK_SIZE - (GameConstans.BLOCK_SIZE / 4) * 2,
                     GameConstans.BLOCK_SIZE - (GameConstans.BLOCK_SIZE / 4) * 2);
         }
-        g2D.setColor(new Color(manager.getStackArea()[i][j].getColor().getRed(), manager.getStackArea()[i][j].getColor().getGreen(),
-                manager.getStackArea()[i][j].getColor().getBlue(), GameConstans.BONUS_COLOR_ALPHA));
+        g2D.setColor(new Color(stackManager.getStackArea()[i][j].getColor().getRed(), stackManager.getStackArea()[i][j].getColor().getGreen(),
+                stackManager.getStackArea()[i][j].getColor().getBlue(), GameConstans.BONUS_COLOR_ALPHA));
         int x1 = GameConstans.STACK_X + (j * GameConstans.BLOCK_SIZE) + (GameConstans.BLOCK_SIZE / 4) + 4;
         if (upSideDown) {
             g2D.fillOval(x1,
@@ -379,21 +380,21 @@ public class StackUI implements GameElement, StackComponent {
             }
         } else {
             levelTextAlpha = 200;
-            manager.setGameState(GameState.RUNNING);
+            stackManager.setGameState(GameState.RUNNING);
         }
     }
 
     private void renderNextTetrominoPanel(Graphics2D g2D) {
         nextPanel.render(g2D);
-        int nbW = manager.getNextTetromino().getPixels()[0].length * GameConstans.BLOCK_SIZE;
-        int nbH = manager.getNextTetromino().getPixels().length * GameConstans.BLOCK_SIZE;
+        int nbW = stackManager.getNextTetromino().getPixels()[0].length * GameConstans.BLOCK_SIZE;
+        int nbH = stackManager.getNextTetromino().getPixels().length * GameConstans.BLOCK_SIZE;
         int nbX = nextPanel.getPanelX() + (nextPanel.getPanelWidth() / 2 - nbW / 2);
         int nbY = nextPanel.getPanelY() + GameConstans.BLOCK_SIZE + (nextPanel.getPanelHeight() / 2 - nbH / 2);
-        if (manager.getGameState() != GameState.PAUSED) {
-            for (int i = 0; i < manager.getNextTetromino().getPixels().length; i++) {
-                for (int j = 0; j < manager.getNextTetromino().getPixels()[i].length; j++) {
-                    if (manager.getNextTetromino().getPixels()[i][j] != 0) {
-                        g2D.setColor(manager.getNextTetromino().getColor());
+        if (stackManager.getGameState() != GameState.PAUSED) {
+            for (int i = 0; i < stackManager.getNextTetromino().getPixels().length; i++) {
+                for (int j = 0; j < stackManager.getNextTetromino().getPixels()[i].length; j++) {
+                    if (stackManager.getNextTetromino().getPixels()[i][j] != 0) {
+                        g2D.setColor(stackManager.getNextTetromino().getColor());
                         g2D.fill3DRect(nbX + j * GameConstans.BLOCK_SIZE, nbY + i * GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE,
                                 GameConstans.BLOCK_SIZE, true);
                     }
@@ -405,19 +406,19 @@ public class StackUI implements GameElement, StackComponent {
     private void renderPenaltyPanel(Graphics2D g2D) {
         penaltyPanel.render(g2D);
         float penaltyWidth = penaltyPanel.getPanelWidth() - penaltyPanel.getBorderWidth() * 2;
-        penaltyWidth = Math.round((penaltyWidth / (GameConstans.PENALTY_NO_FULL_ROW - 1)) * manager.getNoFullRows());
+        penaltyWidth = Math.round((penaltyWidth / (GameConstans.PENALTY_NO_FULL_ROW - 1)) * stackManager.getNoFullRows());
         int penaltyHeight = penaltyPanel.getTitleHeight() - penaltyPanel.getBorderWidth() * 2;
         int ppX = penaltyPanel.getPanelX() + penaltyPanel.getBorderWidth();
         int ppY = penaltyPanel.getPanelY() + GameConstans.BLOCK_SIZE + penaltyPanel.getBorderWidth();
-        g2D.setColor(new Color(55 + (200 / GameConstans.PENALTY_NO_FULL_ROW) * manager.getNoFullRows(), 0, 0, 100));
-        if (manager.getNoFullRows() > 0) {
+        g2D.setColor(new Color(55 + (200 / GameConstans.PENALTY_NO_FULL_ROW) * stackManager.getNoFullRows(), 0, 0, 100));
+        if (stackManager.getNoFullRows() > 0) {
             g2D.fillRect(ppX, ppY, (int) penaltyWidth, penaltyHeight);
         }
     }
 
     private void renderScorePanel(Graphics2D g2D) {
         scorePanel.render(g2D);
-        String gamePointsStr = String.valueOf(manager.getGameScore());
+        String gamePointsStr = String.valueOf(stackManager.getGameScore());
         int stringHeight = GameConstans.BLOCK_SIZE - 2;
         g2D.setFont(new Font(GameConstans.FONT_NAME, Font.PLAIN, stringHeight));
         int stringWidth = g2D.getFontMetrics().stringWidth(gamePointsStr);
@@ -428,21 +429,21 @@ public class StackUI implements GameElement, StackComponent {
     }
 
     private void renderLevelPanel(Graphics2D g2D) {
-        if (manager.getGameLevel() > 0) {
-            levelPanel.setTitle("Level " + manager.getGameLevel());
+        if (stackManager.getGameLevel() > 0) {
+            levelPanel.setTitle("Level " + stackManager.getGameLevel());
         }
         levelPanel.render(g2D);
         int levelHeight = levelPanel.getPanelHeight() - levelPanel.getBorderWidth() * 2;
         float nextLevelWidth = levelPanel.getPanelWidth() - levelPanel.getBorderWidth() * 2;
-        nextLevelWidth = Math.round((nextLevelWidth / (manager.getGameLevel() * GameConstans.LEVEL_CHANGE_ROWS)) *
-                (manager.getAllFullRows() + 1));
+        nextLevelWidth = Math.round((nextLevelWidth / (stackManager.getGameLevel() * GameConstans.LEVEL_CHANGE_ROWS)) *
+                (stackManager.getAllFullRows() + 1));
         int lpX = levelPanel.getPanelX() + levelPanel.getBorderWidth();
         int lpY = levelPanel.getPanelY() + GameConstans.BLOCK_SIZE + levelPanel.getBorderWidth();
         int levelStringHeight = GameConstans.BLOCK_SIZE - 12;
         g2D.setFont(new Font(GameConstans.FONT_NAME, Font.PLAIN, levelStringHeight));
-        g2D.setColor(new Color(0, 55 + (200 / (Math.max(manager.getGameLevel(), 1) *
-                GameConstans.LEVEL_CHANGE_ROWS)) * manager.getAllFullRows(), 0, 100));
-        if (manager.getAllFullRows() > 0) {
+        g2D.setColor(new Color(0, 55 + (200 / (Math.max(stackManager.getGameLevel(), 1) *
+                GameConstans.LEVEL_CHANGE_ROWS)) * stackManager.getAllFullRows(), 0, 100));
+        if (stackManager.getAllFullRows() > 0) {
             g2D.fillRect(lpX, lpY, (int) nextLevelWidth, levelHeight);
         }
     }
@@ -461,17 +462,17 @@ public class StackUI implements GameElement, StackComponent {
         String infoStrD;
         String infoStrV;
         if (learning) {
-            infoStrM = "Height: " + metrics.getMetricMaxHeight();
-            infoStrP = "Holes: " + metrics.getMetricNumberOfHoles();
-            infoStrC = "Bumpiness: " + String.format("%.0f", metrics.getMetricBumpiness());
-            infoStrR = "Iteration: " + manager.getIteration();
-            infoStrA = "Height (avg): " + String.format("%.2f", metrics.getMetricAvgColumnHeight());
-            infoStrN = "Nearly full rows: " + String.format("%.0f", metrics.getMetricNearlyFullRows());
-            infoStrB = "Blocked rows: " + String.format("%.0f", metrics.getMetricBlockedRows());
-            infoStrH = "Surrounding holes: " + String.format("%.0f", metrics.getMetricSurroundingHoles());
-            infoStrO = "Tetromino rotation: " + String.format("%.0f", manager.getTetrominoRotation());
-            infoStrD = "Dropped elements: " + String.format("%.0f", metrics.getMetricDroppedElements());
-            infoStrV = "Average density: " + String.format("%.2f", metrics.getMetricAvgDensity());
+            infoStrM = "Height: " + stackMetrics.getMetricMaxHeight();
+            infoStrP = "Holes: " + stackMetrics.getMetricNumberOfHoles();
+            infoStrC = "Bumpiness: " + String.format("%.0f", stackMetrics.getMetricBumpiness());
+            infoStrR = "Iteration: " + stackManager.getIteration();
+            infoStrA = "Height (avg): " + String.format("%.2f", stackMetrics.getMetricAvgColumnHeight());
+            infoStrN = "Nearly full rows: " + String.format("%.0f", stackMetrics.getMetricNearlyFullRows());
+            infoStrB = "Blocked rows: " + String.format("%.0f", stackMetrics.getMetricBlockedRows());
+            infoStrH = "Surrounding holes: " + String.format("%.0f", stackMetrics.getMetricSurroundingHoles());
+            infoStrO = "Tetromino rotation: " + String.format("%.0f", stackManager.getTetrominoRotation());
+            infoStrD = "Dropped elements: " + String.format("%.0f", stackMetrics.getMetricDroppedElements());
+            infoStrV = "Average density: " + String.format("%.2f", stackMetrics.getMetricAvgDensity());
         } else {
             infoStrM = "M: Music On/Off";
             infoStrP = "P: Pause/Resume";
@@ -513,8 +514,8 @@ public class StackUI implements GameElement, StackComponent {
 
     private void renderStatisticPanel(Graphics2D g2D) {
         statPanel.render(g2D);
-        String allRowsStr = "Rows: " + manager.getAllFullRows();
-        String timeStr = "Time: " + manager.getElapsedTime();
+        String allRowsStr = "Rows: " + stackManager.getAllFullRows();
+        String timeStr = "Time: " + stackManager.getElapsedTime();
         int stringHeight = GameConstans.BLOCK_SIZE - 14;
         g2D.setFont(new Font(GameConstans.FONT_NAME, Font.PLAIN, stringHeight));
         g2D.setColor(Color.GRAY);
@@ -530,7 +531,7 @@ public class StackUI implements GameElement, StackComponent {
 
     @Override
     public void initializeStackComponents(StackUI stackUI, StackManager manager, StackMetrics metrics) {
-        this.manager = manager;
-        this.metrics = metrics;
+        this.stackManager = manager;
+        this.stackMetrics = metrics;
     }
 }

@@ -1,17 +1,19 @@
 package hu.nye.vpe.nn;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 /**
  * Gradient clipper task.
  */
 public class GradientClipper implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
     private final double minValue;
     private final double maxValue;
     private final double clipNorm;
     private final double gradientScale;
-    private final double epsilon = 1e-5;
+    private static final double EPSILON = 1e-5;
 
     public GradientClipper(double minValue, double maxValue, double clipNorm, double gradientScale) {
         this.minValue = minValue;
@@ -48,19 +50,26 @@ public class GradientClipper implements Serializable {
      * @return clipped gradients array
      */
     public double[] clipByNorm(double[] gradients) {
-        double norm = 0;
-        for (double grad : gradients) {
-            norm += grad * grad;
-        }
-        norm = Math.sqrt(norm + epsilon);
+        double[] clippedGradients = gradients.clone();
+        double norm = calculateNorm(clippedGradients);
+
+        //System.out.println(norm);
 
         if (norm > clipNorm) {
-            double scale = clipNorm / (norm + epsilon);
-            for (int i = 0; i < gradients.length; i++) {
-                gradients[i] *= scale;
+            double scale = clipNorm / (norm + EPSILON);
+            for (int i = 0; i < clippedGradients.length; i++) {
+                clippedGradients[i] *= scale;
             }
         }
-        return gradients;
+        return clippedGradients;
+    }
+
+    private double calculateNorm(double[] gradients) {
+        double sumOfSquares = 0;
+        for (double grad : gradients) {
+            sumOfSquares += grad * grad;
+        }
+        return Math.sqrt(sumOfSquares + EPSILON);
     }
 
     /**
@@ -75,7 +84,7 @@ public class GradientClipper implements Serializable {
         for (int i = 0; i < gradients.length; i++) {
             scaledGradients[i] = gradients[i] * gradientScale;
         }
-        clipByNorm(scaledGradients);
+        scaledGradients  = clipByNorm(scaledGradients);
         return clipByValue(scaledGradients);
     }
 }
