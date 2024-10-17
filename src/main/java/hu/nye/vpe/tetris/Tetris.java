@@ -8,6 +8,7 @@ import hu.nye.vpe.gaming.GameInput;
 import hu.nye.vpe.gaming.GameStarfield;
 import hu.nye.vpe.gaming.GameState;
 import hu.nye.vpe.gaming.GameTimeTicker;
+import hu.nye.vpe.GlobalConfig;
 import hu.nye.vpe.nn.Activation;
 import hu.nye.vpe.nn.BatchNormParameters;
 import hu.nye.vpe.nn.InputNormalizerMinmax;
@@ -18,66 +19,38 @@ import hu.nye.vpe.nn.WeightInitStrategy;
  * Tetris class.
  */
 public class Tetris {
-    private static final double REWARD_FULLROW = 100;
-    private static final double REWARD_NEARLY_FULLROW = 40;
-    private static final double REWARD_PLACE_WITHOUT_HOLE = 60;
-    private static final double REWARD_DROP_LOWER = 20;
-
-    private static final double REWARD_DROPPED_ELEMENTS = 0.01;
-    private static final double REWARD_AVG_DENSITY = 100;
-    private static final double REWARD_NUMBER_OF_HOLES = 0.1;
-    private static final double REWARD_SURROUNDED_HOLES = 0.2;
-    private static final double REWARD_DROP_HIGHER = 1;
-    private static final double REWARD_BLOCKED_ROW = 1.2;
-    private static final double REWARD_BUMPINESS = 0.3;
-    private static final double REWARD_AVG_COLUMN_HEIGHT = 0.5;
-    private static final double REWARD_MAXIMUM_HEIGHT = 0.9;
-
     private static final int ROWS = 24;
     private static final int COLS = 12;
-    private static final int FEED_DATA_SIZE = 30;
-    private static final int OUTPUT_NODES = 4;
+
+    private static final double REWARD_FULLROW = GlobalConfig.getInstance().getRewardFullRow();
+    private static final double REWARD_NEARLY_FULLROW = GlobalConfig.getInstance().getRewardNearlyFullRow();
+    private static final double REWARD_PLACE_WITHOUT_HOLE = GlobalConfig.getInstance().getRewardPlaceWithoutHole();
+    private static final double REWARD_DROP_LOWER = GlobalConfig.getInstance().getRewardDropLower();
+    private static final double REWARD_DROPPED_ELEMENTS = GlobalConfig.getInstance().getRewardDropedElements();
+    private static final double REWARD_AVG_DENSITY = GlobalConfig.getInstance().getRewardAvgDensity();
+    private static final double REWARD_NUMBER_OF_HOLES = GlobalConfig.getInstance().getRewardNumberOfHoles();
+    private static final double REWARD_SURROUNDED_HOLES = GlobalConfig.getInstance().getRewardSurroundedHoles();
+    private static final double REWARD_DROP_HIGHER = GlobalConfig.getInstance().getRewardDropHigher();
+    private static final double REWARD_BLOCKED_ROW = GlobalConfig.getInstance().getRewardBlockedRow();
+    private static final double REWARD_BUMPINESS = GlobalConfig.getInstance().getRewardBumpiness();
+    private static final double REWARD_AVG_COLUMN_HEIGHT = GlobalConfig.getInstance().getRewardAvgColumnHeight();
+    private static final double REWARD_MAXIMUM_HEIGHT = GlobalConfig.getInstance().getRewardMaximumHeight();
+
+    private static final int FEED_DATA_SIZE = GlobalConfig.getInstance().getFeedDataSize();
+    private static final boolean NORMALIZE_FEED_DATA = GlobalConfig.getInstance().getNormalizeFeedData();
+
+    private static final String[] LAYER_NAMES = GlobalConfig.getInstance().getLayerNames();
+    private static final int[] LAYER_SIZES = GlobalConfig.getInstance().getLayerSizes();
+    private static final Activation[] LAYER_ACTIVATIONS = GlobalConfig.getInstance().getLayerActivations();
+    private static final WeightInitStrategy[] WEIGHT_INIT_STRATEGIES = GlobalConfig.getInstance().getWeightInitStrategies();
+    private static final BatchNormParameters[] BATCH_NORMS = GlobalConfig.getInstance().getBatchNorms();
+    private static final double[] L2_REGULARIZATION = GlobalConfig.getInstance().getL2Regularization();
+
     private static final long DROP_SPEED = 10L;
     private static int moveCount = 0;
     private static int episodeMoveCount = 0;
-
     private NeuralNetwork brain;
-
-    private static final boolean NORMALIZE_FEED_DATA = true;
-    private static final String[] NAMES = {"INP", "H1", "H2", "H3", "H4", "OUT"};
-    private static final int[] LAYER_SIZES = {FEED_DATA_SIZE, 64, 48, 32, 16, OUTPUT_NODES};
-    private static final Activation[] ACTIVATIONS = {
-            Activation.LEAKY_RELU,
-            Activation.LEAKY_RELU,
-            Activation.LEAKY_RELU,
-            Activation.LEAKY_RELU,
-            Activation.LINEAR
-    };
-    private static final WeightInitStrategy[] INIT_STRATEGIES = {
-            WeightInitStrategy.HE,
-            WeightInitStrategy.HE,
-            WeightInitStrategy.HE,
-            WeightInitStrategy.HE,
-            WeightInitStrategy.XAVIER
-    };
-    private static final BatchNormParameters[] USE_BATCH_NORM = {
-            new BatchNormParameters(true, 1.0, 0.0), //H1
-            new BatchNormParameters(true, 1.0, 0.0), //H2
-            new BatchNormParameters(true, 1.0, 0.0), //H3
-            new BatchNormParameters(true, 1.0, 0.0), //H4
-            new BatchNormParameters(false, 1.0, 0.0), // OUT
-    };
-
-    private static final double[] L2 = {
-            0.0, // INP
-            0.0, // H1
-            0.0, // H2
-            0.0, // H3
-            0.0, // H4
-            0.0 // OUT
-    };
-
-    private final long speed = 1000L;
+    private static final long speed = 1000L;
     private final long learningSpeed = 10L;
     private Tetromino nextTetromino = null;
     private static final TetrominoFactory sf = TetrominoFactory.getInstance();
@@ -123,12 +96,12 @@ public class Tetris {
             } catch (Exception e) {
                 System.out.println("Creating new Neural Network");
                 brain = new NeuralNetwork(
-                        NAMES,
+                        LAYER_NAMES,
                         LAYER_SIZES,
-                        ACTIVATIONS,
-                        INIT_STRATEGIES,
-                        USE_BATCH_NORM,
-                        L2
+                        LAYER_ACTIVATIONS,
+                        WEIGHT_INIT_STRATEGIES,
+                        BATCH_NORMS,
+                        L2_REGULARIZATION
                 );
             }
         }
@@ -590,7 +563,7 @@ public class Tetris {
                 double avgColumnHeights = stackMetrics.getMetricAvgColumnHeight();
                 reward -= avgColumnHeights * REWARD_AVG_COLUMN_HEIGHT;
 
-                reward = 50 + reward;
+                reward = 60 + reward;
             }
         }
         brain.learn(lastState, lastAction, reward, currentState, gameOver);

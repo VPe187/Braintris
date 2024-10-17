@@ -2,12 +2,11 @@ package hu.nye.vpe.nn;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-/**
- * Layer class.
- */
 public class Layer implements Serializable {
+    private static final int BATCH_SIZE = 32;
     private final List<Neuron> neurons;
     private final Activation activation;
     private final WeightInitStrategy initStrategy;
@@ -16,10 +15,12 @@ public class Layer implements Serializable {
     private double[] lastOutputs;
     private double[] lastNormalizedOutputs;
     private String name;
-    private BatchNormParameters batchNormaparameters;
+    private BatchNormParameters batchNormParameters;
     private BatchNormalizer batchNormalizer;
     private double learningRate;
     private boolean useBatchNorm;
+    private double[][] batchInputs;
+    private double[][] batchOutputs;
 
     public Layer(String name, int inputSize, int neuronCount, Activation activation, WeightInitStrategy initStrategy,
                  GradientClipper gradientClipper, double lambdaL2, BatchNormParameters batchNormParameters, double learningRate) {
@@ -30,14 +31,17 @@ public class Layer implements Serializable {
         this.gradientClipper = gradientClipper;
         this.useBatchNorm = batchNormParameters.useBatchNorm;
         this.learningRate = learningRate;
+        this.batchNormParameters = batchNormParameters;
 
         for (int i = 0; i < neuronCount; i++) {
             neurons.add(new Neuron(inputSize, neuronCount, activation, initStrategy, gradientClipper, lambdaL2));
         }
 
         if (useBatchNorm) {
-            this.batchNormalizer = new BatchNormalizer(neuronCount, batchNormParameters.gamma, batchNormParameters.beta, learningRate);
+            this.batchNormalizer = new BatchNormalizer(neuronCount, BATCH_SIZE, batchNormParameters.gamma, batchNormParameters.beta, learningRate);
         }
+        this.batchInputs = new double[BATCH_SIZE][inputSize];
+        this.batchOutputs = new double[BATCH_SIZE][neuronCount];
     }
 
     /**
@@ -50,7 +54,6 @@ public class Layer implements Serializable {
      * @return outputs
      */
     public double[] forward(double[] inputs, boolean isTraining) {
-        this.lastInputs = inputs.clone();
         double[] outputs = new double[neurons.size()];
 
         for (int i = 0; i < neurons.size(); i++) {
@@ -59,49 +62,98 @@ public class Layer implements Serializable {
 
         if (useBatchNorm) {
             outputs = batchNormalizer.forward(outputs, isTraining);
-            this.lastNormalizedOutputs = outputs.clone();
         }
 
-        this.lastOutputs = outputs.clone();
+        if (isTraining) {
+            // Itt most nem tárolunk batch adatokat, mert ez az egyes példányok forward pass-e
+        }
+
+        this.lastInputs = inputs;
+        this.lastOutputs = outputs;
 
         return outputs;
     }
 
-    /**
-     * Backward pass.
-     *
-     * @param nextLayerDeltas deltas
-     *
-     * @param learningRate learning rates
-     *
-     * @return new gradients
-     */
-    public LayerGradients backward(double[] nextLayerDeltas, double learningRate) {
-        double[] inputGradients = new double[lastInputs.length];
-        double[] deltas = nextLayerDeltas.clone();
+    public double[][] forwardBatch(double[][] inputs, boolean isTraining) {
+        int batchSize = inputs.length;
+        double[][] outputs = new double[batchSize][neurons.size()];
+
+        for (int b = 0; b < batchSize; b++) {
+            for (int i = 0; i < neurons.size(); i++) {
+                outputs[b][i] = neurons.get(i).activate(inputs[b]);
+            }
+        }
 
         if (useBatchNorm) {
-            deltas = batchNormalizer.backward(lastOutputs, deltas);
+            outputs = batchNormalizer.forwardBatch(outputs, isTraining);
         }
 
-        for (int i = 0; i < neurons.size(); i++) {
+        if (isTraining) {
+            this.batchInputs = inputs;
+            this.batchOutputs = outputs;
+        }
+
+        return outputs;
+    }
+
+    public LayerGradients backwardBatch(double[][] nextLayerDeltas, double[][] inputs) {
+        int batchSize = nextLayerDeltas.length;
+        int inputSize = inputs[0].length;
+        int outputSize = neurons.size();
+
+        double[][] inputGradients = new double[batchSize][inputSize];
+        double[][] weightGradients = new double[outputSize][inputSize];
+        double[] biasGradients = new double[outputSize];
+
+        if (useBatchNorm) {
+            nextLayerDeltas = batchNormalizer.backwardBatch(nextLayerDeltas);
+        }
+
+        for (int b = 0; b < batchSize; b++) {
+            for (int i = 0; i < outputSize; i++) {
+                Neuron neuron = neurons.get(i);
+                double neuronDelta = nextLayerDeltas[b][i];
+
+                double derivativeValue = Activation.derivative(batchOutputs[b][i], activation);
+                neuronDelta *= derivativeValue;
+
+                double[] weights = neuron.getWeights();
+                for (int j = 0; j < inputSize; j++) {
+                    double gradientUpdate = neuronDelta * inputs[b][j];
+                    weightGradients[i][j] += gradientUpdate;
+                    inputGradients[b][j] += neuronDelta * weights[j];
+                }
+                biasGradients[i] += neuronDelta;
+            }
+        }
+
+        // Átlagoljuk a gradienseket a batch méretével
+        for (int i = 0; i < outputSize; i++) {
+            for (int j = 0; j < inputSize; j++) {
+                weightGradients[i][j] /= batchSize;
+            }
+            biasGradients[i] /= batchSize;
+        }
+
+        // Frissítjük minden neuron súlyait és bias értékét
+        for (int i = 0; i < outputSize; i++) {
             Neuron neuron = neurons.get(i);
-            double neuronDelta = deltas[i];
-            if (lastNormalizedOutputs != null) {
-                neuronDelta *= Activation.derivative(lastNormalizedOutputs[i], activation);
-            } else {
-                neuronDelta *= Activation.derivative(lastOutputs[i], activation);
-            }
-            neuron.updateWeights(lastInputs, neuronDelta, learningRate);
-            double[] weights = neuron.getWeights();
-            for (int j = 0; j < lastInputs.length; j++) {
-                inputGradients[j] += neuronDelta * weights[j];
-            }
+            neuron.updateWeights(weightGradients[i], biasGradients[i], this.learningRate);
         }
 
-        inputGradients = gradientClipper.scaleAndClip(inputGradients);
+        // Gradiens vágás alkalmazása az inputGradients-re
+        for (int b = 0; b < batchSize; b++) {
+            inputGradients[b] = gradientClipper.scaleAndClip(inputGradients[b]);
+        }
 
-        return new LayerGradients(inputGradients, null, null);
+        // Debug információ
+        /*
+        System.out.println("Layer " + name + " - Average weight gradient: " +
+                Arrays.stream(weightGradients).flatMapToDouble(Arrays::stream).average().orElse(0.0));
+
+         */
+
+        return new LayerGradients(inputGradients, weightGradients, biasGradients);
     }
 
     public int getSize() {

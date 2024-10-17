@@ -1,20 +1,35 @@
 package hu.nye.vpe.nn;
 
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import hu.nye.vpe.GlobalConfig;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Neural network class.
- */
 public class NeuralNetwork implements Serializable {
+    private static final String FILENAME = GlobalConfig.getInstance().getBrainFilename();
+    private static final double CLIP_MIN = GlobalConfig.getInstance().getClipMin();
+    private static final double CLIP_MAX = GlobalConfig.getInstance().getClipMax();
+    private static final double CLIP_NORM = GlobalConfig.getInstance().getClipNorm();
+    private static final double GRADIENT_SCALE = GlobalConfig.getInstance().getGradientScale();
+    private static final double INITIAL_LEARNING_RATE = GlobalConfig.getInstance().getInitialLearningRate();
+    private static final double LEARNING_RATE_DECAY = GlobalConfig.getInstance().getLearningRateDecay();
+    private static final double MIN_LEARNING_RATE = GlobalConfig.getInstance().getMinLearningRate();
+    private static final double INITIAL_DISCOUNT_FACTOR = GlobalConfig.getInstance().getInitialDiscountFactor();
+    private static final double MAX_DISCOUNT_FACTOR = GlobalConfig.getInstance().getMaxDiscountFactor();
+    private static final double DISCOUNT_FACTOR_INCREMENT = GlobalConfig.getInstance().getDiscountFactorIncrement();
+    private static final double INITIAL_EPSILON = GlobalConfig.getInstance().getInitialEpsilon();
+    private static final double EPSILON_DECAY = GlobalConfig.getInstance().getEpsilonDecay();
+    private static final double MIN_EPSILON = GlobalConfig.getInstance().getMinEpsilon();
+    private static final double MIN_Q = GlobalConfig.getInstance().getMinQ();
+    private static final double MAX_Q = GlobalConfig.getInstance().getMaxQ();
+    private static final int MOVING_AVERAGE_WINDOW = GlobalConfig.getInstance().getMovingAverageWindow();
+    private static final Boolean USE_EXPERIENCE = GlobalConfig.getInstance().getUseExperience();
+    private static final int EXPERIENCE_REPLAY_CAPACITY = GlobalConfig.getInstance().getExperiebceReplayCapacity();
+    private static final int EXPERIENCE_BATCH_SIZE = GlobalConfig.getInstance().getExperienceBatchSize();
+
     private final List<Layer> layers;
     private double learningRate;
     private double discountFactor;
@@ -29,33 +44,8 @@ public class NeuralNetwork implements Serializable {
     private final List<Double> recentRewards;
     private double movingAverage;
     private final ExperienceReplay experienceReplay;
-
-    private static final String FILENAME = "brain.dat";
-    private static final double CLIP_MIN = -1.0;
-    private static final double CLIP_MAX = 1.0;
-    private static final double CLIP_NORM = 1.5;
-    private static final double GRADIENT_SCALE = 1.0;
-
-    private static final double INITIAL_LEARNING_RATE = 0.005;
-    private static final double LEARNING_RATE_DECAY = 0.999;
-    private static final double MIN_LEARNING_RATE = 0.00001;
-
-    private static final double INITIAL_DISCOUNT_FACTOR = 0.1;
-    private static final double MAX_DISCOUNT_FACTOR = 0.99;
-    private static final double DISCOUNT_FACTOR_INCREMENT = 0.0001;
-
-    private static final double INITIAL_EPSILON = 0.4;
-    private static final double EPSILON_DECAY = 0.99;
-    private static final double MIN_EPSILON = 0.01;
-
-    private static final double MIN_Q = -500;
-    private static final double MAX_Q = 500;
-
-    private static final int MOVING_AVERAGE_WINDOW = 1000;
-
-    private static final Boolean USE_EXPERIENCE = false;
-    private static final int EXPERIENCE_REPLAY_CAPACITY = 10000;
-    private static final int BATCH_SIZE = 32;
+    private List<double[]> inputBatch;
+    private List<double[]> targetBatch;
 
     public NeuralNetwork(String[] names, int[] layerSizes, Activation[] activations, WeightInitStrategy[] initStrategies,
                          BatchNormParameters[] batchNormParameters, double[] l2) {
@@ -86,6 +76,8 @@ public class NeuralNetwork implements Serializable {
         this.movingAverage = 0.0;
         this.random = new Random();
         this.experienceReplay = new ExperienceReplay(EXPERIENCE_REPLAY_CAPACITY);
+        this.inputBatch = new ArrayList<>();
+        this.targetBatch = new ArrayList<>();
     }
 
     /**
@@ -107,10 +99,8 @@ public class NeuralNetwork implements Serializable {
             this.lastActivations[i + 1] = currentInput;
         }
 
-        double[] output = currentInput;
-
-        for (int i = 0; i < output.length; i++) {
-            output[i] = Math.max(MIN_Q, Math.min(MAX_Q, output[i]));
+        for (int i = 0; i < currentInput.length; i++) {
+            currentInput[i] = Math.max(MIN_Q, Math.min(MAX_Q, currentInput[i]));
         }
 
         updateMaxQValue(currentInput);
@@ -127,28 +117,50 @@ public class NeuralNetwork implements Serializable {
         this.maxQValue = max;
     }
 
-    private void backward(double[] inputs, double[] targets) {
-        double[] currentInputs = inputs;
-        List<double[]> allOutputs = new ArrayList<>();
-        allOutputs.add(inputs);
+    private void backwardPass(double[][] batchInputs, double[][] batchTargets) {
+        int batchSize = batchInputs.length;
+        List<double[][]> allLayerOutputs = new ArrayList<>();
+
+        // Forward pass
+        double[][] currentInputs = batchInputs;
+        allLayerOutputs.add(currentInputs);
 
         for (Layer layer : layers) {
-            currentInputs = layer.forward(currentInputs, false);
-            allOutputs.add(currentInputs);
+            currentInputs = layer.forwardBatch(currentInputs, true);
+            allLayerOutputs.add(currentInputs);
         }
 
-        double[] deltas = new double[layers.get(layers.size() - 1).getSize()];
-        double[] outputs = allOutputs.get(allOutputs.size() - 1);
-        for (int i = 0; i < deltas.length; i++) {
-            deltas[i] = targets[i] - outputs[i];
+        // Backward pass
+        double[][] deltas = new double[batchSize][layers.get(layers.size() - 1).getSize()];
+        for (int i = 0; i < batchSize; i++) {
+            for (int j = 0; j < deltas[i].length; j++) {
+                deltas[i][j] = batchTargets[i][j] - currentInputs[i][j];
+            }
         }
 
         for (int i = layers.size() - 1; i >= 0; i--) {
             Layer currentLayer = layers.get(i);
-            LayerGradients gradients = currentLayer.backward(deltas, learningRate);
-            deltas = gradientClipper.scaleAndClip(gradients.inputGradients);
+            LayerGradients gradients = currentLayer.backwardBatch(deltas, allLayerOutputs.get(i));
+            deltas = gradients.inputGradients;
         }
     }
+
+    private void processBatch() {
+        double[][] batchInputs = new double[EXPERIENCE_BATCH_SIZE][];
+        double[][] batchTargets = new double[EXPERIENCE_BATCH_SIZE][];
+
+        for (int i = 0; i < EXPERIENCE_BATCH_SIZE; i++) {
+            batchInputs[i] = inputBatch.get(i);
+            batchTargets[i] = targetBatch.get(i);
+        }
+
+        backwardPass(batchInputs, batchTargets);
+
+        // Batch adatok törlése
+        inputBatch.clear();
+        targetBatch.clear();
+    }
+
 
     /**
      * Select action from network.
@@ -184,8 +196,8 @@ public class NeuralNetwork implements Serializable {
             Experience experience = new Experience(state, action, reward, nextState, gameOver);
             experienceReplay.add(experience);
 
-            if (experienceReplay.size() >= BATCH_SIZE) {
-                List<Experience> batch = experienceReplay.sample(BATCH_SIZE);
+            if (experienceReplay.size() >= EXPERIENCE_BATCH_SIZE) {
+                List<Experience> batch = experienceReplay.sample(EXPERIENCE_BATCH_SIZE);
                 for (Experience exp : batch) {
                     learnFromExperience(exp);
                 }
@@ -202,7 +214,12 @@ public class NeuralNetwork implements Serializable {
             double[] targetQValues = currentQValues.clone();
             targetQValues[action] = target;
 
-            backward(state, targetQValues);
+            inputBatch.add(state);
+            targetBatch.add(targetQValues);
+
+            if (inputBatch.size() == EXPERIENCE_BATCH_SIZE) {
+                processBatch();
+            }
 
             lastReward = reward;
         }
@@ -217,7 +234,6 @@ public class NeuralNetwork implements Serializable {
             this.episodeCount++;
             updateMovingAverage(reward);
         }
-
     }
 
     private void learnFromExperience(Experience experience) {
@@ -232,7 +248,12 @@ public class NeuralNetwork implements Serializable {
         double[] targetQValues = currentQValues.clone();
         targetQValues[experience.action] = target;
 
-        backward(experience.state, targetQValues);
+        inputBatch.add(experience.state);
+        targetBatch.add(targetQValues);
+
+        if (inputBatch.size() == EXPERIENCE_BATCH_SIZE) {
+            processBatch();
+        }
 
         lastReward = experience.reward;
     }

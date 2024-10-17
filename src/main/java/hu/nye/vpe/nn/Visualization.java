@@ -6,6 +6,7 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
+import java.util.Arrays;
 
 import hu.nye.vpe.gaming.GameElement;
 import hu.nye.vpe.gaming.GameTimeTicker;
@@ -29,6 +30,7 @@ public class Visualization implements GameElement {
     private static final Color RMS_GREEN = new Color(0, 255, 0);
     private static final Color RMS_ORANGE = new Color(255, 165, 0);
     private static final Color RMS_RED = new Color(255, 0, 0);
+    private static final int REFRESH_RATE = 100;
 
     private final NeuralNetwork network;
     private final int width;
@@ -59,8 +61,7 @@ public class Visualization implements GameElement {
         this.layerMaxs = new double[layerCount];
         this.layerMeans = new double[layerCount];
         this.layerNames = network.getLayerNames();
-
-        infoTicker = new GameTimeTicker(200);
+        infoTicker = new GameTimeTicker(REFRESH_RATE);
 
         updateNetworkData();
         calculateDynamicSizing();
@@ -82,9 +83,9 @@ public class Visualization implements GameElement {
     }
 
     private void updateNetworkData() {
-        this.weights = network.getAllWeights();
         this.layerSizes = network.getLayerSizes();
         this.activations = network.getLastActivations();
+        this.weights = network.getAllWeights();
         calculateStatistics();
     }
 
@@ -211,7 +212,7 @@ public class Visualization implements GameElement {
     }
 
     private Color getColorForWeight(double weight) {
-        double normalizedWeight = Math.tanh(weight);
+        double normalizedWeight = Math.tanh(weight * 2);
         int red;
         int green;
         int blue;
@@ -224,9 +225,7 @@ public class Visualization implements GameElement {
             green = (int) (255 * -normalizedWeight);
             blue = (int) (255 * -normalizedWeight);
         }
-
-        int alpha = (int) (20 * Math.abs(normalizedWeight)) + 20;
-
+        int alpha = (int) (10 * Math.abs(normalizedWeight)) + 10;
         return new Color(red, green, blue, alpha);
     }
 

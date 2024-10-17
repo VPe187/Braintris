@@ -1,6 +1,7 @@
 package hu.nye.vpe.nn;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * Neuron class.
@@ -42,27 +43,22 @@ public class Neuron implements Serializable {
         return Activation.activate(sum, activation);
     }
 
-    /**
-     * Update weights to neuron.
-     *
-     * @param inputs input datas
-     *
-     * @param delta delta value
-     *
-     * @param learningRate learning rate
-     */
-    public void updateWeights(double[] inputs, double delta, double learningRate) {
-        double activationDerivative = Activation.derivative(activate(inputs), activation);
-        double adjustedDelta = delta * activationDerivative;
-
+    public void updateWeights(double[] weightGradients, double biasGradient, double learningRate) {
         for (int i = 0; i < weights.length; i++) {
-            double gradient = adjustedDelta * inputs[i];
-            gradient = gradientClipper.clip(gradient);
-            weights[i] += learningRate * (gradient - lambdaL2 * weights[i]);
+            double gradient = gradientClipper.clip(weightGradients[i]);
+            weights[i] -= learningRate * (gradient + lambdaL2 * weights[i]);  // L2 regularizáció hozzáadva
         }
 
-        double biasGradient = gradientClipper.clip(adjustedDelta);
-        bias += learningRate * biasGradient;
+        biasGradient = gradientClipper.clip(biasGradient);
+        bias -= learningRate * biasGradient;
+
+        // Debug információ
+        /*
+        System.out.println("Weight update - Gradients: " + Arrays.toString(weightGradients) +
+                ", Learning rate: " + learningRate +
+                ", New weights: " + Arrays.toString(weights));
+         */
+
     }
 
     public double[] getWeights() {
@@ -71,6 +67,10 @@ public class Neuron implements Serializable {
 
     public double getBias() {
         return bias;
+    }
+
+    public void setBias(double bias) {
+        this.bias = bias;
     }
 
     public Activation getActivation() {
