@@ -193,6 +193,13 @@ public class BatchNormalizer implements Serializable {
         return outputs;
     }
 
+    /**
+     * Backward normalizing.
+     *
+     * @param gradOutput outputs
+     *
+     * @return inputs
+     */
     public double[] backward(double[] gradOutput) {
         double[][] batchGradOutput = new double[][]{gradOutput};
         double[][] batchGradInput = backwardBatch(batchGradOutput);
@@ -235,8 +242,8 @@ public class BatchNormalizer implements Serializable {
             double invStd = 1.0 / Math.sqrt(batchVariance[i] + epsilon);
 
             for (int j = 0; j < currentBatchSize; j++) {
-                double xNorm = (batchInputs[j][i] - batchMean[i]) * invStd;
-                gradGamma[i] += gradOutputs[j][i] * xNorm;
+                double xnorm = (batchInputs[j][i] - batchMean[i]) * invStd;
+                gradGamma[i] += gradOutputs[j][i] * xnorm;
                 gradBeta[i] += gradOutputs[j][i];
                 gradInputs[j][i] = gradOutputs[j][i] * gamma[i] * invStd;
             }

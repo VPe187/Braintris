@@ -1,13 +1,20 @@
 package hu.nye.vpe.nn;
 
-
-import hu.nye.vpe.GlobalConfig;
-
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import hu.nye.vpe.GlobalConfig;
+
+/**
+ * Neural network class.
+ */
 public class NeuralNetwork implements Serializable {
     private static final String FILENAME = GlobalConfig.getInstance().getBrainFilename();
     private static final double CLIP_MIN = GlobalConfig.getInstance().getClipMin();
@@ -64,6 +71,7 @@ public class NeuralNetwork implements Serializable {
         for (int i = 0; i < layerSizes.length - 1; i++) {
             int inputSize = layerSizes[i];
             int outputSize = layerSizes[i + 1];
+
             layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i],
                     gradientClipper, l2[i], batchNormParameters[i], learningRate));
         }
@@ -198,9 +206,7 @@ public class NeuralNetwork implements Serializable {
 
             if (experienceReplay.size() >= EXPERIENCE_BATCH_SIZE) {
                 List<Experience> batch = experienceReplay.sample(EXPERIENCE_BATCH_SIZE);
-                for (Experience exp : batch) {
-                    learnFromExperience(exp);
-                }
+                processBatchWithExperience(batch);
             }
         } else {
             double[] currentQValues = forward(state);
@@ -218,11 +224,11 @@ public class NeuralNetwork implements Serializable {
             targetBatch.add(targetQValues);
 
             if (inputBatch.size() == EXPERIENCE_BATCH_SIZE) {
-                processBatch();
+                processBatchWithoutExperience();
             }
-
-            lastReward = reward;
         }
+
+        lastReward = reward;
 
         if (gameOver) {
             if (reward > this.bestScore) {
@@ -234,6 +240,40 @@ public class NeuralNetwork implements Serializable {
             this.episodeCount++;
             updateMovingAverage(reward);
         }
+    }
+
+    private void processBatchWithExperience(List<Experience> batch) {
+        double[][] inputs = new double[EXPERIENCE_BATCH_SIZE][];
+        double[][] targets = new double[EXPERIENCE_BATCH_SIZE][];
+
+        for (int i = 0; i < EXPERIENCE_BATCH_SIZE; i++) {
+            Experience exp = batch.get(i);
+            double[] currentQValues = forward(exp.state);
+            double[] nextQValues = forward(exp.nextState);
+            double maxNextQ = max(nextQValues);
+
+            double normalizedReward = exp.reward / Math.sqrt(exp.reward * exp.reward + 1);
+            double target = normalizedReward + (exp.done ? 0 : discountFactor * maxNextQ);
+            target = Math.max(MIN_Q, Math.min(MAX_Q, target));
+
+            double[] targetQValues = currentQValues.clone();
+            targetQValues[exp.action] = target;
+
+            inputs[i] = exp.state;
+            targets[i] = targetQValues;
+        }
+
+        backwardPass(inputs, targets);
+    }
+
+    private void processBatchWithoutExperience() {
+        double[][] inputs = inputBatch.toArray(new double[0][]);
+        double[][] targets = targetBatch.toArray(new double[0][]);
+
+        backwardPass(inputs, targets);
+
+        inputBatch.clear();
+        targetBatch.clear();
     }
 
     private void learnFromExperience(Experience experience) {

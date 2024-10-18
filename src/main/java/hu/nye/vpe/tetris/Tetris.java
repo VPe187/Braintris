@@ -2,13 +2,13 @@ package hu.nye.vpe.tetris;
 
 import java.awt.Graphics2D;
 
+import hu.nye.vpe.GlobalConfig;
 import hu.nye.vpe.gaming.GameAudio;
 import hu.nye.vpe.gaming.GameColorPalette;
 import hu.nye.vpe.gaming.GameInput;
 import hu.nye.vpe.gaming.GameStarfield;
 import hu.nye.vpe.gaming.GameState;
 import hu.nye.vpe.gaming.GameTimeTicker;
-import hu.nye.vpe.GlobalConfig;
 import hu.nye.vpe.nn.Activation;
 import hu.nye.vpe.nn.BatchNormParameters;
 import hu.nye.vpe.nn.InputNormalizerMinmax;

@@ -267,8 +267,9 @@ public class StackUI implements GameElement, StackComponent {
                             }
                         } else {
                             if (stackManager.getCurrentTetromino() != null && j >= stackManager.getCurrentTetromino().getStackCol() &&
-                                j <= stackManager.getCurrentTetromino().getStackCol() + stackManager.getCurrentTetromino().getHeightPoints() - 1 &&
-                                i >= stackManager.getCurrentTetromino().getStackRow()) {
+                                j <= stackManager.getCurrentTetromino().getStackCol() +
+                                    stackManager.getCurrentTetromino().getHeightPoints() - 1 &&
+                                    i >= stackManager.getCurrentTetromino().getStackRow()) {
                                 g2D.setColor(new Color(stackManager.getCurrentTetromino().getColor().getRed(),
                                     stackManager.getCurrentTetromino().getColor().getGreen(),
                                     stackManager.getCurrentTetromino().getColor().getBlue(), 10));
@@ -297,7 +298,8 @@ public class StackUI implements GameElement, StackComponent {
      */
     private void renderHelper(Graphics2D g2D) {
         if (stackManager.getCurrentTetromino() != null) {
-            int yoffset = stackManager.howFarFromDown(stackManager.getStackArea(), stackManager.getCurrentTetromino()) - GameConstans.ROW_OFFSET + 1;
+            int yoffset = stackManager.howFarFromDown(stackManager.getStackArea(), stackManager.getCurrentTetromino()) -
+                    GameConstans.ROW_OFFSET + 1;
             for (int i = 0; i < stackManager.getCurrentTetromino().getPixels().length; i++) {
                 for (int j = 0; j < stackManager.getCurrentTetromino().getPixels()[i].length; j++) {
                     if (stackManager.getCurrentTetromino().getPixels()[i][j] != 0) {
@@ -341,8 +343,10 @@ public class StackUI implements GameElement, StackComponent {
                     (GameConstans.BLOCK_SIZE / 4), GameConstans.BLOCK_SIZE - (GameConstans.BLOCK_SIZE / 4) * 2,
                     GameConstans.BLOCK_SIZE - (GameConstans.BLOCK_SIZE / 4) * 2);
         }
-        g2D.setColor(new Color(stackManager.getStackArea()[i][j].getColor().getRed(), stackManager.getStackArea()[i][j].getColor().getGreen(),
-                stackManager.getStackArea()[i][j].getColor().getBlue(), GameConstans.BONUS_COLOR_ALPHA));
+        g2D.setColor(new Color(stackManager.getStackArea()[i][j].getColor().getRed(),
+                stackManager.getStackArea()[i][j].getColor().getGreen(),
+                stackManager.getStackArea()[i][j].getColor().getBlue(),
+                GameConstans.BONUS_COLOR_ALPHA));
         int x1 = GameConstans.STACK_X + (j * GameConstans.BLOCK_SIZE) + (GameConstans.BLOCK_SIZE / 4) + 4;
         if (upSideDown) {
             g2D.fillOval(x1,

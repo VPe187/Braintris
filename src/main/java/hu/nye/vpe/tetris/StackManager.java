@@ -2,7 +2,6 @@ package hu.nye.vpe.tetris;
 
 import java.awt.Color;
 import java.util.Random;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import hu.nye.vpe.gaming.GameAudio;
@@ -72,6 +71,9 @@ public class StackManager implements StackComponent {
         }
     }
 
+    /**
+     * Simulated stack drop.
+     */
     public void simulateStackDrop() {
         if (currentTetromino == null) {
             return;
@@ -108,7 +110,7 @@ public class StackManager implements StackComponent {
     /**
      * putTetromino method.
      */
-    public void putTetromino(Cell[][] stackArea,Tetromino tetromino) {
+    public void putTetromino(Cell[][] stackArea, Tetromino tetromino) {
         for (int i = 0; i < tetromino.getPixels().length; i++) {
             for (int j = 0; j < tetromino.getPixels()[i].length; j++) {
                 if (tetromino.getPixels()[i][j] != 0) {
@@ -178,9 +180,9 @@ public class StackManager implements StackComponent {
      */
     protected boolean moveTetrominoDown(Cell[][] stackArea, Tetromino tetromino) {
         if (!isTetrominoDown(stackArea, tetromino)) {
-            removeTetromino(stackArea,tetromino);
+            removeTetromino(stackArea, tetromino);
             tetromino.setRowPosition(tetromino.getStackRow() + 1);
-            putTetromino(stackArea,tetromino);
+            putTetromino(stackArea, tetromino);
             simulateStackDrop();
             return false;
         } else {

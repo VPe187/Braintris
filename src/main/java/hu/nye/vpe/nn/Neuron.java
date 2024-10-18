@@ -1,7 +1,6 @@
 package hu.nye.vpe.nn;
 
 import java.io.Serializable;
-import java.util.Arrays;
 
 /**
  * Neuron class.
@@ -31,34 +30,47 @@ public class Neuron implements Serializable {
     /**
      * Activate neuron.
      *
-     * @param inputs data of inputs
+     * @param input data of inputs
      *
      * @return activated data of inputs
      */
-    public double activate(double[] inputs) {
-        double sum = bias;
-        for (int i = 0; i < inputs.length; i++) {
-            sum += inputs[i] * weights[i];
-        }
-        return Activation.activate(sum, activation);
+    public double activate(double input) {
+        return Activation.activate(input, activation);
     }
 
+    /**
+     * Update weights.
+     *
+     * @param weightGradients gradients weight
+     *
+     * @param biasGradient gradients biases
+     *
+     * @param learningRate learning rate
+     */
     public void updateWeights(double[] weightGradients, double biasGradient, double learningRate) {
         for (int i = 0; i < weights.length; i++) {
             double gradient = gradientClipper.clip(weightGradients[i]);
-            weights[i] -= learningRate * (gradient + lambdaL2 * weights[i]);  // L2 regularizáció hozzáadva
+            weights[i] -= learningRate * (gradient + lambdaL2 * weights[i]);  // L2 regularizáció
         }
 
         biasGradient = gradientClipper.clip(biasGradient);
         bias -= learningRate * biasGradient;
 
-        // Debug információ
-        /*
-        System.out.println("Weight update - Gradients: " + Arrays.toString(weightGradients) +
-                ", Learning rate: " + learningRate +
-                ", New weights: " + Arrays.toString(weights));
-         */
+    }
 
+    /**
+     * Linear transform.
+     *
+     * @param inputs
+     *
+     * @return transformed summa
+     */
+    public double linearTransform(double[] inputs) {
+        double sum = bias;
+        for (int i = 0; i < inputs.length; i++) {
+            sum += inputs[i] * weights[i];
+        }
+        return sum;
     }
 
     public double[] getWeights() {

@@ -2,8 +2,8 @@ package hu.nye.vpe;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Properties;
 import java.util.Arrays;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -11,6 +11,9 @@ import hu.nye.vpe.nn.Activation;
 import hu.nye.vpe.nn.BatchNormParameters;
 import hu.nye.vpe.nn.WeightInitStrategy;
 
+/**
+ * Global config class.
+ */
 public class GlobalConfig {
     private static final String CONFIG_FILE = "config.properties";
     private static GlobalConfig instance;
@@ -26,6 +29,11 @@ public class GlobalConfig {
         }
     }
 
+    /**
+     *  Global config get instance.
+     *
+     * @return instance
+     */
     public static GlobalConfig getInstance() {
         if (instance == null) {
             instance = new GlobalConfig();
@@ -53,7 +61,7 @@ public class GlobalConfig {
         return Double.parseDouble(properties.getProperty(key, String.valueOf(defaultValue)));
     }
 
-    public int getInt(String key, int defaultValue) {
+    private int getInt(String key, int defaultValue) {
         String value = properties.getProperty(key);
         if (value == null) {
             System.err.println("Warning: Property " + key + " not found. Using default value: " + defaultValue);
@@ -68,11 +76,11 @@ public class GlobalConfig {
         }
     }
 
-    public boolean getBoolean(String key, boolean defaultValue) {
+    private boolean getBoolean(String key, boolean defaultValue) {
         return Boolean.parseBoolean(properties.getProperty(key, String.valueOf(defaultValue)));
     }
 
-    public String getString(String key, String defaultValue) {
+    private String getString(String key, String defaultValue) {
         return properties.getProperty(key, defaultValue);
     }
 
@@ -144,11 +152,21 @@ public class GlobalConfig {
         return getBoolean("NORMALIZE_FEED_DATA", true);
     }
 
+    /**
+     * Get layer names.
+     *
+     * @return layer names
+     */
     public String[] getLayerNames() {
         String namesString = properties.getProperty("NAMES", "INP,H1,H2,H3,H4,OUT");
         return namesString.split(",");
     }
 
+    /**
+     * Get layer sizes.
+     *
+     * @return layer sizes.
+     */
     public int[] getLayerSizes() {
         String sizeString = properties.getProperty("LAYER_SIZES", "${FEED_DATA_SIZE},64,32,16,32,${OUTPUT_NODES}");
         sizeString = resolveValue(sizeString);
@@ -157,6 +175,11 @@ public class GlobalConfig {
                 .toArray();
     }
 
+    /**
+     * Get layer activations.
+     *
+     * @return layer activations.
+     */
     public Activation[] getLayerActivations() {
         String activationsString = properties.getProperty("LAYER_ACTIVATIONS", "LEAKY_RELU,LEAKY_RELU,LEAKY_RELU,LEAKY_RELU,LINEAR");
         Activation[] activations = Arrays.stream(activationsString.split(","))
@@ -177,6 +200,11 @@ public class GlobalConfig {
         return activations;
     }
 
+    /**
+     * Get weight init strategies.
+     *
+     * @return weight init strategies
+     */
     public WeightInitStrategy[] getWeightInitStrategies() {
         String strategiesString = properties.getProperty("WEIGHT_INIT_STRATEGIES", "HE,HE,HE,HE,XAVIER");
         WeightInitStrategy[] strategies = Arrays.stream(strategiesString.split(","))
@@ -197,6 +225,11 @@ public class GlobalConfig {
         return strategies;
     }
 
+    /**
+     * Get batch normalizers parameters.
+     *
+     * @return batch normalizers parameters.
+     */
     public BatchNormParameters[] getBatchNorms() {
         String batchNormString = properties.getProperty("BATCH_NORMS", "");
         BatchNormParameters[] batchNorms;
@@ -239,16 +272,31 @@ public class GlobalConfig {
         return batchNorms;
     }
 
+    /**
+     * Get lambda 2 regularizations.
+     *
+     * @return regularizations
+     */
     public double[] getL2Regularization() {
         return Arrays.stream(properties.getProperty("L2_REGULARIZATION", "").split(","))
                 .mapToDouble(Double::parseDouble)
                 .toArray();
     }
 
+    /**
+     * Get clipping min.
+     *
+     * @return clipping min.
+     */
     public double getClipMin() {
         return getDouble("CLIP_MIN", -1.0);
     }
 
+    /**
+     * Get clipping max.
+     *
+     * @return clipping max.
+     */
     public double getClipMax() {
         return getDouble("CLIP_MAX", 1.0);
     }
