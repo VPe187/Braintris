@@ -13,10 +13,10 @@ public class Layer implements Serializable {
     private final Activation activation;
     private final WeightInitStrategy initStrategy;
     private final GradientClipper gradientClipper;
-    private String name;
+    private final String name;
     private BatchNormalizer batchNormalizer;
     private double learningRate;
-    private boolean useBatchNorm;
+    private final boolean useBatchNorm;
     private double[][] batchOutputs;
 
     public Layer(String name, int inputSize, int ouputSize, Activation activation, WeightInitStrategy initStrategy,
@@ -61,9 +61,14 @@ public class Layer implements Serializable {
             linearOutputs = batchNormalizer.forward(linearOutputs, isTraining);
         }
 
-        double[] activatedOutputs = new double[neurons.size()];
-        for (int i = 0; i < neurons.size(); i++) {
-            activatedOutputs[i] = neurons.get(i).activate(linearOutputs[i]);
+        double[] activatedOutputs;
+        if (activation == Activation.SOFTMAX) {
+            activatedOutputs = Activation.activate(linearOutputs, activation);
+        } else {
+            activatedOutputs = new double[neurons.size()];
+            for (int i = 0; i < neurons.size(); i++) {
+                activatedOutputs[i] = neurons.get(i).activate(linearOutputs[i]);
+            }
         }
 
         return activatedOutputs;
@@ -84,22 +89,25 @@ public class Layer implements Serializable {
         double[][] linearOutputs = new double[batchSize][neurons.size()];
         double[][] outputs = new double[batchSize][neurons.size()];
 
-        // Lineáris transzformáció
         for (int b = 0; b < batchSize; b++) {
             for (int i = 0; i < neurons.size(); i++) {
                 linearOutputs[b][i] = neurons.get(i).linearTransform(inputs[b]);
             }
         }
 
-        // Batch normalizáció (ha használjuk)
         if (useBatchNorm) {
             linearOutputs = batchNormalizer.forwardBatch(linearOutputs, isTraining);
         }
 
-        // Aktivációs függvény alkalmazása
-        for (int b = 0; b < batchSize; b++) {
-            for (int i = 0; i < neurons.size(); i++) {
-                outputs[b][i] = neurons.get(i).activate(linearOutputs[b][i]);
+        if (activation == Activation.SOFTMAX) {
+            for (int b = 0; b < batchSize; b++) {
+                outputs[b] = Activation.activate(linearOutputs[b], activation);
+            }
+        } else {
+            for (int b = 0; b < batchSize; b++) {
+                for (int i = 0; i < neurons.size(); i++) {
+                    outputs[b][i] = neurons.get(i).activate(linearOutputs[b][i]);
+                }
             }
         }
 
@@ -133,24 +141,48 @@ public class Layer implements Serializable {
         }
 
         for (int b = 0; b < batchSize; b++) {
-            for (int i = 0; i < outputSize; i++) {
-                Neuron neuron = neurons.get(i);
-                double neuronDelta = nextLayerDeltas[b][i];
-
-                double derivativeValue = Activation.derivative(batchOutputs[b][i], activation);
-                neuronDelta *= derivativeValue;
-
-                double[] weights = neuron.getWeights();
-                for (int j = 0; j < inputSize; j++) {
-                    double gradientUpdate = neuronDelta * inputs[b][j];
-                    weightGradients[i][j] += gradientUpdate;
-                    inputGradients[b][j] += neuronDelta * weights[j];
+            double[] derivativeValues;
+            if (activation == Activation.SOFTMAX) {
+                derivativeValues = Activation.derivative(batchOutputs[b], activation);
+            } else {
+                derivativeValues = new double[outputSize];
+                for (int i = 0; i < outputSize; i++) {
+                    derivativeValues[i] = Activation.derivative(new double[]{batchOutputs[b][i]}, activation)[0];
                 }
-                biasGradients[i] += neuronDelta;
+            }
+
+            if (activation == Activation.SOFTMAX) {
+                // For SOFTMAX, we need to handle the Jacobian matrix
+                for (int i = 0; i < outputSize; i++) {
+                    double neuronDelta = 0;
+                    for (int j = 0; j < outputSize; j++) {
+                        neuronDelta += nextLayerDeltas[b][j] * derivativeValues[j * outputSize + i];
+                    }
+
+                    double[] weights = neurons.get(i).getWeights();
+                    for (int j = 0; j < inputSize; j++) {
+                        double gradientUpdate = neuronDelta * inputs[b][j];
+                        weightGradients[i][j] += gradientUpdate;
+                        inputGradients[b][j] += neuronDelta * weights[j];
+                    }
+                    biasGradients[i] += neuronDelta;
+                }
+            } else {
+                for (int i = 0; i < outputSize; i++) {
+                    double neuronDelta = nextLayerDeltas[b][i] * derivativeValues[i];
+
+                    double[] weights = neurons.get(i).getWeights();
+                    for (int j = 0; j < inputSize; j++) {
+                        double gradientUpdate = neuronDelta * inputs[b][j];
+                        weightGradients[i][j] += gradientUpdate;
+                        inputGradients[b][j] += neuronDelta * weights[j];
+                    }
+                    biasGradients[i] += neuronDelta;
+                }
             }
         }
 
-        // Átlagoljuk a gradienseket a batch méretével
+        // Average gradients over batch
         for (int i = 0; i < outputSize; i++) {
             for (int j = 0; j < inputSize; j++) {
                 weightGradients[i][j] /= batchSize;
@@ -158,13 +190,12 @@ public class Layer implements Serializable {
             biasGradients[i] /= batchSize;
         }
 
-        // Frissítjük minden neuron súlyait és bias értékét
+        // Update weights and biases
         for (int i = 0; i < outputSize; i++) {
             Neuron neuron = neurons.get(i);
             neuron.updateWeights(weightGradients[i], biasGradients[i], this.learningRate);
         }
 
-        // Gradiens vágás alkalmazása az inputGradients-re
         for (int b = 0; b < batchSize; b++) {
             inputGradients[b] = gradientClipper.scaleAndClip(inputGradients[b]);
         }

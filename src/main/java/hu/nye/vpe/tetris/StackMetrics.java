@@ -162,7 +162,7 @@ public class StackMetrics implements StackComponent {
             }
 
             if (foundNonEmptyRow) {
-                if (filledCells >= GameConstans.COLS - 3 && filledCells < GameConstans.COLS) {  // 9 - 11 kitöltött cella 12-ből
+                if (filledCells >= GameConstans.COLS - 3 && filledCells < GameConstans.COLS) {
                     nearlyFullRows++;
                 }
 

@@ -594,11 +594,11 @@ public class StackManager implements StackComponent {
         while (tetromino.getStackCol() != targetX) {
             if (tetromino.getStackCol() < targetX) {
                 if (!moveTetrominoRight(stackArea, tetromino)) {
-                    break; // Ha nem tudunk jobbra mozogni, kilépünk
+                    break;
                 }
             } else {
                 if (!moveTetrominoLeft(stackArea, tetromino)) {
-                    break; // Ha nem tudunk balra mozogni, kilépünk
+                    break;
                 }
             }
         }

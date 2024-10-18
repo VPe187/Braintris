@@ -35,7 +35,7 @@ public class Neuron implements Serializable {
      * @return activated data of inputs
      */
     public double activate(double input) {
-        return Activation.activate(input, activation);
+        return Activation.activate(new double[]{input}, activation)[0];
     }
 
     /**
@@ -50,7 +50,7 @@ public class Neuron implements Serializable {
     public void updateWeights(double[] weightGradients, double biasGradient, double learningRate) {
         for (int i = 0; i < weights.length; i++) {
             double gradient = gradientClipper.clip(weightGradients[i]);
-            weights[i] -= learningRate * (gradient + lambdaL2 * weights[i]);  // L2 regularizáció
+            weights[i] -= learningRate * (gradient + lambdaL2 * weights[i]);
         }
 
         biasGradient = gradientClipper.clip(biasGradient);

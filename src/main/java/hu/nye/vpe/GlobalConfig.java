@@ -186,14 +186,13 @@ public class GlobalConfig {
                 .map(Activation::valueOf)
                 .toArray(Activation[]::new);
 
-        // Ensure consistency with layer sizes
         int[] layerSizes = getLayerSizes();
         if (activations.length != layerSizes.length - 1) {
             System.err.println("Warning: LAYER_ACTIVATIONS length does not match LAYER_SIZES. Adjusting...");
             Activation[] adjustedActivations = new Activation[layerSizes.length - 1];
             System.arraycopy(activations, 0, adjustedActivations, 0, Math.min(activations.length, adjustedActivations.length));
             for (int i = activations.length; i < adjustedActivations.length; i++) {
-                adjustedActivations[i] = Activation.LEAKY_RELU; // Default activation
+                adjustedActivations[i] = Activation.LEAKY_RELU;
             }
             return adjustedActivations;
         }
@@ -211,14 +210,13 @@ public class GlobalConfig {
                 .map(WeightInitStrategy::valueOf)
                 .toArray(WeightInitStrategy[]::new);
 
-        // Ensure consistency with layer sizes
         int[] layerSizes = getLayerSizes();
         if (strategies.length != layerSizes.length - 1) {
             System.err.println("Warning: WEIGHT_INIT_STRATEGIES length does not match LAYER_SIZES. Adjusting...");
             WeightInitStrategy[] adjustedStrategies = new WeightInitStrategy[layerSizes.length - 1];
             System.arraycopy(strategies, 0, adjustedStrategies, 0, Math.min(strategies.length, adjustedStrategies.length));
             for (int i = strategies.length; i < adjustedStrategies.length; i++) {
-                adjustedStrategies[i] = WeightInitStrategy.HE; // Default strategy
+                adjustedStrategies[i] = WeightInitStrategy.HE;
             }
             return adjustedStrategies;
         }
@@ -258,14 +256,13 @@ public class GlobalConfig {
                     .toArray(BatchNormParameters[]::new);
         }
 
-        // Ensure consistency with layer sizes
         int[] layerSizes = getLayerSizes();
         if (batchNorms.length != layerSizes.length - 1) {
             System.err.println("Warning: USE_BATCH_NORM length does not match LAYER_SIZES. Adjusting...");
             BatchNormParameters[] adjustedBatchNorms = new BatchNormParameters[layerSizes.length - 1];
             System.arraycopy(batchNorms, 0, adjustedBatchNorms, 0, Math.min(batchNorms.length, adjustedBatchNorms.length));
             for (int i = batchNorms.length; i < adjustedBatchNorms.length; i++) {
-                adjustedBatchNorms[i] = new BatchNormParameters(false, 1.0, 0.0); // Default batch norm parameters
+                adjustedBatchNorms[i] = new BatchNormParameters(false, 1.0, 0.0);
             }
             return adjustedBatchNorms;
         }
@@ -369,5 +366,17 @@ public class GlobalConfig {
 
     public int getExperienceBatchSize() {
         return getInt("EXPERIENCE_BATCH_SIZE", 1000);
+    }
+
+    public double getBatchEpsilon() {
+        return getDouble("BATCH_DEFAULT_EPSILON", 1e-5);
+    }
+
+    public double getBatchMomentum() {
+        return getDouble("BATCH_DEFAULT_MOMENTUM", 0.99);
+    }
+
+    public String getFeedDataNormalizer() {
+        return getString("FEED_DATA_NORMALIZER", "MINMAX");
     }
 }

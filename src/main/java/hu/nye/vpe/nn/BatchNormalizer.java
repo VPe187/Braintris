@@ -3,12 +3,14 @@ package hu.nye.vpe.nn;
 import java.io.Serializable;
 import java.util.Arrays;
 
+import hu.nye.vpe.GlobalConfig;
+
 /**
  * Batch normalizer class.
  */
 public class BatchNormalizer implements Serializable {
-    private static final double DEFAULT_EPSILON = 1e-5;
-    private static final double DEFAULT_MOMENTUM = 0.99;
+    private static final double DEFAULT_EPSILON = GlobalConfig.getInstance().getBatchEpsilon();
+    private static final double DEFAULT_MOMENTUM = GlobalConfig.getInstance().getBatchMomentum();
 
     private final int size;
     private final int batchSize;
@@ -73,37 +75,34 @@ public class BatchNormalizer implements Serializable {
     }
 
     private void processBatch() {
+        int currentBatchSize = batchIndex;
         double[] batchMean = new double[size];
         double[] batchVariance = new double[size];
 
-        // Calculate batch mean
         for (int i = 0; i < size; i++) {
             double sum = 0;
-            for (int j = 0; j < batchSize; j++) {
+            for (int j = 0; j < currentBatchSize; j++) {
                 sum += batchInputs[j][i];
             }
-            batchMean[i] = sum / batchSize;
+            batchMean[i] = sum / currentBatchSize;
         }
 
-        // Calculate batch variance
         for (int i = 0; i < size; i++) {
             double sum = 0;
-            for (int j = 0; j < batchSize; j++) {
+            for (int j = 0; j < currentBatchSize; j++) {
                 double diff = batchInputs[j][i] - batchMean[i];
                 sum += diff * diff;
             }
-            batchVariance[i] = sum / batchSize;
+            batchVariance[i] = sum / currentBatchSize;
         }
 
-        // Normalize and scale
         for (int i = 0; i < size; i++) {
             double invStd = 1.0 / Math.sqrt(batchVariance[i] + epsilon);
-            for (int j = 0; j < batchSize; j++) {
+            for (int j = 0; j < currentBatchSize; j++) {
                 batchNormalized[j][i] = ((batchInputs[j][i] - batchMean[i]) * invStd * gamma[i]) + beta[i];
             }
         }
 
-        // Update running statistics
         for (int i = 0; i < size; i++) {
             runningMean[i] = momentum * runningMean[i] + (1 - momentum) * batchMean[i];
             runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * batchVariance[i];
@@ -140,7 +139,6 @@ public class BatchNormalizer implements Serializable {
         double[] batchMean = new double[size];
         double[] batchVariance = new double[size];
 
-        // Calculate batch mean
         for (int i = 0; i < size; i++) {
             double sum = 0;
             for (int j = 0; j < currentBatchSize; j++) {
@@ -149,7 +147,6 @@ public class BatchNormalizer implements Serializable {
             batchMean[i] = sum / currentBatchSize;
         }
 
-        // Calculate batch variance
         for (int i = 0; i < size; i++) {
             double sum = 0;
             for (int j = 0; j < currentBatchSize; j++) {
@@ -159,7 +156,6 @@ public class BatchNormalizer implements Serializable {
             batchVariance[i] = sum / currentBatchSize;
         }
 
-        // Normalize and scale
         for (int i = 0; i < size; i++) {
             double invStd = 1.0 / Math.sqrt(batchVariance[i] + epsilon);
             for (int j = 0; j < currentBatchSize; j++) {
@@ -167,7 +163,6 @@ public class BatchNormalizer implements Serializable {
             }
         }
 
-        // Update running statistics
         for (int i = 0; i < size; i++) {
             runningMean[i] = momentum * runningMean[i] + (1 - momentum) * batchMean[i];
             runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * batchVariance[i];
@@ -218,26 +213,29 @@ public class BatchNormalizer implements Serializable {
         double[] gradGamma = new double[size];
         double[] gradBeta = new double[size];
 
-        // Calculate batch mean and variance
         double[] batchMean = new double[size];
         double[] batchVariance = new double[size];
 
         for (int i = 0; i < size; i++) {
             double sum = 0;
+            double sumSquares = 0;
             for (int j = 0; j < currentBatchSize; j++) {
                 sum += batchInputs[j][i];
+                sumSquares += batchInputs[j][i] * batchInputs[j][i];
             }
             batchMean[i] = sum / currentBatchSize;
+            batchVariance[i] = (sumSquares / currentBatchSize) - (batchMean[i] * batchMean[i]);
 
+            /*
             double sumSquares = 0;
             for (int j = 0; j < currentBatchSize; j++) {
                 double diff = batchInputs[j][i] - batchMean[i];
                 sumSquares += diff * diff;
             }
             batchVariance[i] = sumSquares / currentBatchSize;
+             */
         }
 
-        // Calculate gradients
         for (int i = 0; i < size; i++) {
             double invStd = 1.0 / Math.sqrt(batchVariance[i] + epsilon);
 
@@ -249,7 +247,6 @@ public class BatchNormalizer implements Serializable {
             }
         }
 
-        // Update parameters
         for (int i = 0; i < size; i++) {
             gamma[i] -= learningRate * gradGamma[i] / currentBatchSize;
             beta[i] -= learningRate * gradBeta[i] / currentBatchSize;

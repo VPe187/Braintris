@@ -52,9 +52,6 @@ public class GradientClipper implements Serializable {
     public double[] clipByNorm(double[] gradients) {
         double[] clippedGradients = gradients.clone();
         double norm = calculateNorm(clippedGradients);
-
-        //System.out.println(norm);
-
         if (norm > clipNorm) {
             double scale = clipNorm / (norm + EPSILON);
             for (int i = 0; i < clippedGradients.length; i++) {

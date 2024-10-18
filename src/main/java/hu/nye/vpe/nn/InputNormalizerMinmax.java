@@ -26,14 +26,14 @@ public class InputNormalizerMinmax {
         min = Double.POSITIVE_INFINITY;
         max = Double.NEGATIVE_INFINITY;
         for (double value : data) {
-            if (value > 1) {
-                if (value < min) {
-                    min = value;
-                }
-                if (value > max) {
-                    max = value;
-                }
+            if (value < min) {
+                min = value;
             }
+            if (value > max) {
+                max = value;
+            }
+            //if (value > 1) {
+            //}
         }
 
         isFitted = true;
@@ -57,15 +57,15 @@ public class InputNormalizerMinmax {
         double[] normalizedData = new double[data.length];
         for (int i = 0; i < data.length; i++) {
             double value = data[i];
-            if (value > 1) {
-                if (max != min) {
-                    normalizedData[i] = (value - min) / (max - min);
-                } else {
-                    normalizedData[i] = 0.0;
-                }
+            if (max != min) {
+                normalizedData[i] = (value - min) / (max - min);
             } else {
-                normalizedData[i] = value;
+                normalizedData[i] = 0.0;
             }
+            //if (value > 1) {
+            //} else {
+            //    normalizedData[i] = value;
+            //}
         }
 
         return normalizedData;

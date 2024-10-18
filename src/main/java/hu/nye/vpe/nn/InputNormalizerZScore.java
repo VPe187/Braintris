@@ -26,11 +26,14 @@ public class InputNormalizerZScore {
         }
 
         mean = Arrays.stream(data).average().orElse(0.0);
-        double variance = Arrays.stream(data)
-                .map(value -> Math.pow(value - mean, 2))
-                .average()
-                .orElse(0.0);
-        standardDeviation = Math.sqrt(variance);
+
+        double sumSquaredDiff = 0.0;
+        for (double value : data) {
+            double diff = value - mean;
+            sumSquaredDiff += diff * diff;
+        }
+
+        standardDeviation = Math.sqrt(sumSquaredDiff / data.length);
         isFitted = true;
     }
 

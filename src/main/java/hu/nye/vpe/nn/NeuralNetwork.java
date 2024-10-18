@@ -129,7 +129,6 @@ public class NeuralNetwork implements Serializable {
         int batchSize = batchInputs.length;
         List<double[][]> allLayerOutputs = new ArrayList<>();
 
-        // Forward pass
         double[][] currentInputs = batchInputs;
         allLayerOutputs.add(currentInputs);
 
@@ -138,7 +137,6 @@ public class NeuralNetwork implements Serializable {
             allLayerOutputs.add(currentInputs);
         }
 
-        // Backward pass
         double[][] deltas = new double[batchSize][layers.get(layers.size() - 1).getSize()];
         for (int i = 0; i < batchSize; i++) {
             for (int j = 0; j < deltas[i].length; j++) {
@@ -152,23 +150,6 @@ public class NeuralNetwork implements Serializable {
             deltas = gradients.inputGradients;
         }
     }
-
-    private void processBatch() {
-        double[][] batchInputs = new double[EXPERIENCE_BATCH_SIZE][];
-        double[][] batchTargets = new double[EXPERIENCE_BATCH_SIZE][];
-
-        for (int i = 0; i < EXPERIENCE_BATCH_SIZE; i++) {
-            batchInputs[i] = inputBatch.get(i);
-            batchTargets[i] = targetBatch.get(i);
-        }
-
-        backwardPass(batchInputs, batchTargets);
-
-        // Batch adatok törlése
-        inputBatch.clear();
-        targetBatch.clear();
-    }
-
 
     /**
      * Select action from network.
@@ -274,28 +255,6 @@ public class NeuralNetwork implements Serializable {
 
         inputBatch.clear();
         targetBatch.clear();
-    }
-
-    private void learnFromExperience(Experience experience) {
-        double[] currentQValues = forward(experience.state);
-        double[] nextQValues = forward(experience.nextState);
-        double maxNextQ = max(nextQValues);
-
-        double normalizedReward = experience.reward / Math.sqrt(experience.reward * experience.reward + 1);
-        double target = normalizedReward + (experience.done ? 0 : discountFactor * maxNextQ);
-        target = Math.max(MIN_Q, Math.min(MAX_Q, target));
-
-        double[] targetQValues = currentQValues.clone();
-        targetQValues[experience.action] = target;
-
-        inputBatch.add(experience.state);
-        targetBatch.add(targetQValues);
-
-        if (inputBatch.size() == EXPERIENCE_BATCH_SIZE) {
-            processBatch();
-        }
-
-        lastReward = experience.reward;
     }
 
     private void updateMovingAverage(double reward) {
