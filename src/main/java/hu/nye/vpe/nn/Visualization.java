@@ -91,59 +91,16 @@ public class Visualization implements GameElement {
     private void updateNetworkData() {
         this.layerSizes = network.getLayerSizes();
         this.activations = network.getLastActivations();
-        double[][][] currentWeights = network.getAllWeights();
+        this.weights = network.getAllWeights();
 
-        if (this.previousWeights != null) {
-            this.averageWeightChange = calculateAverageWeightChange(this.previousWeights, currentWeights);
-            this.weightChanges = calculateWeightChanges(this.previousWeights, currentWeights);
-        }
-        this.previousWeights = deepCopy(currentWeights);
-        this.weights = currentWeights;
-        calculateStatistics();
-    }
+        network.updateStatistics();
 
-    private double[][][] calculateWeightChanges(double[][][] oldWeights, double[][][] newWeights) {
-        double[][][] changes = new double[oldWeights.length][][];
-        for (int i = 0; i < oldWeights.length; i++) {
-            changes[i] = new double[oldWeights[i].length][];
-            for (int j = 0; j < oldWeights[i].length; j++) {
-                changes[i][j] = new double[oldWeights[i][j].length];
-                for (int k = 0; k < oldWeights[i][j].length; k++) {
-                    changes[i][j][k] = newWeights[i][j][k] - oldWeights[i][j][k];
-                }
-            }
-        }
-        return changes;
-    }
-
-    private double[][][] deepCopy(double[][][] original) {
-        double[][][] copy = new double[original.length][][];
-        for (int i = 0; i < original.length; i++) {
-            copy[i] = new double[original[i].length][];
-            for (int j = 0; j < original[i].length; j++) {
-                copy[i][j] = original[i][j].clone();
-            }
-        }
-        return copy;
-    }
-
-    private double calculateAverageWeightChange(double[][][] oldWeights, double[][][] newWeights) {
-        double totalChange = 0.0;
-        long weightCount = 0;
-        double maxChange = 0.0;
-
-        for (int i = 0; i < oldWeights.length; i++) {
-            for (int j = 0; j < oldWeights[i].length; j++) {
-                for (int k = 0; k < oldWeights[i][j].length; k++) {
-                    double change = Math.abs(newWeights[i][j][k] - oldWeights[i][j][k]);
-                    totalChange += change;
-                    maxChange = Math.max(maxChange, change);
-                    weightCount++;
-                }
-            }
-        }
-
-        return weightCount > 0 ? totalChange / weightCount : 0.0;
+        this.rms = network.getRMS();
+        this.layerMins = network.getLayerMins();
+        this.layerMaxs = network.getLayerMaxs();
+        this.layerMeans = network.getLayerMeans();
+        this.averageWeightChange = network.getAverageWeightChange();
+        this.weightChanges = network.getWeightChanges();
     }
 
     private void calculateDynamicSizing() {
@@ -169,28 +126,6 @@ public class Visualization implements GameElement {
         }
         for (int i = 0; i < layerSizes.length; i++) {
             drawLayerNodes(g2d, i);
-        }
-    }
-
-    private void drawLayerConnectionsOLD(Graphics2D g2d, int layerIndex) {
-        int nodeCount = layerSizes[layerIndex];
-        int nextNodeCount = layerSizes[layerIndex + 1];
-
-        for (int j = 0; j < nodeCount; j++) {
-            int x = networkStartX + layerIndex * layerDistance;
-            int y = networkStartY + calculateNodeY(j, nodeCount);
-
-            for (int k = 0; k < nextNodeCount; k++) {
-                int nextX = networkStartX + (layerIndex + 1) * layerDistance;
-                int nextY = networkStartY + calculateNodeY(k, nextNodeCount);
-                if (layerIndex < weights.length && k < weights[layerIndex].length && j < weights[layerIndex][k].length) {
-                    double weight = weights[layerIndex][k][j];
-                    Color lineColor = getColorForWeight(weight);
-                    g2d.setColor(lineColor);
-                    g2d.draw(new Line2D.Double(x + nodeSize, y + (double) nodeSize / 2, nextX,
-                            nextY + (double) nodeSize / 2));
-                }
-            }
         }
     }
 
@@ -280,34 +215,6 @@ public class Visualization implements GameElement {
         int layerHeight = layerSize * (nodeSize + nodeDistance) - nodeDistance;
         int layerStartY = (networkHeight - layerHeight) / 2;
         return layerStartY + nodeIndex * (nodeSize + nodeDistance);
-    }
-
-    private void calculateStatistics() {
-        this.rms = calculateRMS(activations[activations.length - 1]);
-
-        for (int i = 0; i < activations.length; i++) {
-            double min = Double.POSITIVE_INFINITY;
-            double max = Double.NEGATIVE_INFINITY;
-            double sum = 0;
-
-            for (double activation : activations[i]) {
-                min = Math.min(min, activation);
-                max = Math.max(max, activation);
-                sum += activation;
-            }
-
-            layerMins[i] = min;
-            layerMaxs[i] = max;
-            layerMeans[i] = sum / activations[i].length;
-        }
-    }
-
-    private double calculateRMS(double[] outputs) {
-        double sum = 0;
-        for (double output : outputs) {
-            sum += output * output;
-        }
-        return Math.sqrt(sum / outputs.length);
     }
 
     private Color getColorForWeight(double weight) {

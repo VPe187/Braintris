@@ -53,6 +53,13 @@ public class NeuralNetwork implements Serializable {
     private final ExperienceReplay experienceReplay;
     private List<double[]> inputBatch;
     private List<double[]> targetBatch;
+    private double rms;
+    private double[] layerMins;
+    private double[] layerMaxs;
+    private double[] layerMeans;
+    private double averageWeightChange;
+    private double[][][] weightChanges;
+    private double[][][] previousWeights;
 
     public NeuralNetwork(String[] names, int[] layerSizes, Activation[] activations, WeightInitStrategy[] initStrategies,
                          BatchNormParameters[] batchNormParameters, double[] l2) {
@@ -86,6 +93,12 @@ public class NeuralNetwork implements Serializable {
         this.experienceReplay = new ExperienceReplay(EXPERIENCE_REPLAY_CAPACITY);
         this.inputBatch = new ArrayList<>();
         this.targetBatch = new ArrayList<>();
+        this.layerMins = new double[layerSizes.length];
+        this.layerMaxs = new double[layerSizes.length];
+        this.layerMeans = new double[layerSizes.length];
+        this.previousWeights = null;
+        this.averageWeightChange = 0.0;
+        this.weightChanges = null;
     }
 
     /**
@@ -307,6 +320,87 @@ public class NeuralNetwork implements Serializable {
         return maxValue;
     }
 
+    public void updateStatistics() {
+        double[][][] currentWeights = getAllWeights();
+
+        if (this.previousWeights != null) {
+            this.averageWeightChange = calculateAverageWeightChange(this.previousWeights, currentWeights);
+            this.weightChanges = calculateWeightChanges(this.previousWeights, currentWeights);
+        }
+        this.previousWeights = deepCopy(currentWeights);
+
+        calculateLayerStatistics();
+        this.rms = calculateRMS(lastActivations[lastActivations.length - 1]);
+    }
+
+    private void calculateLayerStatistics() {
+        for (int i = 0; i < lastActivations.length; i++) {
+            double min = Double.POSITIVE_INFINITY;
+            double max = Double.NEGATIVE_INFINITY;
+            double sum = 0;
+
+            for (double activation : lastActivations[i]) {
+                min = Math.min(min, activation);
+                max = Math.max(max, activation);
+                sum += activation;
+            }
+
+            layerMins[i] = min;
+            layerMaxs[i] = max;
+            layerMeans[i] = sum / lastActivations[i].length;
+        }
+    }
+
+    private double calculateRMS(double[] outputs) {
+        double sum = 0;
+        for (double output : outputs) {
+            sum += output * output;
+        }
+        return Math.sqrt(sum / outputs.length);
+    }
+
+    private double[][][] calculateWeightChanges(double[][][] oldWeights, double[][][] newWeights) {
+        double[][][] changes = new double[oldWeights.length][][];
+        for (int i = 0; i < oldWeights.length; i++) {
+            changes[i] = new double[oldWeights[i].length][];
+            for (int j = 0; j < oldWeights[i].length; j++) {
+                changes[i][j] = new double[oldWeights[i][j].length];
+                for (int k = 0; k < oldWeights[i][j].length; k++) {
+                    changes[i][j][k] = newWeights[i][j][k] - oldWeights[i][j][k];
+                }
+            }
+        }
+        return changes;
+    }
+
+    private double[][][] deepCopy(double[][][] original) {
+        double[][][] copy = new double[original.length][][];
+        for (int i = 0; i < original.length; i++) {
+            copy[i] = new double[original[i].length][];
+            for (int j = 0; j < original[i].length; j++) {
+                copy[i][j] = original[i][j].clone();
+            }
+        }
+        return copy;
+    }
+
+    private double calculateAverageWeightChange(double[][][] oldWeights, double[][][] newWeights) {
+        double totalChange = 0.0;
+        long weightCount = 0;
+
+        for (int i = 0; i < oldWeights.length; i++) {
+            for (int j = 0; j < oldWeights[i].length; j++) {
+                for (int k = 0; k < oldWeights[i][j].length; k++) {
+                    double change = Math.abs(newWeights[i][j][k] - oldWeights[i][j][k]);
+                    totalChange += change;
+                    weightCount++;
+                }
+            }
+        }
+
+        return weightCount > 0 ? totalChange / weightCount : 0.0;
+    }
+
     /**
      * Save class or brain data to file.
      *
@@ -332,7 +426,6 @@ public class NeuralNetwork implements Serializable {
             return (NeuralNetwork) ois.readObject();
         }
     }
-
 
     /**
      * Get all weights for visualization.
@@ -423,6 +516,30 @@ public class NeuralNetwork implements Serializable {
         return lastReward;
     }
 
+    public double getRMS() {
+        return rms;
+    }
+
+    public double[] getLayerMins() {
+        return layerMins;
+    }
+
+    public double[] getLayerMaxs() {
+        return layerMaxs;
+    }
+
+    public double[] getLayerMeans() {
+        return layerMeans;
+    }
+
+    public double getAverageWeightChange() {
+        return averageWeightChange;
+    }
+
+    public double[][][] getWeightChanges() {
+        return weightChanges;
+    }
+
     /**
      * Visszaadja a jutalmak mozgóátlagát.
      *
@@ -430,51 +547,6 @@ public class NeuralNetwork implements Serializable {
      */
     public double getMovingAverage() {
         return movingAverage;
-    }
-
-    /**
-     * Activate method for SoftMax (vector input).
-     *
-     * @param x vector of input values
-     *
-     * @return activated values
-     */
-    public static double[] activateSoftMax(double[] x) {
-        double[] output = new double[x.length];
-        double sum = 0.0;
-        double max = x[0];
-        for (int i = 1; i < x.length; i++) {
-            if (x[i] > max) {
-                max = x[i];
-            }
-        }
-        for (int i = 0; i < x.length; i++) {
-            output[i] = Math.exp(x[i] - max);
-            sum += output[i];
-        }
-        for (int i = 0; i < x.length; i++) {
-            output[i] /= sum;
-        }
-        return output;
-    }
-
-    /**
-     * Derivative method for SoftMax (vector input and output).
-     *
-     * @param output the output of the SoftMax function
-     * @param index the index of the output for which we're computing the derivative
-     * @return the partial derivatives
-     */
-    public static double[] derivativeSoftMax(double[] output, int index) {
-        double[] derivatives = new double[output.length];
-        for (int i = 0; i < output.length; i++) {
-            if (i == index) {
-                derivatives[i] = output[i] * (1 - output[i]);
-            } else {
-                derivatives[i] = -output[index] * output[i];
-            }
-        }
-        return derivatives;
     }
 
 }
