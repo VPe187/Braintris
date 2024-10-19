@@ -466,6 +466,7 @@ public class StackUI implements GameElement, StackComponent {
         String infoStrD;
         String infoStrV;
         if (learning) {
+            stackMetrics.calculateGameMetrics(stackManager.getStackArea());
             infoStrM = "Height: " + stackMetrics.getMetricMaxHeight();
             infoStrP = "Holes: " + stackMetrics.getMetricNumberOfHoles();
             infoStrC = "Bumpiness: " + String.format("%.0f", stackMetrics.getMetricBumpiness());

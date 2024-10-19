@@ -4,7 +4,7 @@ import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * Gradient clipper task.
+ * Gradient clipper class for clipping and normalizing gradients.
  */
 public class GradientClipper implements Serializable {
     @Serial
@@ -35,38 +35,10 @@ public class GradientClipper implements Serializable {
      * @return clipped gradients array
      */
     public double[] clipByValue(double[] gradients) {
-        double[] clippedGradients = new double[gradients.length];
         for (int i = 0; i < gradients.length; i++) {
-            clippedGradients[i] = clip(gradients[i]);
+            gradients[i] = clip(gradients[i]);
         }
-        return clippedGradients;
-    }
-
-    /**
-     * Clip by norm.
-     *
-     * @param gradients Gradients array
-     *
-     * @return clipped gradients array
-     */
-    public double[] clipByNorm(double[] gradients) {
-        double[] clippedGradients = gradients.clone();
-        double norm = calculateNorm(clippedGradients);
-        if (norm > clipNorm) {
-            double scale = clipNorm / (norm + EPSILON);
-            for (int i = 0; i < clippedGradients.length; i++) {
-                clippedGradients[i] *= scale;
-            }
-        }
-        return clippedGradients;
-    }
-
-    private double calculateNorm(double[] gradients) {
-        double sumOfSquares = 0;
-        for (double grad : gradients) {
-            sumOfSquares += grad * grad;
-        }
-        return Math.sqrt(sumOfSquares + EPSILON);
+        return gradients;
     }
 
     /**
@@ -77,14 +49,18 @@ public class GradientClipper implements Serializable {
      * @return clipped and scaled gradients array.
      */
     public double[] scaleAndClip(double[] gradients) {
-        double[] scaledGradients = new double[gradients.length];
-        double norm = calculateNorm(gradients);
-        double scale = Math.min(1.0, clipNorm / (norm + EPSILON));
+        double sumOfSquares = 0;
+        for (double grad : gradients) {
+            sumOfSquares += grad * grad;
+        }
+        double norm = Math.sqrt(sumOfSquares + EPSILON);
+        double scale = Math.min(1.0, clipNorm / norm) * gradientScale;
 
         for (int i = 0; i < gradients.length; i++) {
-            scaledGradients[i] = gradients[i] * scale * gradientScale;
+            gradients[i] = clip(gradients[i] * scale);
         }
 
-        return clipByValue(scaledGradients);
+        return gradients;
     }
+
 }

@@ -29,15 +29,16 @@ public class StackManager implements StackComponent {
     private final GameAudio audio = new GameAudio();
     private long startTime;
     private int droppedElements;
+    private Metric metric;
 
     public StackManager(boolean learning) {
         this.learning = learning;
+        this.metric = new Metric();
         iteration = 0;
     }
 
     protected void start() {
         initializeGameState();
-        initializeMetrics();
     }
 
     private void initializeGameState() {
@@ -46,17 +47,11 @@ public class StackManager implements StackComponent {
         gameLevel = 0;
         noFullRows = 0;
         allFullRows = 0;
+        droppedElements = 0;
         gameState = GameState.RUNNING;
         startTime = System.currentTimeMillis();
         currentSpeed = learning ? GameConstans.LEARNING_START_SPEED : GameConstans.START_SPEED;
     }
-
-    private void initializeMetrics() {
-        metrics.setMetricDroppedElements(0);
-        droppedElements = 0;
-        metrics.calculateGameMetrics(this.stackArea);
-    }
-
     private void initializeStack() {
         if (stackArea == null) {
             stackArea = new Cell[GameConstans.ROWS][GameConstans.COLS];
@@ -91,7 +86,6 @@ public class StackManager implements StackComponent {
             simTetromino.setRowPosition(simTetromino.getStackRow() + 1);
             putTetromino(simStackArea, simTetromino);
         }
-        metrics.calculateGameMetrics(simStackArea);
     }
 
     private Tetromino copyTetromino(Tetromino original) {
@@ -187,7 +181,6 @@ public class StackManager implements StackComponent {
             return false;
         } else {
             itemFalled(stackArea, tetromino);
-            metrics.calculateGameMetrics(this.stackArea);
             return true;
         }
     }
@@ -507,7 +500,6 @@ public class StackManager implements StackComponent {
         }
         currentTetromino = null;
         droppedElements++;
-        metrics.setMetricDroppedElements(droppedElements);
     }
 
     private boolean tetrominoIsDownAfter(Cell[][] stackArea, Tetromino tetromino, int p) {
@@ -683,6 +675,10 @@ public class StackManager implements StackComponent {
         return iteration;
     }
 
+    public int getDroppedElements() {
+        return droppedElements;
+    }
+
     public void setGameState(GameState gameState) {
         this.gameState = gameState;
     }
@@ -707,6 +703,5 @@ public class StackManager implements StackComponent {
 
     @Override
     public void initializeStackComponents(StackUI stackUI, StackManager manager, StackMetrics metrics) {
-        this.metrics = metrics;
     }
 }

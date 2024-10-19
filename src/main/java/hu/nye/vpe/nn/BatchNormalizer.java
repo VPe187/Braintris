@@ -13,7 +13,6 @@ public class BatchNormalizer implements Serializable {
     private static final double DEFAULT_MOMENTUM = GlobalConfig.getInstance().getBatchMomentum();
 
     private final int size;
-    private final int batchSize;
     private final double epsilon;
     private final double momentum;
     private double learningRate;
@@ -25,14 +24,12 @@ public class BatchNormalizer implements Serializable {
     private double[][] batchNormalized;
     private int batchIndex;
 
-
     public BatchNormalizer(int size, int batchSize, double gamma, double beta, double learningRate) {
         this(size, batchSize, gamma, beta, learningRate, DEFAULT_EPSILON, DEFAULT_MOMENTUM);
     }
 
     public BatchNormalizer(int size, int batchSize, double gamma, double beta, double learningRate, double epsilon, double momentum) {
         this.size = size;
-        this.batchSize = batchSize;
         this.gamma = new double[size];
         this.beta = new double[size];
         Arrays.fill(this.gamma, gamma);
@@ -47,30 +44,16 @@ public class BatchNormalizer implements Serializable {
         this.batchIndex = 0;
     }
 
-    /**
-     * Forward normalizing for a single input.
-     *
-     * @param input input data
-     * @param isTraining is training?
-     * @return output data
-     */
     public double[] forward(double[] input, boolean isTraining) {
-        if (isTraining) {
-            return forwardTraining(input);
-        } else {
-            return forwardInference(input);
-        }
+        return isTraining ? forwardTraining(input) : forwardInference(input);
     }
 
     private double[] forwardTraining(double[] input) {
         System.arraycopy(input, 0, batchInputs[batchIndex], 0, size);
-        batchIndex++;
-
-        if (batchIndex == batchSize) {
+        if (++batchIndex == batchInputs.length) {
             processBatch();
             batchIndex = 0;
         }
-
         return Arrays.copyOf(input, input.length);
     }
 
@@ -80,30 +63,20 @@ public class BatchNormalizer implements Serializable {
         double[] batchVariance = new double[size];
 
         for (int i = 0; i < size; i++) {
-            double sum = 0;
+            double sum = 0, sumSquares = 0;
             for (int j = 0; j < currentBatchSize; j++) {
-                sum += batchInputs[j][i];
+                double val = batchInputs[j][i];
+                sum += val;
+                sumSquares += val * val;
             }
             batchMean[i] = sum / currentBatchSize;
-        }
+            batchVariance[i] = (sumSquares / currentBatchSize) - (batchMean[i] * batchMean[i]);
 
-        for (int i = 0; i < size; i++) {
-            double sum = 0;
-            for (int j = 0; j < currentBatchSize; j++) {
-                double diff = batchInputs[j][i] - batchMean[i];
-                sum += diff * diff;
-            }
-            batchVariance[i] = sum / currentBatchSize;
-        }
-
-        for (int i = 0; i < size; i++) {
             double invStd = 1.0 / Math.sqrt(batchVariance[i] + epsilon);
             for (int j = 0; j < currentBatchSize; j++) {
                 batchNormalized[j][i] = ((batchInputs[j][i] - batchMean[i]) * invStd * gamma[i]) + beta[i];
             }
-        }
 
-        for (int i = 0; i < size; i++) {
             runningMean[i] = momentum * runningMean[i] + (1 - momentum) * batchMean[i];
             runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * batchVariance[i];
         }
@@ -117,55 +90,31 @@ public class BatchNormalizer implements Serializable {
         return output;
     }
 
-    /**
-     * Forward normalizing for a batch of inputs.
-     *
-     * @param inputs batch of input data
-     * @param isTraining is training?
-     * @return batch of output data
-     */
     public double[][] forwardBatch(double[][] inputs, boolean isTraining) {
-        if (isTraining) {
-            return forwardBatchTraining(inputs);
-        } else {
-            return forwardBatchInference(inputs);
-        }
+        return isTraining ? forwardBatchTraining(inputs) : forwardBatchInference(inputs);
     }
 
     private double[][] forwardBatchTraining(double[][] inputs) {
         int currentBatchSize = inputs.length;
         double[][] outputs = new double[currentBatchSize][size];
 
-        double[] batchMean = new double[size];
-        double[] batchVariance = new double[size];
-
         for (int i = 0; i < size; i++) {
-            double sum = 0;
+            double sum = 0, sumSquares = 0;
             for (int j = 0; j < currentBatchSize; j++) {
-                sum += inputs[j][i];
+                double val = inputs[j][i];
+                sum += val;
+                sumSquares += val * val;
             }
-            batchMean[i] = sum / currentBatchSize;
-        }
+            double mean = sum / currentBatchSize;
+            double variance = (sumSquares / currentBatchSize) - (mean * mean);
+            double invStd = 1.0 / Math.sqrt(variance + epsilon);
 
-        for (int i = 0; i < size; i++) {
-            double sum = 0;
             for (int j = 0; j < currentBatchSize; j++) {
-                double diff = inputs[j][i] - batchMean[i];
-                sum += diff * diff;
+                outputs[j][i] = ((inputs[j][i] - mean) * invStd * gamma[i]) + beta[i];
             }
-            batchVariance[i] = sum / currentBatchSize;
-        }
 
-        for (int i = 0; i < size; i++) {
-            double invStd = 1.0 / Math.sqrt(batchVariance[i] + epsilon);
-            for (int j = 0; j < currentBatchSize; j++) {
-                outputs[j][i] = ((inputs[j][i] - batchMean[i]) * invStd * gamma[i]) + beta[i];
-            }
-        }
-
-        for (int i = 0; i < size; i++) {
-            runningMean[i] = momentum * runningMean[i] + (1 - momentum) * batchMean[i];
-            runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * batchVariance[i];
+            runningMean[i] = momentum * runningMean[i] + (1 - momentum) * mean;
+            runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * variance;
         }
 
         this.batchInputs = inputs;
@@ -188,66 +137,30 @@ public class BatchNormalizer implements Serializable {
         return outputs;
     }
 
-    /**
-     * Backward normalizing.
-     *
-     * @param gradOutput outputs
-     *
-     * @return inputs
-     */
-    public double[] backward(double[] gradOutput) {
-        double[][] batchGradOutput = new double[][]{gradOutput};
-        double[][] batchGradInput = backwardBatch(batchGradOutput);
-        return batchGradInput[0];
-    }
-
-    /**
-     * Backward normalize for a batch of inputs.
-     *
-     * @param gradOutputs batch of output gradients
-     * @return batch of input gradients
-     */
     public double[][] backwardBatch(double[][] gradOutputs) {
         int currentBatchSize = gradOutputs.length;
         double[][] gradInputs = new double[currentBatchSize][size];
         double[] gradGamma = new double[size];
         double[] gradBeta = new double[size];
 
-        double[] batchMean = new double[size];
-        double[] batchVariance = new double[size];
-
         for (int i = 0; i < size; i++) {
-            double sum = 0;
-            double sumSquares = 0;
+            double sum = 0, sumSquares = 0;
             for (int j = 0; j < currentBatchSize; j++) {
-                sum += batchInputs[j][i];
-                sumSquares += batchInputs[j][i] * batchInputs[j][i];
+                double val = batchInputs[j][i];
+                sum += val;
+                sumSquares += val * val;
             }
-            batchMean[i] = sum / currentBatchSize;
-            batchVariance[i] = (sumSquares / currentBatchSize) - (batchMean[i] * batchMean[i]);
-
-            /*
-            double sumSquares = 0;
-            for (int j = 0; j < currentBatchSize; j++) {
-                double diff = batchInputs[j][i] - batchMean[i];
-                sumSquares += diff * diff;
-            }
-            batchVariance[i] = sumSquares / currentBatchSize;
-             */
-        }
-
-        for (int i = 0; i < size; i++) {
-            double invStd = 1.0 / Math.sqrt(batchVariance[i] + epsilon);
+            double mean = sum / currentBatchSize;
+            double variance = (sumSquares / currentBatchSize) - (mean * mean);
+            double invStd = 1.0 / Math.sqrt(variance + epsilon);
 
             for (int j = 0; j < currentBatchSize; j++) {
-                double xnorm = (batchInputs[j][i] - batchMean[i]) * invStd;
+                double xnorm = (batchInputs[j][i] - mean) * invStd;
                 gradGamma[i] += gradOutputs[j][i] * xnorm;
                 gradBeta[i] += gradOutputs[j][i];
                 gradInputs[j][i] = gradOutputs[j][i] * gamma[i] * invStd;
             }
-        }
 
-        for (int i = 0; i < size; i++) {
             gamma[i] -= learningRate * gradGamma[i] / currentBatchSize;
             beta[i] -= learningRate * gradBeta[i] / currentBatchSize;
         }

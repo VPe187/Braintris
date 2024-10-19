@@ -31,6 +31,8 @@ public class Visualization implements GameElement {
     private static final Color RMS_RED = new Color(255, 0, 0);
     private static final Color POSITIVE_CHANGE_COLOR = new Color(255, 255, 255, 200);
     private static final Color NEGATIVE_CHANGE_COLOR = new Color(0, 0, 0, 200);
+    private static final Color INCREASE_COLOR = new Color(200, 255, 100, 200);  // Zöld szín növekedéshez
+    private static final Color DECREASE_COLOR = new Color(255, 100, 200, 200);  // Piros szín csökkenéshez
     private static final int REFRESH_RATE = 90;
 
     private final NeuralNetwork network;
@@ -51,10 +53,12 @@ public class Visualization implements GameElement {
     private int networkStartX;
     private int networkStartY;
     private static GameTimeTicker infoTicker;
-    private double[][][] previousWeights;
     private double averageWeightChange;
     private double[][][] weightChanges;
-
+    private double lastKnownMovingAverage;
+    private double currentMovingAverage;
+    private double maxMovingAverage;
+    private boolean isMovingAverageUpdated;
 
     public Visualization(NeuralNetwork network, int width, int height) {
         this.network = network;
@@ -66,9 +70,12 @@ public class Visualization implements GameElement {
         this.layerMeans = new double[layerCount];
         this.layerNames = network.getLayerNames();
         infoTicker = new GameTimeTicker(REFRESH_RATE);
-        this.previousWeights = null;
         this.averageWeightChange = 0.0;
         this.weightChanges = null;
+        this.lastKnownMovingAverage = network.getMovingAverage();
+        this.currentMovingAverage = this.lastKnownMovingAverage;
+        this.isMovingAverageUpdated = false;
+        this.maxMovingAverage = network.getMovingAverage();
         updateNetworkData();
         calculateDynamicSizing();
     }
@@ -100,6 +107,18 @@ public class Visualization implements GameElement {
         this.layerMaxs = network.getLayerMaxs();
         this.layerMeans = network.getLayerMeans();
         this.averageWeightChange = network.getAverageWeightChange();
+
+        double newMovingAverage = network.getMovingAverage();
+
+        if (newMovingAverage != currentMovingAverage) {
+            if (newMovingAverage > maxMovingAverage) {
+                maxMovingAverage = newMovingAverage;
+            }
+            lastKnownMovingAverage = currentMovingAverage;
+            currentMovingAverage = newMovingAverage;
+            isMovingAverageUpdated = true;
+        }
+
         this.weightChanges = network.getWeightChanges();
     }
 
@@ -295,8 +314,9 @@ public class Visualization implements GameElement {
     }
 
     private void drawRightColumn(Graphics2D g2d, FontMetrics metrics) {
+        double currentMovingAverage = network.getMovingAverage();
         String episodes = String.format("Episodes: %d", network.getEpisodeCount());
-        String movingAverage = String.format("Average reward: %.4f", network.getMovingAverage());
+        String movingAverage = String.format("Average reward: %.4f (%.4f)", network.getMovingAverage(), maxMovingAverage);
         String bestReward = String.format("Best episode reward: %.0f", network.getBestScore());
         String reward = String.format("Step reward: %.4f",  network.getLastReward());
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
@@ -305,8 +325,23 @@ public class Visualization implements GameElement {
         String avgWeightChange = String.format("Avg Weight Change: %.6f", this.averageWeightChange);
 
         int rightColumnX = width - STAT_X - RIGHT_COLUMN_OFFSET;
+
         g2d.drawString(episodes, rightColumnX - metrics.stringWidth(episodes), height - 160);
+
+        if (isMovingAverageUpdated) {
+            if (currentMovingAverage > lastKnownMovingAverage) {
+                g2d.setColor(INCREASE_COLOR);
+            } else if (currentMovingAverage < lastKnownMovingAverage) {
+                g2d.setColor(DECREASE_COLOR);
+            } else {
+                g2d.setColor(FONT_COLOR);  // Ha nem változott, marad az eredeti szín
+            }
+        } else {
+            g2d.setColor(FONT_COLOR);
+        }
         g2d.drawString(movingAverage, rightColumnX - metrics.stringWidth(movingAverage), height - 140);
+        g2d.setColor(FONT_COLOR);  // Visszaállítjuk az eredeti színt
+
         g2d.drawString(bestReward, rightColumnX - metrics.stringWidth(bestReward), height - 120);
         g2d.drawString(reward, rightColumnX - metrics.stringWidth(reward), height - 100);
         g2d.drawString(learningRate, rightColumnX - metrics.stringWidth(learningRate), height - 80);
