@@ -29,7 +29,9 @@ public class Visualization implements GameElement {
     private static final Color RMS_GREEN = new Color(0, 255, 0);
     private static final Color RMS_ORANGE = new Color(255, 165, 0);
     private static final Color RMS_RED = new Color(255, 0, 0);
-    private static final int REFRESH_RATE = 100;
+    private static final Color POSITIVE_CHANGE_COLOR = new Color(255, 255, 255, 200);
+    private static final Color NEGATIVE_CHANGE_COLOR = new Color(0, 0, 0, 200);
+    private static final int REFRESH_RATE = 90;
 
     private final NeuralNetwork network;
     private final int width;
@@ -49,19 +51,24 @@ public class Visualization implements GameElement {
     private int networkStartX;
     private int networkStartY;
     private static GameTimeTicker infoTicker;
+    private double[][][] previousWeights;
+    private double averageWeightChange;
+    private double[][][] weightChanges;
+
 
     public Visualization(NeuralNetwork network, int width, int height) {
         this.network = network;
         this.width = width;
         this.height = height;
-
         int layerCount = network.getLayerSizes().length;
         this.layerMins = new double[layerCount];
         this.layerMaxs = new double[layerCount];
         this.layerMeans = new double[layerCount];
         this.layerNames = network.getLayerNames();
         infoTicker = new GameTimeTicker(REFRESH_RATE);
-
+        this.previousWeights = null;
+        this.averageWeightChange = 0.0;
+        this.weightChanges = null;
         updateNetworkData();
         calculateDynamicSizing();
     }
@@ -84,8 +91,59 @@ public class Visualization implements GameElement {
     private void updateNetworkData() {
         this.layerSizes = network.getLayerSizes();
         this.activations = network.getLastActivations();
-        this.weights = network.getAllWeights();
+        double[][][] currentWeights = network.getAllWeights();
+
+        if (this.previousWeights != null) {
+            this.averageWeightChange = calculateAverageWeightChange(this.previousWeights, currentWeights);
+            this.weightChanges = calculateWeightChanges(this.previousWeights, currentWeights);
+        }
+        this.previousWeights = deepCopy(currentWeights);
+        this.weights = currentWeights;
         calculateStatistics();
+    }
+
+    private double[][][] calculateWeightChanges(double[][][] oldWeights, double[][][] newWeights) {
+        double[][][] changes = new double[oldWeights.length][][];
+        for (int i = 0; i < oldWeights.length; i++) {
+            changes[i] = new double[oldWeights[i].length][];
+            for (int j = 0; j < oldWeights[i].length; j++) {
+                changes[i][j] = new double[oldWeights[i][j].length];
+                for (int k = 0; k < oldWeights[i][j].length; k++) {
+                    changes[i][j][k] = newWeights[i][j][k] - oldWeights[i][j][k];
+                }
+            }
+        }
+        return changes;
+    }
+
+    private double[][][] deepCopy(double[][][] original) {
+        double[][][] copy = new double[original.length][][];
+        for (int i = 0; i < original.length; i++) {
+            copy[i] = new double[original[i].length][];
+            for (int j = 0; j < original[i].length; j++) {
+                copy[i][j] = original[i][j].clone();
+            }
+        }
+        return copy;
+    }
+
+    private double calculateAverageWeightChange(double[][][] oldWeights, double[][][] newWeights) {
+        double totalChange = 0.0;
+        long weightCount = 0;
+        double maxChange = 0.0;
+
+        for (int i = 0; i < oldWeights.length; i++) {
+            for (int j = 0; j < oldWeights[i].length; j++) {
+                for (int k = 0; k < oldWeights[i][j].length; k++) {
+                    double change = Math.abs(newWeights[i][j][k] - oldWeights[i][j][k]);
+                    totalChange += change;
+                    maxChange = Math.max(maxChange, change);
+                    weightCount++;
+                }
+            }
+        }
+
+        return weightCount > 0 ? totalChange / weightCount : 0.0;
     }
 
     private void calculateDynamicSizing() {
@@ -114,7 +172,7 @@ public class Visualization implements GameElement {
         }
     }
 
-    private void drawLayerConnections(Graphics2D g2d, int layerIndex) {
+    private void drawLayerConnectionsOLD(Graphics2D g2d, int layerIndex) {
         int nodeCount = layerSizes[layerIndex];
         int nextNodeCount = layerSizes[layerIndex + 1];
 
@@ -134,6 +192,48 @@ public class Visualization implements GameElement {
                 }
             }
         }
+    }
+
+    private void drawLayerConnections(Graphics2D g2d, int layerIndex) {
+        int nodeCount = layerSizes[layerIndex];
+        int nextNodeCount = layerSizes[layerIndex + 1];
+
+        for (int j = 0; j < nodeCount; j++) {
+            int x = networkStartX + layerIndex * layerDistance;
+            int y = networkStartY + calculateNodeY(j, nodeCount);
+
+            for (int k = 0; k < nextNodeCount; k++) {
+                int nextX = networkStartX + (layerIndex + 1) * layerDistance;
+                int nextY = networkStartY + calculateNodeY(k, nextNodeCount);
+                if (layerIndex < weights.length && k < weights[layerIndex].length && j < weights[layerIndex][k].length) {
+                    double weight = weights[layerIndex][k][j];
+                    Color lineColor = getColorForWeight(weight);
+
+                    if (weightChanges != null && layerIndex < weightChanges.length &&
+                            k < weightChanges[layerIndex].length && j < weightChanges[layerIndex][k].length) {
+                        double change = weightChanges[layerIndex][k][j];
+                        double min = Math.min(1.0, Math.abs(change) * 25);
+                        if (change > 0) {
+                            lineColor = blendColors(getColorForWeight(weight), POSITIVE_CHANGE_COLOR, min);
+                        } else if (change < 0) {
+                            lineColor = blendColors(getColorForWeight(weight), NEGATIVE_CHANGE_COLOR, min);
+                        }
+                    }
+
+                    g2d.setColor(lineColor);
+                    g2d.draw(new Line2D.Double(x + nodeSize, y + (double) nodeSize / 2, nextX,
+                            nextY + (double) nodeSize / 2));
+                }
+            }
+        }
+    }
+
+    private Color blendColors(Color c1, Color c2, double ratio) {
+        int r = (int) Math.min(255, Math.max(0, c1.getRed() * (1 - ratio) + c2.getRed() * ratio));
+        int g = (int) Math.min(255, Math.max(0, c1.getGreen() * (1 - ratio) + c2.getGreen() * ratio));
+        int b = (int) Math.min(255, Math.max(0, c1.getBlue() * (1 - ratio) + c2.getBlue() * ratio));
+        int a = (int) Math.min(255, Math.max(0, c1.getAlpha() * (1 - ratio) + c2.getAlpha() * ratio));
+        return new Color(r / 255f, g / 255f, b / 255f, a / 255f);
     }
 
     private void drawLayerNodes(Graphics2D g2d, int layerIndex) {
@@ -224,7 +324,7 @@ public class Visualization implements GameElement {
             green = (int) (255 * -normalizedWeight);
             blue = (int) (255 * -normalizedWeight);
         }
-        int alpha = (int) (10 * Math.abs(normalizedWeight)) + 10;
+        int alpha = (int) (20 + 20 * Math.abs(normalizedWeight));
         return new Color(red, green, blue, alpha);
     }
 
@@ -295,6 +395,7 @@ public class Visualization implements GameElement {
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
         String discountFactor = String.format("Discount Factor: %.4f", network.getDiscountFactor());
+        String avgWeightChange = String.format("Avg Weight Change: %.6f", this.averageWeightChange);
 
         int rightColumnX = width - STAT_X - RIGHT_COLUMN_OFFSET;
         g2d.drawString(episodes, rightColumnX - metrics.stringWidth(episodes), height - 160);
@@ -304,5 +405,6 @@ public class Visualization implements GameElement {
         g2d.drawString(learningRate, rightColumnX - metrics.stringWidth(learningRate), height - 80);
         g2d.drawString(epsilon, rightColumnX - metrics.stringWidth(epsilon), height - 60);
         g2d.drawString(discountFactor, rightColumnX - metrics.stringWidth(discountFactor), height - 40);
+        g2d.drawString(avgWeightChange, rightColumnX - metrics.stringWidth(avgWeightChange), height - 20);
     }
 }

@@ -503,7 +503,7 @@ public class Tetris {
             if (dropped) {
                 reward = calculateReward(false);
             } else {
-                reward += moveCount * 0.01 * -1;
+                reward += 10 - (moveCount * 0.01 * -1);
                 stackMetrics.calculateGameMetrics(stackManager.getSimStackArea());
 
                 if (stackMetrics.getMetricMaxHeight() <= 6) {

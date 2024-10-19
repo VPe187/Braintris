@@ -346,7 +346,7 @@ public class NeuralNetwork implements Serializable {
             List<Neuron> neurons = currentLayer.getNeurons();
             allWeights[i] = new double[neurons.size()][];
             for (int j = 0; j < neurons.size(); j++) {
-                allWeights[i][j] = neurons.get(j).getWeights();
+                allWeights[i][j] = neurons.get(j).getWeights().clone();
             }
         }
         return allWeights;
