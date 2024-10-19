@@ -75,7 +75,7 @@ public class Visualization implements GameElement {
         this.lastKnownMovingAverage = network.getMovingAverage();
         this.currentMovingAverage = this.lastKnownMovingAverage;
         this.isMovingAverageUpdated = false;
-        this.maxMovingAverage = network.getMovingAverage();
+        this.maxMovingAverage = Double.NEGATIVE_INFINITY;
         updateNetworkData();
         calculateDynamicSizing();
     }
