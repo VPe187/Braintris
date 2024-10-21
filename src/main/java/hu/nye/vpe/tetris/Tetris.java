@@ -69,7 +69,7 @@ public class Tetris {
     private boolean musicOn = true;
     private final boolean learning;
     private double[] lastState;
-    private int lastAction;
+    private int[] lastAction;
 
     private double lastFullRows = 0;
     private double lastNearlyFullRows = 0;
@@ -82,6 +82,8 @@ public class Tetris {
     private double lastBumpiness = 0;
     private double lastBlockedRows = 0;
     private double lastSurroundingHoles = 0;
+
+    private static final int X_COORD_OUTPUTS = 12;
 
     public Tetris(int width, int height, GameInput gameInput, boolean learning) {
         tickBackground = new GameTimeTicker(80);
@@ -137,7 +139,7 @@ public class Tetris {
         }
         musicOn = true;
         nextTetromino();
-        lastAction = 0;
+        lastAction = new int[LAYER_SIZES.length];
         lastState = getFeedData();
         moveCount = 0;
         stackManager.start();
@@ -181,8 +183,7 @@ public class Tetris {
                     } else {
                         if (stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino())) {
                             if (learning) {
-                                learning(true, false);
-                                moveCount = 0;
+                                learning(false);
                             }
                         }
                     }
@@ -191,7 +192,7 @@ public class Tetris {
         }
         if (stackManager.getGameState() == GameState.GAMEOVER) {
             if (learning) {
-                learning(true, true);
+                learning(true);
                 try {
                     brain.saveToFile();
                 } catch (Exception e) {
@@ -218,39 +219,18 @@ public class Tetris {
         if (stackManager.getGameState() == GameState.RUNNING && stackManager.getCurrentTetromino() != null) {
             if (learning) {
                 double[] currentState = getFeedData();
-                int action = brain.selectAction(currentState);
+                int[] action = brain.selectAction(currentState);
+                int targetX = action[0];
+                int targetRotation = (action[1] * 90) % 360;
                 lastAction = action;
                 lastState = currentState;
-                switch (action) {
-                    case 0:
-                        stackManager.rotateTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
-                        learning(false, false);
-                        moveCount++;
-                        break;
-                    case 1:
-                        stackManager.rotateTetrominoLeft(stackManager.getStackArea(), stackManager.getCurrentTetromino());
-                        learning(false, false);
-                        moveCount++;
-                        break;
-                    case 2:
-                        stackManager.moveTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
-                        learning(false, false);
-                        moveCount++;
-                        break;
-                    case 3:
-                        stackManager.moveTetrominoLeft(stackManager.getStackArea(), stackManager.getCurrentTetromino());
-                        learning(false, false);
-                        moveCount++;
-                        break;
-                    case 4:
-                        tickDown.setPeriodMilliSecond(DROP_SPEED);
-                        stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino());
-                        learning(false, false);
-                        break;
-                    default:
-                        tickDown.setPeriodMilliSecond(stackManager.getCurrentSpeed());
-                        break;
-                }
+                stackManager.moveAndRotateTetrominoTo(stackManager.getStackArea(),
+                        stackManager.getCurrentTetromino(),
+                        targetX, targetRotation);
+
+                double reward = calculateReward(false);
+                double[] nextState = getFeedData();
+                brain.learn(lastState, lastAction, reward, nextState, false);
             } else {
                 if (gameInput.left()) {
                     stackManager.moveTetrominoLeft(stackManager.getStackArea(), stackManager.getCurrentTetromino());
@@ -306,11 +286,10 @@ public class Tetris {
     private double[] getFeedData() {
         double[] feedData = new double[FEED_DATA_SIZE];
         int k = 0;
+        stackMetrics.calculateGameMetrics(stackManager.getStackArea());
 
         feedData[k++] = (stackManager.getCurrentTetromino() != null) ? stackManager.getCurrentTetromino().getId() : -1;
-        feedData[k++] = (nextTetromino != null) ? nextTetromino.getId() : -1;
-
-        stackMetrics.calculateGameMetrics(stackManager.getStackArea());
+        feedData[k++] = (nextTetromino != null) ? nextTetromino.getId() : 0;
 
         // Oszlopok
         double[] columns = stackMetrics.getMetricColumnHeights();
@@ -533,18 +512,9 @@ public class Tetris {
         return reward;
     }
 
-    private void learning(boolean dropped, boolean gameOver) {
+    private void learning(Boolean gameOver) {
         double[] currentState = getFeedData();
-        double reward = 0;
-        if (gameOver) {
-            reward = calculateReward(true);
-        } else {
-            if (dropped) {
-                reward = calculateReward(false);
-            } else {
-                reward = rewardMovement();
-            }
-        }
+        double reward = calculateReward(true);
         brain.learn(lastState, lastAction, reward, currentState, gameOver);
         lastState = currentState;
     }

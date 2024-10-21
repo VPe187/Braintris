@@ -33,7 +33,7 @@ public class Visualization implements GameElement {
     private static final Color NEGATIVE_CHANGE_COLOR = new Color(0, 0, 0, 200);
     private static final Color INCREASE_COLOR = new Color(200, 255, 100, 200);  // Zöld szín növekedéshez
     private static final Color DECREASE_COLOR = new Color(255, 100, 200, 200);  // Piros szín csökkenéshez
-    private static final int REFRESH_RATE = 90;
+    private static final int REFRESH_RATE = 50;
 
     private final NeuralNetwork network;
     private final int width;
@@ -70,12 +70,12 @@ public class Visualization implements GameElement {
         this.layerMeans = new double[layerCount];
         this.layerNames = network.getLayerNames();
         infoTicker = new GameTimeTicker(REFRESH_RATE);
-        this.averageWeightChange = 0.0;
+        this.averageWeightChange = Double.NEGATIVE_INFINITY;
         this.weightChanges = null;
-        this.lastKnownMovingAverage = network.getMovingAverage();
+        this.lastKnownMovingAverage = network.getLastMovingAverage();
         this.currentMovingAverage = this.lastKnownMovingAverage;
         this.isMovingAverageUpdated = false;
-        this.maxMovingAverage = Double.NEGATIVE_INFINITY;
+        this.maxMovingAverage = Math.max(network.getMaxAverageReward(), this.lastKnownMovingAverage);
         updateNetworkData();
         calculateDynamicSizing();
     }
@@ -237,7 +237,7 @@ public class Visualization implements GameElement {
     }
 
     private Color getColorForWeight(double weight) {
-        double normalizedWeight = Math.tanh(weight * 2);
+        double normalizedWeight = Math.tanh(weight / 4);
         int red;
         int green;
         int blue;
@@ -287,7 +287,7 @@ public class Visualization implements GameElement {
     }
 
     private void drawLeftColumn(Graphics2D g2d) {
-        String maxQ = String.format("Max Q: %.8f", network.getMaxQValue());
+        String maxQ = String.format("Max Q: %.8f", network.getMaxQValueX());
         g2d.drawString(maxQ, STAT_X, height - 9 * Y_OFFSET);
 
         Color rmsColor;
@@ -317,7 +317,7 @@ public class Visualization implements GameElement {
         double currentMovingAverage = network.getMovingAverage();
         String episodes = String.format("Episodes: %d", network.getEpisodeCount());
         String movingAverage = String.format("Average reward: %.4f (%.4f)", network.getMovingAverage(), maxMovingAverage);
-        String bestReward = String.format("Best episode reward: %.0f", network.getBestScore());
+        String bestReward = String.format("Best episode reward: %.0f", network.getBestReward());
         String reward = String.format("Step reward: %.4f",  network.getLastReward());
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());

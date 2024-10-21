@@ -2,6 +2,7 @@ package hu.nye.vpe.nn;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -169,6 +170,7 @@ public class Layer implements Serializable {
                 }
             } else {
                 for (int i = 0; i < outputSize; i++) {
+                    derivativeValues[i] = Math.max(derivativeValues[i], 1e-10);
                     double neuronDelta = nextLayerDeltas[b][i] * derivativeValues[i];
 
                     double[] weights = neurons.get(i).getWeights();
@@ -191,6 +193,13 @@ public class Layer implements Serializable {
         }
 
         // Update weights and biases
+        // először klippelünk
+        for (int i = 0; i < outputSize; i++) {
+            for (int j = 0; j < inputSize; j++) {
+                weightGradients[i][j] = gradientClipper.clip(weightGradients[i][j]);
+            }
+            biasGradients[i] = gradientClipper.clip(biasGradients[i]);
+        }
         for (int i = 0; i < outputSize; i++) {
             Neuron neuron = neurons.get(i);
             neuron.updateWeights(weightGradients[i], biasGradients[i], this.learningRate);

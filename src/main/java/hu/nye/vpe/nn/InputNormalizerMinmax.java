@@ -32,8 +32,6 @@ public class InputNormalizerMinmax {
             if (value > max) {
                 max = value;
             }
-            //if (value > 1) {
-            //}
         }
 
         isFitted = true;
@@ -62,10 +60,6 @@ public class InputNormalizerMinmax {
             } else {
                 normalizedData[i] = 0.0;
             }
-            //if (value > 1) {
-            //} else {
-            //    normalizedData[i] = value;
-            //}
         }
 
         return normalizedData;

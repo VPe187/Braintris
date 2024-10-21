@@ -7,6 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -36,17 +37,22 @@ public class NeuralNetwork implements Serializable {
     private static final Boolean USE_EXPERIENCE = GlobalConfig.getInstance().getUseExperience();
     private static final int EXPERIENCE_REPLAY_CAPACITY = GlobalConfig.getInstance().getExperiebceReplayCapacity();
     private static final int EXPERIENCE_BATCH_SIZE = GlobalConfig.getInstance().getExperienceBatchSize();
+    private static final int X_COORD_OUTPUTS = 12;
+    private static final int ROTATION_OUTPUTS = 3;
+    private static final int TOTAL_OUTPUTS = X_COORD_OUTPUTS + ROTATION_OUTPUTS;
+
 
     private final List<Layer> layers;
     private double learningRate;
     private double discountFactor;
     private double epsilon;
     private int episodeCount;
-    private double bestScore;
     private final Random random;
     private final GradientClipper gradientClipper;
-    private double maxQValue;
+    private double maxQValueX;
+    private double maxQValueRotation;
     private double lastReward;
+    private double bestReward;
     private double[][] lastActivations;
     private final List<Double> recentRewards;
     private double movingAverage;
@@ -60,6 +66,7 @@ public class NeuralNetwork implements Serializable {
     private double averageWeightChange;
     private double[][][] weightChanges;
     private double[][][] previousWeights;
+
 
     public NeuralNetwork(String[] names, int[] layerSizes, Activation[] activations, WeightInitStrategy[] initStrategies,
                          BatchNormParameters[] batchNormParameters, double[] l2) {
@@ -86,9 +93,9 @@ public class NeuralNetwork implements Serializable {
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;
         this.epsilon = INITIAL_EPSILON;
         this.episodeCount = 0;
-        this.bestScore = 0.0;
+        this.bestReward = Double.NEGATIVE_INFINITY;
         this.recentRewards = new ArrayList<>();
-        this.movingAverage = 0.0;
+        this.movingAverage = Double.NEGATIVE_INFINITY;
         this.random = new Random();
         this.experienceReplay = new ExperienceReplay(EXPERIENCE_REPLAY_CAPACITY);
         this.inputBatch = new ArrayList<>();
@@ -129,13 +136,19 @@ public class NeuralNetwork implements Serializable {
     }
 
     private void updateMaxQValue(double[] qvalues) {
-        double max = qvalues[0];
-        for (int i = 1; i < qvalues.length; i++) {
-            if (qvalues[i] > max) {
-                max = qvalues[i];
+        maxQValueX = qvalues[0];
+        for (int i = 1; i < X_COORD_OUTPUTS; i++) {
+            if (qvalues[i] > maxQValueX) {
+                maxQValueX = qvalues[i];
             }
         }
-        this.maxQValue = max;
+
+        maxQValueRotation = qvalues[X_COORD_OUTPUTS];
+        for (int i = X_COORD_OUTPUTS + 1; i < TOTAL_OUTPUTS; i++) {
+            if (qvalues[i] > maxQValueRotation) {
+                maxQValueRotation = qvalues[i];
+            }
+        }
     }
 
     private void backwardPass(double[][] batchInputs, double[][] batchTargets) {
@@ -171,12 +184,17 @@ public class NeuralNetwork implements Serializable {
      *
      * @return action
      */
-    public int selectAction(double[] state) {
+    public int[] selectAction(double[] state) {
         if (random.nextDouble() < epsilon) {
-            return random.nextInt(layers.get(layers.size() - 1).getSize());
+            return new int[]{
+                    random.nextInt(X_COORD_OUTPUTS),
+                    random.nextInt(ROTATION_OUTPUTS)
+            };
         } else {
             double[] qvalues = forward(state);
-            return argmax(qvalues);
+            int xAction = argmax(qvalues, 0, X_COORD_OUTPUTS);
+            int rotationAction = argmax(qvalues, X_COORD_OUTPUTS, TOTAL_OUTPUTS) - X_COORD_OUTPUTS;
+            return new int[]{xAction, rotationAction};
         }
     }
 
@@ -193,7 +211,7 @@ public class NeuralNetwork implements Serializable {
      *
      * @param gameOver game is over?
      */
-    public void learn(double[] state, int action, double reward, double[] nextState, boolean gameOver) {
+    public void learn(double[] state, int[] action, double reward, double[] nextState, boolean gameOver) {
         if (USE_EXPERIENCE) {
             Experience experience = new Experience(state, action, reward, nextState, gameOver);
             experienceReplay.add(experience);
@@ -204,15 +222,26 @@ public class NeuralNetwork implements Serializable {
             }
         } else {
             double[] currentQValues = forward(state);
-            double[] nextQValues = forward(nextState);
-            double maxNextQ = max(nextQValues);
+            forward(nextState);
 
             double normalizedReward = reward / Math.sqrt(reward * reward + 1);
-            double target = normalizedReward + (gameOver ? 0 : discountFactor * maxNextQ);
-            target = Math.max(MIN_Q, Math.min(MAX_Q, target));
+
+            double targetX = normalizedReward + (gameOver ? 0 : discountFactor * maxQValueX);
+            double targetRotation = normalizedReward + (gameOver ? 0 : discountFactor * maxQValueRotation);
+
+            targetX = Math.max(MIN_Q, Math.min(MAX_Q, targetX));
+            targetRotation = Math.max(MIN_Q, Math.min(MAX_Q, targetRotation));
 
             double[] targetQValues = currentQValues.clone();
-            targetQValues[action] = target;
+
+            if (action[0] >= 0 && action[0] < X_COORD_OUTPUTS &&
+                    action[1] >= 0 && action[1] < ROTATION_OUTPUTS) {
+                targetQValues[action[0]] = targetX;
+                targetQValues[X_COORD_OUTPUTS + action[1]] = targetRotation;
+            } else {
+                System.out.println("Érvénytelen akció: " + Arrays.toString(action));
+                return; // Kilépünk a metódusból, ha érvénytelen az akció
+            }
 
             inputBatch.add(state);
             targetBatch.add(targetQValues);
@@ -225,8 +254,8 @@ public class NeuralNetwork implements Serializable {
         lastReward = reward;
 
         if (gameOver) {
-            if (reward > this.bestScore) {
-                this.bestScore = reward;
+            if (reward > this.bestReward) {
+                this.bestReward = reward;
             }
             updateEpsilon();
             updateDiscountFactor();
@@ -243,15 +272,20 @@ public class NeuralNetwork implements Serializable {
         for (int i = 0; i < EXPERIENCE_BATCH_SIZE; i++) {
             Experience exp = batch.get(i);
             double[] currentQValues = forward(exp.state);
-            double[] nextQValues = forward(exp.nextState);
-            double maxNextQ = max(nextQValues);
+            forward(exp.nextState);
 
             double normalizedReward = exp.reward / Math.sqrt(exp.reward * exp.reward + 1);
-            double target = normalizedReward + (exp.done ? 0 : discountFactor * maxNextQ);
-            target = Math.max(MIN_Q, Math.min(MAX_Q, target));
+
+            double targetX = normalizedReward + (exp.done ? 0 : discountFactor * maxQValueX);
+            double targetRotation = normalizedReward + (exp.done ? 0 : discountFactor * maxQValueRotation);
+
+            targetX = Math.max(MIN_Q, Math.min(MAX_Q, targetX));
+            targetRotation = Math.max(MIN_Q, Math.min(MAX_Q, targetRotation));
 
             double[] targetQValues = currentQValues.clone();
-            targetQValues[exp.action] = target;
+
+            targetQValues[exp.action[0]] = targetX;
+            targetQValues[X_COORD_OUTPUTS + exp.action[1]] = targetRotation;
 
             inputs[i] = exp.state;
             targets[i] = targetQValues;
@@ -298,10 +332,22 @@ public class NeuralNetwork implements Serializable {
         discountFactor = Math.min(MAX_DISCOUNT_FACTOR, discountFactor + DISCOUNT_FACTOR_INCREMENT);
     }
 
-    private int argmax(double[] array) {
+    private int argmaxOLD(double[] array) {
         int bestIndex = 0;
         double maxValue = array[0];
         for (int i = 1; i < array.length; i++) {
+            if (array[i] > maxValue) {
+                maxValue = array[i];
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    private int argmax(double[] array, int start, int end) {
+        int bestIndex = start;
+        double maxValue = array[start];
+        for (int i = start + 1; i < end; i++) {
             if (array[i] > maxValue) {
                 maxValue = array[i];
                 bestIndex = i;
@@ -500,16 +546,20 @@ public class NeuralNetwork implements Serializable {
         return epsilon;
     }
 
-    public double getBestScore() {
-        return bestScore;
+    public double getBestReward() {
+        return bestReward;
     }
 
     public int getEpisodeCount() {
         return episodeCount;
     }
 
-    public double getMaxQValue() {
-        return maxQValue;
+    public double getMaxQValueX() {
+        return maxQValueX;
+    }
+
+    public double getMaxQValueRotation() {
+        return maxQValueRotation;
     }
 
     public double getLastReward() {
@@ -549,4 +599,33 @@ public class NeuralNetwork implements Serializable {
         return movingAverage;
     }
 
+    /**
+     * Visszaadja a legnagyobb átlagos rewardot a recentRewards listából.
+     *
+     * @return A legnagyobb átlagos reward
+     */
+    public double getMaxAverageReward() {
+        if (recentRewards.isEmpty()) {
+            return Double.NEGATIVE_INFINITY;  // Ha a listában nincsenek elemek, 0-t ad vissza.
+        }
+        double maxReward = Double.NEGATIVE_INFINITY;
+        for (double reward : recentRewards) {
+            if (reward > maxReward) {
+                maxReward = reward;
+            }
+        }
+        return maxReward;
+    }
+
+    /**
+     * Visszaadja az utolsó mozgóátlagot a recentRewards listából.
+     *
+     * @return Az utolsó mozgóátlag
+     */
+    public double getLastMovingAverage() {
+        if (recentRewards.isEmpty()) {
+            return Double.NEGATIVE_INFINITY;  // Ha a listában nincsenek elemek, 0-t ad vissza.
+        }
+        return recentRewards.get(recentRewards.size() - 1);
+    }
 }
