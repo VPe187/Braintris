@@ -73,7 +73,6 @@ public class Tetris {
 
     private double lastFullRows = 0;
     private double lastNearlyFullRows = 0;
-    private double lastDroppedElements = 0;
     private double lastAvgDensity;
 
     private double lastNumberofHoles = 0;
@@ -138,11 +137,11 @@ public class Tetris {
             gameAudio.musicBackgroundPlay();
         }
         musicOn = true;
-        nextTetromino();
-        lastAction = new int[LAYER_SIZES.length];
-        lastState = getFeedData();
         moveCount = 0;
         stackManager.start();
+        if (stackManager.getGameLevel() == 0) {
+            stackManager.nextLevel();
+        }
     }
 
     private void nextTetromino() {
@@ -169,23 +168,32 @@ public class Tetris {
             starField.update();
         }
         if (tickControl.tick()) {
-            handleInput();
+            if (!learning) {
+                handleInput();
+            }
         }
         if (tickDown.tick()) {
-            if (stackManager.getGameState() != GameState.DELETINGROWS) {
-                if (stackManager.getGameLevel() == 0) {
-                    stackManager.nextLevel();
-                }
-                if (stackManager.getGameState() != GameState.GAMEOVER && stackManager.getGameState() !=
-                        GameState.PAUSED && stackManager.getGameState() != GameState.CHANGINGLEVEL) {
-                    if (stackManager.getCurrentTetromino() == null) {
-                        nextTetromino();
-                    } else {
-                        if (stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino())) {
-                            if (learning) {
-                                learning(false);
-                            }
-                        }
+            if (stackManager.getGameState() == GameState.RUNNING) {
+                if (stackManager.getCurrentTetromino() == null) {
+                    nextTetromino();
+                    if (learning) {
+                        double[] currentState = getFeedData();
+                        int[] action = brain.selectAction(currentState);
+                        int targetX = action[0];
+                        int targetRotation = (action[1] * 90) % 360;
+                        lastAction = action;
+                        lastState = currentState;
+                        stackManager.moveAndRotateTetrominoTo(stackManager.getStackArea(),
+                                stackManager.getCurrentTetromino(),
+                                targetX, targetRotation);
+                        double reward = calculateReward(false);
+                        double[] nextState = getFeedData();
+                        brain.learn(lastState, lastAction, reward, nextState, false);
+                    }
+                } else {
+                    stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino());
+                    if (learning) {
+                        learning(stackManager.getGameState() == GameState.GAMEOVER);
                     }
                 }
             }
@@ -217,50 +225,34 @@ public class Tetris {
             return;
         }
         if (stackManager.getGameState() == GameState.RUNNING && stackManager.getCurrentTetromino() != null) {
-            if (learning) {
-                double[] currentState = getFeedData();
-                int[] action = brain.selectAction(currentState);
-                int targetX = action[0];
-                int targetRotation = (action[1] * 90) % 360;
-                lastAction = action;
-                lastState = currentState;
-                stackManager.moveAndRotateTetrominoTo(stackManager.getStackArea(),
-                        stackManager.getCurrentTetromino(),
-                        targetX, targetRotation);
+            if (gameInput.left()) {
+                stackManager.moveTetrominoLeft(stackManager.getStackArea(), stackManager.getCurrentTetromino());
+            }
 
-                double reward = calculateReward(false);
-                double[] nextState = getFeedData();
-                brain.learn(lastState, lastAction, reward, nextState, false);
+            if (gameInput.right()) {
+                stackManager.moveTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
+            }
+
+            if (gameInput.space()) {
+                stackManager.rotateTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
+            }
+
+            if (gameInput.downRepeat()) {
+                tickDown.setPeriodMilliSecond(DROP_SPEED);
             } else {
-                if (gameInput.left()) {
-                    stackManager.moveTetrominoLeft(stackManager.getStackArea(), stackManager.getCurrentTetromino());
-                }
+                tickDown.setPeriodMilliSecond(stackManager.getCurrentSpeed());
+            }
 
-                if (gameInput.right()) {
-                    stackManager.moveTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
-                }
-
-                if (gameInput.space()) {
-                    stackManager.rotateTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
-                }
-
-                if (gameInput.downRepeat()) {
-                    tickDown.setPeriodMilliSecond(DROP_SPEED);
+            if (gameInput.letterM()) {
+                if (musicOn) {
+                    gameAudio.musicBackgroundStop();
+                    musicOn = false;
                 } else {
-                    tickDown.setPeriodMilliSecond(stackManager.getCurrentSpeed());
-                }
-
-                if (gameInput.letterM()) {
-                    if (musicOn) {
-                        gameAudio.musicBackgroundStop();
-                        musicOn = false;
-                    } else {
-                        gameAudio.musicBackgroundPlay();
-                        musicOn = true;
-                    }
+                    gameAudio.musicBackgroundPlay();
+                    musicOn = true;
                 }
             }
-        } else {
+
             gameInput.clearBuffer();
             if (learning) {
                 tickDown.setPeriodMilliSecond(learningSpeed);
@@ -288,53 +280,49 @@ public class Tetris {
         int k = 0;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
 
-        feedData[k++] = (stackManager.getCurrentTetromino() != null) ? stackManager.getCurrentTetromino().getId() : -1;
-        feedData[k++] = (nextTetromino != null) ? nextTetromino.getId() : 0;
-
-        // Oszlopok
-        double[] columns = stackMetrics.getMetricColumnHeights();
-
-        for (double column : columns) {
-            feedData[k++] = column;
-        }
-
-        // Aktuális elem x és y poziciója
+        // Aktuális tetromino adatai és a következő tetromino id
         if (stackManager.getCurrentTetromino() != null) {
+            feedData[k++] = stackManager.getCurrentTetromino().getId();
+            feedData[k++] = nextTetromino.getId();
             feedData[k++] = stackManager.getCurrentTetromino().getStackCol();
             feedData[k++] = stackManager.getCurrentTetromino().getStackRow();
             feedData[k++] = stackManager.getTetrominoRotation();
         } else {
-            feedData[k++] = 0;
-            feedData[k++] = 0;
-            feedData[k++] = 0;
+            feedData[k++] = -0.1;
+            feedData[k++] = -0.1;
+            feedData[k++] = -0.1;
+            feedData[k++] = -0.1;
+            feedData[k++] = -0.1;
+        }
+        // Oszlopok
+        double[] columns = stackMetrics.getMetricColumnHeights();
+        for (double column : columns) {
+            feedData[k++] = column / 10;
         }
 
         // Összes sor
-        feedData[k++] = stackManager.getAllFullRows();
+        feedData[k++] = stackManager.getAllFullRows() / 10;
 
         // Majdnem teli sorok
-        feedData[k++] = stackMetrics.getMetricNearlyFullRows();
-
-        // Ledobott elemek
-        feedData[k++] = stackManager.getDroppedElements();
+        feedData[k++] = stackMetrics.getMetricNearlyFullRows() / 10;
 
         // Átlagsűrűség
         feedData[k++] = stackMetrics.getMetricAvgDensity();
 
         // Lyukak száma
-        feedData[k++] = stackMetrics.getMetricNumberOfHoles();
+        feedData[k++] = stackMetrics.getMetricNumberOfHoles() / 10;
 
         // Körbevett lukak
-        feedData[k++] = stackMetrics.getMetricSurroundingHoles();
+        feedData[k++] = stackMetrics.getMetricSurroundingHoles() / 10;
 
         // Blokkolt sorok
-        feedData[k++] = stackMetrics.getMetricBlockedRows();
+        feedData[k++] = stackMetrics.getMetricBlockedRows() / 10;
 
         // Egyenetlenség
-        feedData[k++] = stackMetrics.getMetricBumpiness();
+        feedData[k++] = stackMetrics.getMetricBumpiness() / 10;
 
         // Maximum magasság
-        feedData[k++] = stackMetrics.getMetricMaxHeight();
+        feedData[k++] = stackMetrics.getMetricMaxHeight() / 10;
 
         // Magasság különbségek
         feedData[k++] = stackMetrics.getMetricAvgColumnHeight();
@@ -378,14 +366,6 @@ public class Tetris {
             reward += (nearlyFullRows - lastNearlyFullRows) * REWARD_NEARLY_FULLROW;
         } else {
             reward += nearlyFullRows * REWARD_NEARLY_FULLROW;
-        }
-
-        // Jutalom a ledobott elemekért
-        double droppedElements = stackManager.getDroppedElements();
-        if (!gameOver) {
-            reward += (droppedElements - lastDroppedElements) * REWARD_DROPPED_ELEMENTS;
-        } else {
-            reward += droppedElements * REWARD_DROPPED_ELEMENTS;
         }
 
         // Jutalom az átlagsűrűségért
@@ -456,7 +436,6 @@ public class Tetris {
         lastFullRows = fullRows;
         lastMaxHeight = maxHeight;
         lastNearlyFullRows = nearlyFullRows;
-        lastDroppedElements = droppedElements;
         lastNumberofHoles = numberofHoles;
         lastSurroundingHoles = surroundingHoles;
         lastAvgColumnHeights = avgColumnHeights;
