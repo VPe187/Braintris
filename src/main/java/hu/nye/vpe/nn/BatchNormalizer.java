@@ -92,7 +92,8 @@ public class BatchNormalizer implements Serializable {
 
         // Számoljuk ki a batch statisztikákat
         for (int i = 0; i < size; i++) {
-            double sum = 0, sumSquares = 0;
+            double sum = 0;
+            double sumSquares = 0;
             for (int j = 0; j < currentBatchSize; j++) {
                 double val = batchInputs[j][i];
                 sum += val;
@@ -103,7 +104,8 @@ public class BatchNormalizer implements Serializable {
 
             // Finomhangoljuk a running statisztikákat a batch alapján
             runningMean[i] = momentum * runningMean[i] + (1 - momentum) * batchMean[i];
-            runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * batchVariance[i] * currentBatchSize / (currentBatchSize - 1);
+            runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * batchVariance[i] *
+                    currentBatchSize / (currentBatchSize - 1);
         }
     }
 
@@ -165,6 +167,13 @@ public class BatchNormalizer implements Serializable {
         return outputs;
     }
 
+    /**
+     * Backward batch.
+     *
+     * @param gradOutputs Outputs gradient
+     *
+     * @return Gradient inputs
+     */
     public double[][] backwardBatch(double[][] gradOutputs) {
         int currentBatchSize = gradOutputs.length;
         double[][] gradInputs = new double[currentBatchSize][size];

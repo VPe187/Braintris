@@ -52,6 +52,7 @@ public class StackManager implements StackComponent {
         startTime = System.currentTimeMillis();
         currentSpeed = learning ? GameConstans.LEARNING_START_SPEED : GameConstans.START_SPEED;
     }
+
     private void initializeStack() {
         if (stackArea == null) {
             stackArea = new Cell[GameConstans.ROWS][GameConstans.COLS];
@@ -580,6 +581,7 @@ public class StackManager implements StackComponent {
                 break;
             }
         }
+        tetrominoRotation = targetRotation;
     }
 
     private void moveHorizontally(Cell[][] stackArea, Tetromino tetromino, int targetX) {
@@ -690,11 +692,11 @@ public class StackManager implements StackComponent {
     protected void setTetrominos(Tetromino currentTetromino, Tetromino nextTetromino) {
         this.currentTetromino = currentTetromino;
         this.nextTetromino = nextTetromino;
-        this.setTetrominoRotation(0);
+        //this.setTetrominoRotation(0);
     }
 
     public void setTetrominoRotation(double tetrominoRotation) {
-        this.tetrominoRotation = tetrominoRotation % 360;
+        this.tetrominoRotation = tetrominoRotation;
     }
 
     public void setCurrentSpeed(long currentSpeed) {

@@ -192,9 +192,9 @@ public class NeuralNetwork implements Serializable {
             };
         } else {
             double[] qvalues = forward(state);
-            int xAction = argmax(qvalues, 0, X_COORD_OUTPUTS);
+            int xaction = argmax(qvalues, 0, X_COORD_OUTPUTS);
             int rotationAction = argmax(qvalues, X_COORD_OUTPUTS, TOTAL_OUTPUTS) - X_COORD_OUTPUTS;
-            return new int[]{xAction, rotationAction};
+            return new int[]{xaction, rotationAction};
         }
     }
 
@@ -221,9 +221,10 @@ public class NeuralNetwork implements Serializable {
                 processBatchWithExperience(batch);
             }
         } else {
-            double[] currentQValues = forward(state);
+
             forward(nextState);
 
+            double[] currentQValues = forward(state);
             double normalizedReward = reward / Math.sqrt(reward * reward + 1);
 
             double targetX = normalizedReward + (gameOver ? 0 : discountFactor * maxQValueX);
@@ -271,19 +272,15 @@ public class NeuralNetwork implements Serializable {
 
         for (int i = 0; i < EXPERIENCE_BATCH_SIZE; i++) {
             Experience exp = batch.get(i);
-            double[] currentQValues = forward(exp.state);
             forward(exp.nextState);
-
+            double[] currentQValues = forward(exp.state);
             double normalizedReward = exp.reward / Math.sqrt(exp.reward * exp.reward + 1);
-
             double targetX = normalizedReward + (exp.done ? 0 : discountFactor * maxQValueX);
             double targetRotation = normalizedReward + (exp.done ? 0 : discountFactor * maxQValueRotation);
-
             targetX = Math.max(MIN_Q, Math.min(MAX_Q, targetX));
             targetRotation = Math.max(MIN_Q, Math.min(MAX_Q, targetRotation));
 
             double[] targetQValues = currentQValues.clone();
-
             targetQValues[exp.action[0]] = targetX;
             targetQValues[X_COORD_OUTPUTS + exp.action[1]] = targetRotation;
 
@@ -366,6 +363,9 @@ public class NeuralNetwork implements Serializable {
         return maxValue;
     }
 
+    /**
+     * Update network statistic.
+     */
     public void updateStatistics() {
         double[][][] currentWeights = getAllWeights();
 

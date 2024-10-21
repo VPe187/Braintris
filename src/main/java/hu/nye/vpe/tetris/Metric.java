@@ -1,5 +1,8 @@
 package hu.nye.vpe.tetris;
 
+/**
+ * Metric class.
+ */
 public class Metric {
     double bumpiness;
     double[] columnHeights;

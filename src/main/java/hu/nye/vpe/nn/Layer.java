@@ -19,8 +19,9 @@ public class Layer implements Serializable {
     private double learningRate;
     private final boolean useBatchNorm;
     private double[][] batchOutputs;
+    private int splitIndex;
 
-    public Layer(String name, int inputSize, int ouputSize, Activation activation, WeightInitStrategy initStrategy,
+    public Layer(String name, int inputSize, int outputSize, Activation activation, WeightInitStrategy initStrategy,
                  GradientClipper gradientClipper, double lambdaL2, BatchNormParameters batchNormParameters,
                  double learningRate) {
         this.name = name;
@@ -31,15 +32,19 @@ public class Layer implements Serializable {
         this.useBatchNorm = batchNormParameters.useBatchNorm;
         this.learningRate = learningRate;
 
-        for (int i = 0; i < ouputSize; i++) {
-            neurons.add(new Neuron(inputSize, ouputSize, activation, initStrategy, gradientClipper, lambdaL2));
+        for (int i = 0; i < outputSize; i++) {
+            neurons.add(new Neuron(inputSize, outputSize, activation, initStrategy, gradientClipper, lambdaL2));
         }
 
         if (useBatchNorm) {
-            this.batchNormalizer = new BatchNormalizer(ouputSize, BATCH_SIZE, batchNormParameters.gamma,
+            this.batchNormalizer = new BatchNormalizer(outputSize, BATCH_SIZE, batchNormParameters.gamma,
                     batchNormParameters.beta, learningRate);
         }
-        this.batchOutputs = new double[BATCH_SIZE][ouputSize];
+        this.batchOutputs = new double[BATCH_SIZE][outputSize];
+
+        if (activation == Activation.SOFTMAX_SPLIT) {
+            this.splitIndex = 12; // Default split index, can be adjusted later
+        }
     }
 
     /**
@@ -65,6 +70,8 @@ public class Layer implements Serializable {
         double[] activatedOutputs;
         if (activation == Activation.SOFTMAX) {
             activatedOutputs = Activation.activate(linearOutputs, activation);
+        } else if (activation == Activation.SOFTMAX_SPLIT) {
+            activatedOutputs = Activation.activate(linearOutputs, activation, splitIndex);
         } else {
             activatedOutputs = new double[neurons.size()];
             for (int i = 0; i < neurons.size(); i++) {
@@ -103,6 +110,10 @@ public class Layer implements Serializable {
         if (activation == Activation.SOFTMAX) {
             for (int b = 0; b < batchSize; b++) {
                 outputs[b] = Activation.activate(linearOutputs[b], activation);
+            }
+        } else if (activation == Activation.SOFTMAX_SPLIT) {
+            for (int b = 0; b < batchSize; b++) {
+                outputs[b] = Activation.activate(linearOutputs[b], activation, splitIndex);
             }
         } else {
             for (int b = 0; b < batchSize; b++) {
@@ -145,6 +156,8 @@ public class Layer implements Serializable {
             double[] derivativeValues;
             if (activation == Activation.SOFTMAX) {
                 derivativeValues = Activation.derivative(batchOutputs[b], activation);
+            } else if (activation == Activation.SOFTMAX_SPLIT) {
+                derivativeValues = Activation.derivative(batchOutputs[b], activation, splitIndex);
             } else {
                 derivativeValues = new double[outputSize];
                 for (int i = 0; i < outputSize; i++) {
@@ -152,8 +165,8 @@ public class Layer implements Serializable {
                 }
             }
 
-            if (activation == Activation.SOFTMAX) {
-                // For SOFTMAX, we need to handle the Jacobian matrix
+            if (activation == Activation.SOFTMAX || activation == Activation.SOFTMAX_SPLIT) {
+                // Handle Jacobian matrix for SOFTMAX and SOFTMAX_SPLIT
                 for (int i = 0; i < outputSize; i++) {
                     double neuronDelta = 0;
                     for (int j = 0; j < outputSize; j++) {
@@ -166,6 +179,7 @@ public class Layer implements Serializable {
                         weightGradients[i][j] += gradientUpdate;
                         inputGradients[b][j] += neuronDelta * weights[j];
                     }
+
                     biasGradients[i] += neuronDelta;
                 }
             } else {
@@ -242,5 +256,20 @@ public class Layer implements Serializable {
         if (useBatchNorm) {
             batchNormalizer.setLearningRate(learningRate);
         }
+    }
+
+    /**
+     * Set split index.
+     *
+     * @param splitIndex Spit index
+     */
+    public void setSplitIndex(int splitIndex) {
+        if (this.activation != Activation.SOFTMAX_SPLIT) {
+            throw new IllegalStateException("Split index can only be set for SOFTMAX_SPLIT activation");
+        }
+        if (splitIndex <= 0 || splitIndex >= this.neurons.size()) {
+            throw new IllegalArgumentException("Split index must be between 1 and " + (this.neurons.size() - 1));
+        }
+        this.splitIndex = splitIndex;
     }
 }

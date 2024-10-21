@@ -4,7 +4,7 @@ package hu.nye.vpe.nn;
  * Activation enum.
  */
 public enum Activation {
-    SIGMOID, TANH, RELU, LEAKY_RELU, ELU, GELU, LINEAR, SWISH, MISH, SOFTMAX;
+    SIGMOID, TANH, RELU, LEAKY_RELU, ELU, GELU, LINEAR, SWISH, MISH, SOFTMAX, SOFTMAX_SPLIT;
 
     /**
      * Activate method.
@@ -16,6 +16,8 @@ public enum Activation {
     public static double[] activate(double[] x, Activation type) {
         if (type == SOFTMAX) {
             return activateSoftMax(x);
+        } else if (type == SOFTMAX_SPLIT) {
+            throw new IllegalArgumentException("SOFTMAX_SPLIT requires a split index. Use activate(double[], Activation, int) instead.");
         } else {
             double[] result = new double[x.length];
             for (int i = 0; i < x.length; i++) {
@@ -23,6 +25,21 @@ public enum Activation {
             }
             return result;
         }
+    }
+
+    /**
+     * Activate method for SOFTMAX_SPLIT.
+     *
+     * @param x input value or vector
+     * @param type activation type
+     * @param splitIndex index to split the input
+     * @return activated value or vector
+     */
+    public static double[] activate(double[] x, Activation type, int splitIndex) {
+        if (type != SOFTMAX_SPLIT) {
+            return activate(x, type);
+        }
+        return activateSoftMaxSplit(x, splitIndex);
     }
 
     private static double activateSingle(double x, Activation type) {
@@ -59,6 +76,27 @@ public enum Activation {
         return output;
     }
 
+    private static double[] activateSoftMaxSplit(double[] x, int splitIndex) {
+        if (splitIndex <= 0 || splitIndex >= x.length) {
+            throw new IllegalArgumentException("Split index must be between 1 and " + (x.length - 1));
+        }
+
+        double[] output = new double[x.length];
+        double[] firstPart = new double[splitIndex];
+        double[] secondPart = new double[x.length - splitIndex];
+
+        System.arraycopy(x, 0, firstPart, 0, splitIndex);
+        System.arraycopy(x, splitIndex, secondPart, 0, x.length - splitIndex);
+
+        double[] activatedFirst = activateSoftMax(firstPart);
+        double[] activatedSecond = activateSoftMax(secondPart);
+
+        System.arraycopy(activatedFirst, 0, output, 0, splitIndex);
+        System.arraycopy(activatedSecond, 0, output, splitIndex, x.length - splitIndex);
+
+        return output;
+    }
+
 
     /**
      * Derivative method.
@@ -70,6 +108,8 @@ public enum Activation {
     public static double[] derivative(double[] x, Activation type) {
         if (type == SOFTMAX) {
             return derivativeSoftMax(x);
+        } else if (type == SOFTMAX_SPLIT) {
+            throw new IllegalArgumentException("SOFTMAX_SPLIT requires a split index. Use derivative(double[], Activation, int) instead.");
         } else {
             double[] result = new double[x.length];
             for (int i = 0; i < x.length; i++) {
@@ -77,6 +117,21 @@ public enum Activation {
             }
             return result;
         }
+    }
+
+    /**
+     * Derivative method for SOFTMAX_SPLIT.
+     *
+     * @param x activated value or vector
+     * @param type activation type
+     * @param splitIndex index to split the input
+     * @return derivative value or vector
+     */
+    public static double[] derivative(double[] x, Activation type, int splitIndex) {
+        if (type != SOFTMAX_SPLIT) {
+            return derivative(x, type);
+        }
+        return derivativeSoftMaxSplit(x, splitIndex);
     }
 
     private static double derivativeSingle(double x, Activation type) {
@@ -120,6 +175,38 @@ public enum Activation {
                 }
             }
         }
+        return jacobian;
+    }
+
+    private static double[] derivativeSoftMaxSplit(double[] output, int splitIndex) {
+        if (splitIndex <= 0 || splitIndex >= output.length) {
+            throw new IllegalArgumentException("Split index must be between 1 and " + (output.length - 1));
+        }
+
+        double[] jacobian = new double[output.length * output.length];
+
+        // First part
+        for (int i = 0; i < splitIndex; i++) {
+            for (int j = 0; j < splitIndex; j++) {
+                if (i == j) {
+                    jacobian[i * output.length + j] = output[i] * (1 - output[i]);
+                } else {
+                    jacobian[i * output.length + j] = -output[i] * output[j];
+                }
+            }
+        }
+
+        // Second part
+        for (int i = splitIndex; i < output.length; i++) {
+            for (int j = splitIndex; j < output.length; j++) {
+                if (i == j) {
+                    jacobian[i * output.length + j] = output[i] * (1 - output[i]);
+                } else {
+                    jacobian[i * output.length + j] = -output[i] * output[j];
+                }
+            }
+        }
+
         return jacobian;
     }
 

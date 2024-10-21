@@ -50,7 +50,6 @@ public class Tetris {
     private static final double[] L2_REGULARIZATION = GlobalConfig.getInstance().getL2Regularization();
 
     private static final long DROP_SPEED = 10L;
-    private static int moveCount = 0;
     private NeuralNetwork brain;
     private static final long speed = 1000L;
     private final long learningSpeed = 10L;
@@ -137,7 +136,6 @@ public class Tetris {
             gameAudio.musicBackgroundPlay();
         }
         musicOn = true;
-        moveCount = 0;
         stackManager.start();
         if (stackManager.getGameLevel() == 0) {
             stackManager.nextLevel();
@@ -177,18 +175,21 @@ public class Tetris {
                 if (stackManager.getCurrentTetromino() == null) {
                     nextTetromino();
                     if (learning) {
-                        double[] currentState = getFeedData();
-                        int[] action = brain.selectAction(currentState);
-                        int targetX = action[0];
-                        int targetRotation = (action[1] * 90) % 360;
-                        lastAction = action;
-                        lastState = currentState;
-                        stackManager.moveAndRotateTetrominoTo(stackManager.getStackArea(),
-                                stackManager.getCurrentTetromino(),
-                                targetX, targetRotation);
-                        double reward = calculateReward(false);
-                        double[] nextState = getFeedData();
-                        brain.learn(lastState, lastAction, reward, nextState, false);
+                        if (stackManager.getCurrentTetromino() != null) {
+                            double[] currentState = getFeedData();
+                            int[] action = brain.selectAction(currentState);
+                            int targetX = action[0];
+                            int targetRotation = (action[1] * 90) % 360;
+                            lastAction = action;
+                            lastState = currentState;
+                            stackManager.moveAndRotateTetrominoTo(stackManager.getStackArea(),
+                                    stackManager.getCurrentTetromino(),
+                                    targetX, targetRotation);
+                            stackManager.setTetrominoRotation(targetRotation);
+                            double reward = calculateReward(false);
+                            double[] nextState = getFeedData();
+                            brain.learn(lastState, lastAction, reward, nextState, false);
+                        }
                     }
                 } else {
                     stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino());
@@ -282,18 +283,16 @@ public class Tetris {
 
         // Aktuális tetromino adatai és a következő tetromino id
         if (stackManager.getCurrentTetromino() != null) {
-            feedData[k++] = stackManager.getCurrentTetromino().getId();
-            feedData[k++] = nextTetromino.getId();
-            feedData[k++] = stackManager.getCurrentTetromino().getStackCol();
-            feedData[k++] = stackManager.getCurrentTetromino().getStackRow();
-            feedData[k++] = stackManager.getTetrominoRotation();
+            feedData[k++] = stackManager.getCurrentTetromino().getId() / 100;
+            feedData[k++] = stackManager.getNextTetromino().getId() / 100;
+            feedData[k++] = stackManager.getTetrominoRotation() / 100;
         } else {
-            feedData[k++] = -0.1;
-            feedData[k++] = -0.1;
-            feedData[k++] = -0.1;
-            feedData[k++] = -0.1;
-            feedData[k++] = -0.1;
+            feedData[k++] = -0.01;
+            feedData[k++] = -0.01;
+            feedData[k++] = -0.01;
         }
+
+
         // Oszlopok
         double[] columns = stackMetrics.getMetricColumnHeights();
         for (double column : columns) {
@@ -301,37 +300,31 @@ public class Tetris {
         }
 
         // Összes sor
-        feedData[k++] = stackManager.getAllFullRows() / 10;
+        feedData[k++] = stackManager.getAllFullRows();
 
         // Majdnem teli sorok
-        feedData[k++] = stackMetrics.getMetricNearlyFullRows() / 10;
+        feedData[k++] = stackMetrics.getMetricNearlyFullRows();
 
         // Átlagsűrűség
-        feedData[k++] = stackMetrics.getMetricAvgDensity();
+        feedData[k++] = stackMetrics.getMetricAvgDensity() * 4;
 
         // Lyukak száma
-        feedData[k++] = stackMetrics.getMetricNumberOfHoles() / 10;
+        feedData[k++] = stackMetrics.getMetricNumberOfHoles() / 20;
 
         // Körbevett lukak
-        feedData[k++] = stackMetrics.getMetricSurroundingHoles() / 10;
+        feedData[k++] = stackMetrics.getMetricSurroundingHoles() / 20;
 
         // Blokkolt sorok
-        feedData[k++] = stackMetrics.getMetricBlockedRows() / 10;
+        feedData[k++] = stackMetrics.getMetricBlockedRows() / 20;
 
         // Egyenetlenség
-        feedData[k++] = stackMetrics.getMetricBumpiness() / 10;
+        feedData[k++] = stackMetrics.getMetricBumpiness() / 20;
 
         // Maximum magasság
         feedData[k++] = stackMetrics.getMetricMaxHeight() / 10;
 
         // Magasság különbségek
-        feedData[k++] = stackMetrics.getMetricAvgColumnHeight();
-
-        // Terület tömörsége
-        feedData[k++] = stackMetrics.getMetricAvgDensity();
-
-        // Mozgatások száma
-        feedData[k] = moveCount;
+        feedData[k] = stackMetrics.getMetricAvgColumnHeight() * 10;
 
         if (NORMALIZE_FEED_DATA) {
             if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
@@ -381,14 +374,10 @@ public class Tetris {
             reward += REWARD_PLACE_WITHOUT_HOLE;
         }
 
-        if (!gameOver && stackManager.getCurrentTetromino() != null) {
-            reward += stackManager.getCurrentTetromino().getStackRow() * 1;
-        }
-
         // Büntetés a lyukakért
         double numberofHoles = stackMetrics.getMetricNumberOfHoles();
         if (!gameOver) {
-            reward -= (numberofHoles - lastNumberofHoles) * REWARD_NUMBER_OF_HOLES;
+            reward -= ((numberofHoles - lastNumberofHoles) * REWARD_NUMBER_OF_HOLES);
         } else {
             reward -= numberofHoles * REWARD_NUMBER_OF_HOLES;
         }
@@ -442,52 +431,6 @@ public class Tetris {
         lastBlockedRows = blockedRows;
         lastBumpiness = bumpiness;
         lastAvgDensity = avgDensity;
-        return 30 + reward;
-    }
-
-    private double rewardMovement() {
-        double reward = 0;
-
-        stackMetrics.calculateGameMetrics(stackManager.getSimStackArea());
-
-        if (stackMetrics.getMetricMaxHeight() <= 6) {
-            reward += REWARD_DROP_LOWER;
-        } else {
-            reward -= REWARD_DROP_HIGHER;
-        }
-
-        if (stackMetrics.getMetricNumberOfHoles() == 0) {
-            reward += REWARD_PLACE_WITHOUT_HOLE;
-        }
-
-        double fullRows = stackManager.getAllFullRows();
-        reward += fullRows * REWARD_FULLROW;
-
-        double nearlyFullRows = stackMetrics.getMetricNearlyFullRows();
-        reward += nearlyFullRows * REWARD_NEARLY_FULLROW;
-
-        double bumpiness = stackMetrics.getMetricBumpiness();
-        reward -= bumpiness * REWARD_BUMPINESS;
-
-        double maxHeight = stackMetrics.getMetricMaxHeight();
-        reward -= maxHeight * REWARD_MAXIMUM_HEIGHT;
-
-        double blockedRows = stackMetrics.getMetricBlockedRows();
-        reward -= blockedRows * REWARD_BLOCKED_ROW;
-
-        double avgDensity = stackMetrics.getMetricAvgDensity();
-        reward -= avgDensity * REWARD_AVG_DENSITY;
-
-        double numberOfHoles = stackMetrics.getMetricNumberOfHoles();
-        reward -= numberOfHoles * REWARD_NUMBER_OF_HOLES;
-
-        double surroundedHoles = stackMetrics.getMetricSurroundingHoles();
-        reward -= surroundedHoles * REWARD_SURROUNDED_HOLES;
-
-        double avgColumnHeights = stackMetrics.getMetricAvgColumnHeight();
-        reward -= avgColumnHeights * REWARD_AVG_COLUMN_HEIGHT;
-
-        reward = 60 + reward;
         return reward;
     }
 

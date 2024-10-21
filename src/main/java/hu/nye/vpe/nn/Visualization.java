@@ -33,7 +33,7 @@ public class Visualization implements GameElement {
     private static final Color NEGATIVE_CHANGE_COLOR = new Color(0, 0, 0, 200);
     private static final Color INCREASE_COLOR = new Color(200, 255, 100, 200);  // Zöld szín növekedéshez
     private static final Color DECREASE_COLOR = new Color(255, 100, 200, 200);  // Piros szín csökkenéshez
-    private static final int REFRESH_RATE = 50;
+    private static final int REFRESH_RATE = 20;
 
     private final NeuralNetwork network;
     private final int width;
@@ -59,6 +59,8 @@ public class Visualization implements GameElement {
     private double currentMovingAverage;
     private double maxMovingAverage;
     private boolean isMovingAverageUpdated;
+    private int maxOutputIndexFirst12;
+    private int maxOutputIndexLast3;
 
     public Visualization(NeuralNetwork network, int width, int height) {
         this.network = network;
@@ -76,6 +78,8 @@ public class Visualization implements GameElement {
         this.currentMovingAverage = this.lastKnownMovingAverage;
         this.isMovingAverageUpdated = false;
         this.maxMovingAverage = Math.max(network.getMaxAverageReward(), this.lastKnownMovingAverage);
+        this.maxOutputIndexFirst12 = -1;
+        this.maxOutputIndexLast3 = -1;
         updateNetworkData();
         calculateDynamicSizing();
     }
@@ -194,9 +198,11 @@ public class Visualization implements GameElement {
         int nodeCount = layerSizes[layerIndex];
         boolean isOutputLayer = (layerIndex == layerSizes.length - 1);
 
-        int maxOutputIndex = -1;
+        int maxOutputIndexFirst12 = -1;
+        int maxOutputIndexLast3 = -1;
         if (isOutputLayer) {
-            maxOutputIndex = findMaxOutputIndex(activations[layerIndex]);
+            maxOutputIndexFirst12 = findMaxOutputIndex(activations[layerIndex], 0, 12);
+            maxOutputIndexLast3 = findMaxOutputIndex(activations[layerIndex], 12, 15);
         }
 
         for (int j = 0; j < nodeCount; j++) {
@@ -206,7 +212,7 @@ public class Visualization implements GameElement {
             Color nodeColor;
             if (layerIndex < activations.length && j < activations[layerIndex].length) {
                 double activation = activations[layerIndex][j];
-                if (isOutputLayer && j == maxOutputIndex) {
+                if (isOutputLayer && j == maxOutputIndexFirst12 || j == maxOutputIndexLast3) {
                     nodeColor = HIGHLIGHTED_OUTPUT_NODE_COLOR;
                 } else {
                     nodeColor = getColorForActivation(activation, isOutputLayer);
@@ -220,9 +226,9 @@ public class Visualization implements GameElement {
         }
     }
 
-    private int findMaxOutputIndex(double[] outputActivations) {
-        int maxIndex = 0;
-        for (int i = 1; i < outputActivations.length; i++) {
+    private int findMaxOutputIndex(double[] outputActivations, int start, int end) {
+        int maxIndex = start;
+        for (int i = start + 1; i < end; i++) {
             if (outputActivations[i] > outputActivations[maxIndex]) {
                 maxIndex = i;
             }
@@ -237,7 +243,7 @@ public class Visualization implements GameElement {
     }
 
     private Color getColorForWeight(double weight) {
-        double normalizedWeight = Math.tanh(weight / 4);
+        double normalizedWeight = Math.tanh(weight);
         int red;
         int green;
         int blue;
@@ -314,20 +320,13 @@ public class Visualization implements GameElement {
     }
 
     private void drawRightColumn(Graphics2D g2d, FontMetrics metrics) {
-        double currentMovingAverage = network.getMovingAverage();
-        String episodes = String.format("Episodes: %d", network.getEpisodeCount());
-        String movingAverage = String.format("Average reward: %.4f (%.4f)", network.getMovingAverage(), maxMovingAverage);
-        String bestReward = String.format("Best episode reward: %.0f", network.getBestReward());
-        String reward = String.format("Step reward: %.4f",  network.getLastReward());
-        String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
-        String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
-        String discountFactor = String.format("Discount Factor: %.4f", network.getDiscountFactor());
-        String avgWeightChange = String.format("Avg Weight Change: %.6f", this.averageWeightChange);
-
         int rightColumnX = width - STAT_X - RIGHT_COLUMN_OFFSET;
 
+        String episodes = String.format("Episodes: %d", network.getEpisodeCount());
         g2d.drawString(episodes, rightColumnX - metrics.stringWidth(episodes), height - 160);
 
+        double currentMovingAverage = network.getMovingAverage();
+        String movingAverage = String.format("Average reward: %.4f (%.4f)", network.getMovingAverage(), maxMovingAverage);
         if (isMovingAverageUpdated) {
             if (currentMovingAverage > lastKnownMovingAverage) {
                 g2d.setColor(INCREASE_COLOR);
@@ -342,11 +341,22 @@ public class Visualization implements GameElement {
         g2d.drawString(movingAverage, rightColumnX - metrics.stringWidth(movingAverage), height - 140);
         g2d.setColor(FONT_COLOR);  // Visszaállítjuk az eredeti színt
 
+        String bestReward = String.format("Best episode reward: %.0f", network.getBestReward());
         g2d.drawString(bestReward, rightColumnX - metrics.stringWidth(bestReward), height - 120);
+
+        String reward = String.format("Step reward: %.4f",  network.getLastReward());
         g2d.drawString(reward, rightColumnX - metrics.stringWidth(reward), height - 100);
+
+        String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         g2d.drawString(learningRate, rightColumnX - metrics.stringWidth(learningRate), height - 80);
+
+        String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
         g2d.drawString(epsilon, rightColumnX - metrics.stringWidth(epsilon), height - 60);
+
+        String discountFactor = String.format("Discount Factor: %.4f", network.getDiscountFactor());
         g2d.drawString(discountFactor, rightColumnX - metrics.stringWidth(discountFactor), height - 40);
+
+        String avgWeightChange = String.format("Avg Weight Change: %.6f", this.averageWeightChange);
         g2d.drawString(avgWeightChange, rightColumnX - metrics.stringWidth(avgWeightChange), height - 20);
     }
 }
