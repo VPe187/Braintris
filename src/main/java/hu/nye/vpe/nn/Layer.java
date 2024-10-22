@@ -2,7 +2,6 @@ package hu.nye.vpe.nn;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -43,7 +42,7 @@ public class Layer implements Serializable {
         this.batchOutputs = new double[BATCH_SIZE][outputSize];
 
         if (activation == Activation.SOFTMAX_SPLIT) {
-            this.splitIndex = 12; // Default split index, can be adjusted later
+            this.splitIndex = 12;
         }
     }
 
@@ -166,7 +165,6 @@ public class Layer implements Serializable {
             }
 
             if (activation == Activation.SOFTMAX || activation == Activation.SOFTMAX_SPLIT) {
-                // Handle Jacobian matrix for SOFTMAX and SOFTMAX_SPLIT
                 for (int i = 0; i < outputSize; i++) {
                     double neuronDelta = 0;
                     for (int j = 0; j < outputSize; j++) {
@@ -198,7 +196,6 @@ public class Layer implements Serializable {
             }
         }
 
-        // Average gradients over batch
         for (int i = 0; i < outputSize; i++) {
             for (int j = 0; j < inputSize; j++) {
                 weightGradients[i][j] /= batchSize;
@@ -206,8 +203,6 @@ public class Layer implements Serializable {
             biasGradients[i] /= batchSize;
         }
 
-        // Update weights and biases
-        // először klippelünk
         for (int i = 0; i < outputSize; i++) {
             for (int j = 0; j < inputSize; j++) {
                 weightGradients[i][j] = gradientClipper.clip(weightGradients[i][j]);

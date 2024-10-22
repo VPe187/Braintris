@@ -241,7 +241,7 @@ public class NeuralNetwork implements Serializable {
                 targetQValues[X_COORD_OUTPUTS + action[1]] = targetRotation;
             } else {
                 System.out.println("Érvénytelen akció: " + Arrays.toString(action));
-                return; // Kilépünk a metódusból, ha érvénytelen az akció
+                return;
             }
 
             inputBatch.add(state);
@@ -606,7 +606,7 @@ public class NeuralNetwork implements Serializable {
      */
     public double getMaxAverageReward() {
         if (recentRewards.isEmpty()) {
-            return Double.NEGATIVE_INFINITY;  // Ha a listában nincsenek elemek, 0-t ad vissza.
+            return Double.NEGATIVE_INFINITY;
         }
         double maxReward = Double.NEGATIVE_INFINITY;
         for (double reward : recentRewards) {
@@ -624,7 +624,7 @@ public class NeuralNetwork implements Serializable {
      */
     public double getLastMovingAverage() {
         if (recentRewards.isEmpty()) {
-            return Double.NEGATIVE_INFINITY;  // Ha a listában nincsenek elemek, 0-t ad vissza.
+            return Double.NEGATIVE_INFINITY;
         }
         return recentRewards.get(recentRewards.size() - 1);
     }

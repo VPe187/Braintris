@@ -55,7 +55,6 @@ public class BatchNormalizer implements Serializable {
         double[] output = new double[size];
 
         for (int i = 0; i < size; i++) {
-            // Frissítjük a running statisztikákat
             double delta = input[i] - runningMean[i];
             runningMean[i] += (1 - momentum) * delta / samplesSeen;
 
@@ -65,12 +64,10 @@ public class BatchNormalizer implements Serializable {
                 runningVariance[i] = delta * delta;
             }
 
-            // Normalizáljuk az inputot
             double stdDev = Math.sqrt(runningVariance[i] + epsilon);
             output[i] = ((input[i] - runningMean[i]) / stdDev) * gamma[i] + beta[i];
         }
 
-        // Tároljuk az eredeti és normalizált értékeket a batch-ben
         System.arraycopy(input, 0, batchInputs[batchIndex], 0, size);
         System.arraycopy(output, 0, batchNormalized[batchIndex], 0, size);
 
@@ -90,7 +87,6 @@ public class BatchNormalizer implements Serializable {
         double[] batchMean = new double[size];
         double[] batchVariance = new double[size];
 
-        // Számoljuk ki a batch statisztikákat
         for (int i = 0; i < size; i++) {
             double sum = 0;
             double sumSquares = 0;
@@ -102,7 +98,6 @@ public class BatchNormalizer implements Serializable {
             batchMean[i] = sum / currentBatchSize;
             batchVariance[i] = (sumSquares / currentBatchSize) - (batchMean[i] * batchMean[i]);
 
-            // Finomhangoljuk a running statisztikákat a batch alapján
             runningMean[i] = momentum * runningMean[i] + (1 - momentum) * batchMean[i];
             runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * batchVariance[i] *
                     currentBatchSize / (currentBatchSize - 1);

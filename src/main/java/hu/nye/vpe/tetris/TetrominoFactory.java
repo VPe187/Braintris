@@ -13,7 +13,6 @@ public class TetrominoFactory {
     private static final int MAX_TETROMINO_WIDTH = 4;
     private static final int MAX_TEROMINO_HEIGHT = 4;
     private static final TetrominoFactory TETROMINO_FACTORY = new TetrominoFactory();
-    private static final int tetrominoNum = 7;
     private final int[][] pixelsEmpty = new int[][]{{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
     private final Tetromino tetrominoEmpty = new Tetromino(0, 0, Color.WHITE, 1, pixelsEmpty);
     private final int[][] pixelsErased = new int[][]{{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};

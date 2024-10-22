@@ -70,19 +70,6 @@ public class Tetris {
     private double[] lastState;
     private int[] lastAction;
 
-    private double lastFullRows = 0;
-    private double lastNearlyFullRows = 0;
-    private double lastAvgDensity;
-
-    private double lastNumberofHoles = 0;
-    private double lastAvgColumnHeights = 0;
-    private double lastMaxHeight = 0;
-    private double lastBumpiness = 0;
-    private double lastBlockedRows = 0;
-    private double lastSurroundingHoles = 0;
-
-    private static final int X_COORD_OUTPUTS = 12;
-
     public Tetris(int width, int height, GameInput gameInput, boolean learning) {
         tickBackground = new GameTimeTicker(80);
         tickControl = new GameTimeTicker(10);
@@ -188,20 +175,16 @@ public class Tetris {
                             stackManager.setTetrominoRotation(targetRotation);
                             double reward = calculateReward(false);
                             double[] nextState = getFeedData();
-                            brain.learn(lastState, lastAction, reward, nextState, false);
+                            brain.learn(lastState, lastAction, reward, nextState, stackManager.getGameState() == GameState.GAMEOVER);
                         }
                     }
                 } else {
                     stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino());
-                    if (learning) {
-                        learning(stackManager.getGameState() == GameState.GAMEOVER);
-                    }
                 }
             }
         }
         if (stackManager.getGameState() == GameState.GAMEOVER) {
             if (learning) {
-                learning(true);
                 try {
                     brain.saveToFile();
                 } catch (Exception e) {
@@ -281,10 +264,9 @@ public class Tetris {
         int k = 0;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
 
-        // Aktuális tetromino adatai és a következő tetromino id
         if (stackManager.getCurrentTetromino() != null) {
-            feedData[k++] = stackManager.getCurrentTetromino().getId() / 100;
-            feedData[k++] = stackManager.getNextTetromino().getId() / 100;
+            feedData[k++] = Math.tanh(1 + stackManager.getCurrentTetromino().getId());
+            feedData[k++] = Math.tanh(1 + stackManager.getNextTetromino().getId());
             feedData[k++] = stackManager.getTetrominoRotation() / 100;
         } else {
             feedData[k++] = -0.01;
@@ -292,38 +274,19 @@ public class Tetris {
             feedData[k++] = -0.01;
         }
 
-
-        // Oszlopok
         double[] columns = stackMetrics.getMetricColumnHeights();
         for (double column : columns) {
             feedData[k++] = column / 10;
         }
 
-        // Összes sor
         feedData[k++] = stackManager.getAllFullRows();
-
-        // Majdnem teli sorok
         feedData[k++] = stackMetrics.getMetricNearlyFullRows();
-
-        // Átlagsűrűség
         feedData[k++] = stackMetrics.getMetricAvgDensity() * 4;
-
-        // Lyukak száma
         feedData[k++] = stackMetrics.getMetricNumberOfHoles() / 20;
-
-        // Körbevett lukak
         feedData[k++] = stackMetrics.getMetricSurroundingHoles() / 20;
-
-        // Blokkolt sorok
         feedData[k++] = stackMetrics.getMetricBlockedRows() / 20;
-
-        // Egyenetlenség
         feedData[k++] = stackMetrics.getMetricBumpiness() / 20;
-
-        // Maximum magasság
         feedData[k++] = stackMetrics.getMetricMaxHeight() / 10;
-
-        // Magasság különbségek
         feedData[k] = stackMetrics.getMetricAvgColumnHeight() * 10;
 
         if (NORMALIZE_FEED_DATA) {
@@ -347,98 +310,44 @@ public class Tetris {
 
         // Jutalom teljes kirakott sorokra
         double fullRows = stackManager.getAllFullRows();
-        if (!gameOver) {
-            reward += (fullRows - lastFullRows) * REWARD_FULLROW;
-        } else {
-            reward += fullRows * REWARD_FULLROW;
-        }
+        reward += fullRows * REWARD_FULLROW;
 
         // Jutalom a közel teli sorokra
         double nearlyFullRows = stackMetrics.getMetricNearlyFullRows();
-        if (!gameOver) {
-            reward += (nearlyFullRows - lastNearlyFullRows) * REWARD_NEARLY_FULLROW;
-        } else {
-            reward += nearlyFullRows * REWARD_NEARLY_FULLROW;
-        }
+        reward += nearlyFullRows * REWARD_NEARLY_FULLROW;
 
         // Jutalom az átlagsűrűségért
         double avgDensity = stackMetrics.getMetricAvgDensity();
-        if (!gameOver) {
-            reward += (avgDensity - lastAvgDensity) * REWARD_AVG_DENSITY;
-        } else {
-            reward += avgDensity * REWARD_AVG_DENSITY;
-        }
+        reward += avgDensity * REWARD_AVG_DENSITY;
 
         // Jutalom a lyuk nélküli elhelyezésért
-        if (!gameOver && stackMetrics.getMetricNumberOfHoles() == 0) {
-            reward += REWARD_PLACE_WITHOUT_HOLE;
-        }
+        reward += REWARD_PLACE_WITHOUT_HOLE;
 
         // Büntetés a lyukakért
         double numberofHoles = stackMetrics.getMetricNumberOfHoles();
-        if (!gameOver) {
-            reward -= ((numberofHoles - lastNumberofHoles) * REWARD_NUMBER_OF_HOLES);
-        } else {
-            reward -= numberofHoles * REWARD_NUMBER_OF_HOLES;
-        }
+        reward -= numberofHoles * REWARD_NUMBER_OF_HOLES;
 
         // Büntetés a végleges lyukakért
         double surroundingHoles = stackMetrics.getMetricSurroundingHoles();
-        if (!gameOver) {
-            reward -= (surroundingHoles - lastSurroundingHoles) * REWARD_SURROUNDED_HOLES;
-        } else {
-            reward -= surroundingHoles * REWARD_SURROUNDED_HOLES;
-        }
+        reward -= surroundingHoles * REWARD_SURROUNDED_HOLES;
 
         // Büntetés a blokkolt sorokért
         double blockedRows = stackMetrics.getMetricBlockedRows();
-        if (!gameOver) {
-            reward -= (blockedRows - lastBlockedRows) * REWARD_BLOCKED_ROW;
-        } else {
-            reward -= blockedRows * REWARD_BLOCKED_ROW;
-        }
+        reward -= blockedRows * REWARD_BLOCKED_ROW;
 
         // Büntetés az egyenetlenségért
         double bumpiness = stackMetrics.getMetricBumpiness();
-        if (!gameOver) {
-            reward -= (bumpiness - lastBumpiness) * REWARD_BUMPINESS;
-        } else {
-            reward -= bumpiness * REWARD_BUMPINESS;
-        }
+        reward -= bumpiness * REWARD_BUMPINESS;
 
         // Büntetés a magasra helyezésért
         double maxHeight = stackMetrics.getMetricMaxHeight();
-        if (!gameOver) {
-            reward -= (maxHeight - lastMaxHeight) * REWARD_MAXIMUM_HEIGHT;
-        } else {
-            reward -= maxHeight * REWARD_MAXIMUM_HEIGHT;
-        }
+        reward -= maxHeight * REWARD_MAXIMUM_HEIGHT;
 
         // Büntetés az átlagos magasságért
         double avgColumnHeights = stackMetrics.getMetricAvgColumnHeight();
-        if (!gameOver) {
-            reward -= (avgColumnHeights - lastAvgColumnHeights) * REWARD_AVG_COLUMN_HEIGHT;
-        } else {
-            reward -= avgColumnHeights * REWARD_AVG_COLUMN_HEIGHT;
-        }
+        reward -= avgColumnHeights * REWARD_AVG_COLUMN_HEIGHT;
 
-        lastFullRows = fullRows;
-        lastMaxHeight = maxHeight;
-        lastNearlyFullRows = nearlyFullRows;
-        lastNumberofHoles = numberofHoles;
-        lastSurroundingHoles = surroundingHoles;
-        lastAvgColumnHeights = avgColumnHeights;
-        lastBlockedRows = blockedRows;
-        lastBumpiness = bumpiness;
-        lastAvgDensity = avgDensity;
         return reward;
-    }
-
-    private void learning(Boolean gameOver) {
-        double[] currentState = getFeedData();
-        double reward = calculateReward(true);
-        brain.learn(lastState, lastAction, reward, currentState, gameOver);
-        lastState = currentState;
     }
 
     /**

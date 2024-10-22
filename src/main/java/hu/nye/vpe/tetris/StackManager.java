@@ -29,11 +29,9 @@ public class StackManager implements StackComponent {
     private final GameAudio audio = new GameAudio();
     private long startTime;
     private int droppedElements;
-    private Metric metric;
 
     public StackManager(boolean learning) {
         this.learning = learning;
-        this.metric = new Metric();
         iteration = 0;
     }
 
@@ -692,7 +690,7 @@ public class StackManager implements StackComponent {
     protected void setTetrominos(Tetromino currentTetromino, Tetromino nextTetromino) {
         this.currentTetromino = currentTetromino;
         this.nextTetromino = nextTetromino;
-        //this.setTetrominoRotation(0);
+        this.setTetrominoRotation(0);
     }
 
     public void setTetrominoRotation(double tetrominoRotation) {

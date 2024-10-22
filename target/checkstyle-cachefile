@@ -1,4 +1,4 @@
-#Mon Oct 21 21:50:26 CEST 2024
+#Tue Oct 22 17:03:29 CEST 2024
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\Audio.java=1726674628974
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\BonusType.java=1727197088798
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\Cell.java=1727328240230
@@ -23,7 +23,7 @@ D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\TimeTicker.jav
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameAudio.java=1729061376895
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameColorPalette.java=1727197352288
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameConstans.java=1729021067982
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameDisplay.java=1727197491227
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameDisplay.java=1729581127949
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameElement.java=1727551227092
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameEngine.java=1729021079214
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameInput.java=1728473427623
@@ -31,7 +31,7 @@ D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GamePa
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameStarfield.java=1727197749979
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameState.java=1728964460237
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\gaming\\GameTimeTicker.java=1726686845393
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Activation.java=1729523219924
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\Activation.java=1729599231625
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\AdaptiveLearningRate.java=1727551276883
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\BatchNormParameters.java=1729505092320
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\nn\\BatchNormalizer.java=1729539918994
@@ -56,10 +56,10 @@ D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\BonusT
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\Cell.java=1729002977814
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\Metric.java=1729540211475
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\StackComponent.java=1729021136919
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\StackManager.java=1729540222286
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\StackManager.java=1729540266932
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\StackMetrics.java=1729334642663
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\StackUI.java=1729335174993
-D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\Tetris.java=1729539824562
+D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\Tetris.java=1729609389534
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\Tetromino.java=1729005666598
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\TetrominoFactory.java=1729003292353
 D\:\\Development\\Java\\Braintris\\src\\main\\java\\hu\\nye\\vpe\\tetris\\TetrominoPool.java=1729003292353

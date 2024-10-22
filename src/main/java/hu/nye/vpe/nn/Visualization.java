@@ -31,8 +31,8 @@ public class Visualization implements GameElement {
     private static final Color RMS_RED = new Color(255, 0, 0);
     private static final Color POSITIVE_CHANGE_COLOR = new Color(255, 255, 255, 200);
     private static final Color NEGATIVE_CHANGE_COLOR = new Color(0, 0, 0, 200);
-    private static final Color INCREASE_COLOR = new Color(200, 255, 100, 200);  // Zöld szín növekedéshez
-    private static final Color DECREASE_COLOR = new Color(255, 100, 200, 200);  // Piros szín csökkenéshez
+    private static final Color INCREASE_COLOR = new Color(200, 255, 100, 200);
+    private static final Color DECREASE_COLOR = new Color(255, 100, 200, 200);
     private static final int REFRESH_RATE = 20;
 
     private final NeuralNetwork network;
@@ -333,13 +333,13 @@ public class Visualization implements GameElement {
             } else if (currentMovingAverage < lastKnownMovingAverage) {
                 g2d.setColor(DECREASE_COLOR);
             } else {
-                g2d.setColor(FONT_COLOR);  // Ha nem változott, marad az eredeti szín
+                g2d.setColor(FONT_COLOR);
             }
         } else {
             g2d.setColor(FONT_COLOR);
         }
         g2d.drawString(movingAverage, rightColumnX - metrics.stringWidth(movingAverage), height - 140);
-        g2d.setColor(FONT_COLOR);  // Visszaállítjuk az eredeti színt
+        g2d.setColor(FONT_COLOR);
 
         String bestReward = String.format("Best episode reward: %.0f", network.getBestReward());
         g2d.drawString(bestReward, rightColumnX - metrics.stringWidth(bestReward), height - 120);
