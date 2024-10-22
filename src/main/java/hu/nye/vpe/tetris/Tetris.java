@@ -221,11 +221,6 @@ public class Tetris {
                 stackManager.rotateTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
             }
 
-            if (gameInput.downRepeat()) {
-                tickDown.setPeriodMilliSecond(DROP_SPEED);
-            } else {
-                tickDown.setPeriodMilliSecond(stackManager.getCurrentSpeed());
-            }
 
             if (gameInput.letterM()) {
                 if (musicOn) {
@@ -236,12 +231,10 @@ public class Tetris {
                     musicOn = true;
                 }
             }
-
-            gameInput.clearBuffer();
-            if (learning) {
-                tickDown.setPeriodMilliSecond(learningSpeed);
+            if (gameInput.downRepeat()) {
+                tickDown.setPeriodMilliSecond(DROP_SPEED);
             } else {
-                tickDown.setPeriodMilliSecond(speed);
+                tickDown.setPeriodMilliSecond(stackManager.getCurrentSpeed());
             }
         }
     }

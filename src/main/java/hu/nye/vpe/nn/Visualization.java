@@ -33,7 +33,7 @@ public class Visualization implements GameElement {
     private static final Color NEGATIVE_CHANGE_COLOR = new Color(0, 0, 0, 200);
     private static final Color INCREASE_COLOR = new Color(200, 255, 100, 200);
     private static final Color DECREASE_COLOR = new Color(255, 100, 200, 200);
-    private static final int REFRESH_RATE = 20;
+    private static final int REFRESH_RATE = 100;
 
     private final NeuralNetwork network;
     private final int width;
@@ -227,6 +227,15 @@ public class Visualization implements GameElement {
     }
 
     private int findMaxOutputIndex(double[] outputActivations, int start, int end) {
+        if (outputActivations == null || outputActivations.length == 0) {
+            return -1;
+        }
+
+        // Határok ellenőrzése
+        if (start < 0 || end > outputActivations.length || start >= end) {
+            return -1;
+        }
+
         int maxIndex = start;
         for (int i = start + 1; i < end; i++) {
             if (outputActivations[i] > outputActivations[maxIndex]) {

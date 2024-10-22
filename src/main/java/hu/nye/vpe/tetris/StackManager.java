@@ -12,8 +12,24 @@ import hu.nye.vpe.gaming.GameState;
  * Stack manager class.
  */
 public class StackManager implements StackComponent {
-    private Cell[][] stackArea = new Cell[GameConstans.ROWS][GameConstans.COLS];
-    private Cell[][] simStackArea = new Cell[GameConstans.ROWS][GameConstans.COLS];
+    private static final int ROWS = GameConstans.ROWS;
+    private static final int COLS = GameConstans.COLS;
+    private static final int ROW_OFFSET = GameConstans.ROW_OFFSET;
+    private static final TetrominoFactory TETROMINO_FACTORY = TetrominoFactory.getInstance();
+    private static final Cell EMPTY_CELL = new Cell(
+            TETROMINO_FACTORY.getEmptyTetromino().getId(),
+            TETROMINO_FACTORY.getEmptyTetromino().getColor()
+    );
+    private static final long LEARNING_START_SPEED = GameConstans.LEARNING_START_SPEED;
+    private static final long START_SPEED = GameConstans.START_SPEED;
+    private static final int PENALTY_NO_FULL_ROW = GameConstans.PENALTY_NO_FULL_ROW;
+    private static final long SPEED_ACCELERATION = GameConstans.SPEED_ACCELERATION;
+    private static final int LEVEL_BONUS = GameConstans.LEVEL_BONUS;
+    private static final int ROW_SCORE = GameConstans.ROW_SCORE;
+    private static final int LEVEL_CHANGE_ROWS = GameConstans.LEVEL_CHANGE_ROWS;
+
+    private Cell[][] stackArea = new Cell[ROWS][COLS];
+    private Cell[][] simStackArea = new Cell[ROWS][COLS];
     private boolean learning;
     private Tetromino currentTetromino;
     private Tetromino nextTetromino;
@@ -36,10 +52,6 @@ public class StackManager implements StackComponent {
     }
 
     protected void start() {
-        initializeGameState();
-    }
-
-    private void initializeGameState() {
         initializeStack();
         gameScore = 0;
         gameLevel = 0;
@@ -48,19 +60,14 @@ public class StackManager implements StackComponent {
         droppedElements = 0;
         gameState = GameState.RUNNING;
         startTime = System.currentTimeMillis();
-        currentSpeed = learning ? GameConstans.LEARNING_START_SPEED : GameConstans.START_SPEED;
+        currentSpeed = learning ? LEARNING_START_SPEED : START_SPEED;
     }
 
     private void initializeStack() {
-        if (stackArea == null) {
-            stackArea = new Cell[GameConstans.ROWS][GameConstans.COLS];
-        }
-        for (int i = 0; i < GameConstans.ROWS; i++) {
-            for (int j = 0; j < GameConstans.COLS; j++) {
-                stackArea[i][j] = new Cell(TetrominoFactory.getInstance().getEmptyTetromino().getId(),
-                        TetrominoFactory.getInstance().getEmptyTetromino().getColor());
-                simStackArea[i][j] = new Cell(TetrominoFactory.getInstance().getEmptyTetromino().getId(),
-                        TetrominoFactory.getInstance().getEmptyTetromino().getColor());
+        for (int i = 0; i < ROWS; i++) {
+            for (int j = 0; j < COLS; j++) {
+                stackArea[i][j] = new Cell(EMPTY_CELL.getTetrominoId(), EMPTY_CELL.getColor());
+                simStackArea[i][j] = new Cell(EMPTY_CELL.getTetrominoId(), EMPTY_CELL.getColor());
             }
         }
     }
@@ -69,17 +76,14 @@ public class StackManager implements StackComponent {
      * Simulated stack drop.
      */
     public void simulateStackDrop() {
-        if (currentTetromino == null) {
-            return;
-        }
+        if (currentTetromino == null) return;
 
-        for (int i = 0; i < GameConstans.ROWS; i++) {
-            System.arraycopy(stackArea[i], 0, simStackArea[i], 0, GameConstans.COLS);
+        // Gyors másolás System.arraycopy használatával
+        for (int i = 0; i < ROWS; i++) {
+            System.arraycopy(stackArea[i], 0, simStackArea[i], 0, COLS);
         }
 
         Tetromino simTetromino = copyTetromino(currentTetromino);
-
-
         while (!isTetrominoDown(simStackArea, simTetromino)) {
             removeTetromino(simStackArea, simTetromino);
             simTetromino.setRowPosition(simTetromino.getStackRow() + 1);
@@ -134,30 +138,26 @@ public class StackManager implements StackComponent {
         }
     }
 
-    private boolean isTetrominoDown(Cell[][] stackArea, Tetromino tetromino) {
-        for (int i = 0; i < tetromino.getPixels().length; i++) {
-            for (int j = 0; j < tetromino.getPixels()[i].length; j++) {
-                if (tetromino.getPixels()[i][j] != 0) {
-                    if (isBottomCollision(stackArea, tetromino, i) || isDownCollision(stackArea, tetromino, i, j)) {
+    private boolean isTetrominoDown(Cell[][] stack, Tetromino tetromino) {
+        final int[][] pixels = tetromino.getPixels();
+        final int baseRow = tetromino.getStackRow();
+        final int baseCol = tetromino.getStackCol();
+
+        for (int i = 0; i < pixels.length; i++) {
+            for (int j = 0; j < pixels[i].length; j++) {
+                if (pixels[i][j] != 0) {
+                    final int nextRow = baseRow + i + 1;
+                    final int col = baseCol + j;
+
+                    if (nextRow >= ROWS) return true;
+                    if (col < COLS && stack[nextRow][col].getTetrominoId() != 0 &&
+                            !isPartOfCurrentTetromino(tetromino, nextRow, col)) {
                         return true;
                     }
                 }
             }
         }
         return false;
-    }
-
-    private boolean isBottomCollision(Cell[][] stackArea, Tetromino tetromino, int i) {
-        return tetromino.getStackRow() + i + 1 > stackArea.length - 1;
-    }
-
-    private boolean isDownCollision(Cell[][] stackArea, Tetromino tetromino, int i, int j) {
-        int nextRow = tetromino.getStackRow() + i + 1;
-        int col = tetromino.getStackCol() + j;
-        return col <= stackArea[0].length - 1 &&
-                nextRow <= stackArea.length - 1 &&
-                stackArea[nextRow][col].getTetrominoId() != 0 &&
-                !isPartOfCurrentTetromino(tetromino, nextRow, col);
     }
 
     private boolean isPartOfCurrentTetromino(Tetromino tetromino, int row, int col) {
@@ -368,7 +368,7 @@ public class StackManager implements StackComponent {
 
     protected void insertPixel(int x, int y, boolean on) {
         if (x >= 1 && x < stackArea.length + 1 && y >= 1 && y <= stackArea[0].length + 1) {
-            stackArea[(x - 1) + GameConstans.ROW_OFFSET][y - 1] =
+            stackArea[(x - 1) + ROW_OFFSET][y - 1] =
                     (on ? new Cell(TetrominoFactory.getInstance().getLoadedTetromino().getId(),
                     TetrominoFactory.getInstance().getLoadedTetromino().getColor()) :
                     new Cell(TetrominoFactory.getInstance().getEmptyTetromino().getId(),
@@ -377,13 +377,13 @@ public class StackManager implements StackComponent {
     }
 
     private void generatePenaltyRows(int rowNum) {
-        for (int i = GameConstans.ROW_OFFSET; i < stackArea.length; i++) {
+        for (int i = ROW_OFFSET; i < stackArea.length; i++) {
             System.arraycopy(stackArea[i], 0, stackArea[i - 1], 0, stackArea[i].length);
         }
         Random rnd = new Random();
         int rn;
-        for (int w = GameConstans.ROWS - GameConstans.ROW_OFFSET; w >= GameConstans.ROWS - (rowNum + 1); w--) {
-            for (int h = 1; h <= GameConstans.COLS; h++) {
+        for (int w = ROWS - ROW_OFFSET; w >= ROWS - (rowNum + 1); w--) {
+            for (int h = 1; h <= COLS; h++) {
                 rn = rnd.nextInt(2);
                 insertPixel(w, h, rn == 1);
             }
@@ -392,21 +392,21 @@ public class StackManager implements StackComponent {
     }
 
     private void generateEasyRows(int rowNum) {
-        for (int i = GameConstans.ROW_OFFSET; i < stackArea.length; i++) {
+        for (int i = ROW_OFFSET; i < stackArea.length; i++) {
             System.arraycopy(stackArea[i], 0, stackArea[i - 1], 0, stackArea[i].length);
         }
         Random rnd = new Random();
         int rn;
-        for (int w = GameConstans.ROWS - GameConstans.ROW_OFFSET; w >= GameConstans.ROWS - (rowNum + 1); w--) {
-            for (int h = 1; h <= GameConstans.COLS; h++) {
+        for (int w = ROWS - ROW_OFFSET; w >= ROWS - (rowNum + 1); w--) {
+            for (int h = 1; h <= COLS; h++) {
                 if (h >= 3) {
                     insertPixel(w, h, true);
                 }
             }
         }
 
-        for (int w = GameConstans.ROWS - GameConstans.ROW_OFFSET; w >= GameConstans.ROWS - (rowNum + 2); w--) {
-            for (int h = 1; h <= GameConstans.COLS; h++) {
+        for (int w = ROWS - ROW_OFFSET; w >= ROWS - (rowNum + 2); w--) {
+            for (int h = 1; h <= COLS; h++) {
                 if (h >= 5) {
                     insertPixel(w, h, true);
                 }
@@ -416,7 +416,7 @@ public class StackManager implements StackComponent {
     }
 
     protected void checkPenalty() {
-        if (noFullRows >= GameConstans.PENALTY_NO_FULL_ROW) {
+        if (noFullRows >= PENALTY_NO_FULL_ROW) {
             if (!learning) {
                 audio.soundPenalty();
             }
@@ -431,8 +431,8 @@ public class StackManager implements StackComponent {
 
     protected void nextLevel() {
         allFullRows = 0;
-        if (currentSpeed >= GameConstans.SPEED_ACCELERATION) {
-            currentSpeed -= GameConstans.SPEED_ACCELERATION;
+        if (currentSpeed >= SPEED_ACCELERATION) {
+            currentSpeed -= SPEED_ACCELERATION;
         }
         gameLevel++;
         noFullRows = 0;
@@ -459,14 +459,14 @@ public class StackManager implements StackComponent {
                 thereIsFullRow = true;
                 int currentRowScore = 0;
                 for (int k = 0; k < cells.length; k++) {
-                    currentRowScore += cells[k].getScore() + (gameLevel * (GameConstans.LEVEL_BONUS / 10));
+                    currentRowScore += cells[k].getScore() + (gameLevel * (LEVEL_BONUS / 10));
                     c = cells[k].getColor();
                     cells[k] = new Cell(TetrominoFactory.getInstance().getErasedTetromino().getId(),
                             TetrominoFactory.getInstance().getErasedTetromino().getColor());
                     cells[k].setColor(c);
                 }
                 gameScore += currentRowScore;
-                gameScore += gameLevel * GameConstans.LEVEL_BONUS;
+                gameScore += gameLevel * LEVEL_BONUS;
             }
         }
         if (thereIsFullRow) {
@@ -487,7 +487,7 @@ public class StackManager implements StackComponent {
             gameScore += tetromino.getScore() + (gameLevel * 10);
             noFullRows++;
             checkPenalty();
-            if (tetromino.getStackRow() <= GameConstans.ROW_OFFSET) {
+            if (tetromino.getStackRow() <= ROW_OFFSET) {
                 gameState = GameState.GAMEOVER;
                 if (!learning) {
                     audio.soundLose();
@@ -530,30 +530,50 @@ public class StackManager implements StackComponent {
     }
 
     protected void clearRows() {
+        int writeRow = ROWS - 1;
         int fullRows = 0;
-        for (int i = 0; i < stackArea.length; i++) {
-            boolean rowFull = true;
-            for (Cell cell : stackArea[i]) {
-                if (cell.getTetrominoId() != TetrominoType.ERASED.getTetrominoTypeId()) {
-                    rowFull = false;
-                    break;
-                }
-            }
-            if (rowFull) {
+        Cell[] rowBuffer = new Cell[COLS]; // Újrahasználható buffer a sorok mozgatásához
+
+        for (int readRow = ROWS - 1; readRow >= 0; readRow--) {
+            if (isRowFull(stackArea[readRow])) {
                 fullRows++;
-                for (int j = 0; j < stackArea[i].length; j++) {
-                    stackArea[i][j] = new Cell(TetrominoFactory.getInstance().getEmptyTetromino().getId(),
-                            TetrominoFactory.getInstance().getEmptyTetromino().getColor());
-                }
-                for (int k = i; k > 0; k--) {
-                    System.arraycopy(stackArea[k - 1], 0, stackArea[k], 0, stackArea[k].length);
-                }
+                continue;
+            }
+
+            if (writeRow != readRow) {
+                // Használjuk a buffert a sor másolásához
+                System.arraycopy(stackArea[readRow], 0, rowBuffer, 0, COLS);
+                System.arraycopy(rowBuffer, 0, stackArea[writeRow], 0, COLS);
+            }
+            writeRow--;
+        }
+
+        // Törölt sorok helyének feltöltése üres cellákkal
+        while (writeRow >= 0) {
+            for (int col = 0; col < COLS; col++) {
+                stackArea[writeRow][col] = new Cell(EMPTY_CELL.getTetrominoId(), EMPTY_CELL.getColor());
+            }
+            writeRow--;
+        }
+
+        updateScoreAndLevel(fullRows);
+    }
+
+    private boolean isRowFull(Cell[] row) {
+        for (Cell cell : row) {
+            if (cell.getTetrominoId() == 0) {
+                return false;
             }
         }
-        gameScore += fullRows * GameConstans.ROW_SCORE;
+        return true;
+    }
+
+    private void updateScoreAndLevel(int fullRows) {
+        gameScore += fullRows * ROW_SCORE;
         allFullRows += fullRows;
         noFullRows = Math.max(0, noFullRows - (fullRows * 2));
-        if (allFullRows >= gameLevel * GameConstans.LEVEL_CHANGE_ROWS) {
+
+        if (allFullRows >= gameLevel * LEVEL_CHANGE_ROWS) {
             nextLevel();
         }
     }
@@ -564,13 +584,27 @@ public class StackManager implements StackComponent {
      * @param targetX        A célpozíció x koordinátája
      * @param targetRotation A célforgatás állapota (0-3, ahol 0 az eredeti állapot)
      */
-    public void moveAndRotateTetrominoTo(Cell[][] stackArea, Tetromino tetromino, int targetX, int targetRotation) {
-        if (tetromino == null) {
-            return;
+    public void moveAndRotateTetrominoTo(Cell[][] stack, Tetromino tetromino, int targetX, int targetRotation) {
+        if (tetromino == null) return;
+
+        // Számoljuk ki a legrövidebb utat a célrotációhoz
+        int currentRotation = (int) tetrominoRotation;
+        int rotationDiff = ((targetRotation - currentRotation + 360) % 360) / 90;
+
+        for (int i = 0; i < rotationDiff; i++) {
+            if (!rotateTetrominoRight(stack, tetromino)) break;
         }
-        rotateToTarget(stackArea, tetromino, targetRotation);
-        moveHorizontally(stackArea, tetromino, targetX);
-        dropTetrominoToBottom(stackArea, tetromino);
+
+        int moveDirection = Integer.compare(targetX, tetromino.getStackCol());
+        while (tetromino.getStackCol() != targetX) {
+            boolean moved = moveDirection > 0 ?
+                    moveTetrominoRight(stack, tetromino) :
+                    moveTetrominoLeft(stack, tetromino);
+            if (!moved) break;
+        }
+
+        while (!moveTetrominoDown(stack, tetromino)) {
+        }
     }
 
     private void rotateToTarget(Cell[][] stackArea, Tetromino tetromino, int targetRotation) {
