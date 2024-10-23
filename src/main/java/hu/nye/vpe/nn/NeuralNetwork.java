@@ -40,7 +40,7 @@ public class NeuralNetwork implements Serializable {
     private static final int X_COORD_OUTPUTS = 12;
     private static final int ROTATION_OUTPUTS = 3;
     private static final int TOTAL_OUTPUTS = X_COORD_OUTPUTS + ROTATION_OUTPUTS;
-
+    private static final int MINIMUM_BATCH_SIZE = GlobalConfig.getInstance().getMinimumBatchSize();
 
     private final List<Layer> layers;
     private double learningRate;
@@ -221,12 +221,15 @@ public class NeuralNetwork implements Serializable {
                 processBatchWithExperience(batch);
             }
         } else {
+            if (action[0] < 0 || action[0] >= X_COORD_OUTPUTS ||
+                    action[1] < 0 || action[1] >= ROTATION_OUTPUTS) {
+                System.out.println("Érvénytelen akció: " + Arrays.toString(action));
+                return;
+            }
 
             forward(nextState);
-
             double[] currentQValues = forward(state);
             double normalizedReward = reward / Math.sqrt(reward * reward + 1);
-
             double targetX = normalizedReward + (gameOver ? 0 : discountFactor * maxQValueX);
             double targetRotation = normalizedReward + (gameOver ? 0 : discountFactor * maxQValueRotation);
 
@@ -234,21 +237,36 @@ public class NeuralNetwork implements Serializable {
             targetRotation = Math.max(MIN_Q, Math.min(MAX_Q, targetRotation));
 
             double[] targetQValues = currentQValues.clone();
-
-            if (action[0] >= 0 && action[0] < X_COORD_OUTPUTS &&
-                    action[1] >= 0 && action[1] < ROTATION_OUTPUTS) {
-                targetQValues[action[0]] = targetX;
-                targetQValues[X_COORD_OUTPUTS + action[1]] = targetRotation;
-            } else {
-                System.out.println("Érvénytelen akció: " + Arrays.toString(action));
-                return;
-            }
+            targetQValues[action[0]] = targetX;
+            targetQValues[X_COORD_OUTPUTS + action[1]] = targetRotation;
 
             inputBatch.add(state);
             targetBatch.add(targetQValues);
 
-            if (inputBatch.size() == EXPERIENCE_BATCH_SIZE) {
-                processBatchWithoutExperience();
+            boolean shouldProcessBatch = false;
+            if (inputBatch.size() >= MINIMUM_BATCH_SIZE) {
+                shouldProcessBatch = true;
+            } else if (gameOver && inputBatch.size() >= MINIMUM_BATCH_SIZE / 2) {
+                int currentSize = inputBatch.size();
+                int needed = MINIMUM_BATCH_SIZE - currentSize;
+                for (int i = 0; i < needed; i++) {
+                    int idx = i % currentSize;
+                    inputBatch.add(inputBatch.get(idx));
+                    targetBatch.add(targetBatch.get(idx));
+                }
+                shouldProcessBatch = true;
+            } else if (gameOver) {
+                shouldProcessBatch = false;
+            }
+
+            if (shouldProcessBatch) {
+                double[][] inputs = inputBatch.toArray(new double[0][]);
+                double[][] targets = targetBatch.toArray(new double[0][]);
+
+                backwardPass(inputs, targets);
+
+                inputBatch.clear();
+                targetBatch.clear();
             }
         }
 
@@ -275,6 +293,7 @@ public class NeuralNetwork implements Serializable {
             forward(exp.nextState);
             double[] currentQValues = forward(exp.state);
             double normalizedReward = exp.reward / Math.sqrt(exp.reward * exp.reward + 1);
+            //double normalizedReward = exp.reward;
             double targetX = normalizedReward + (exp.done ? 0 : discountFactor * maxQValueX);
             double targetRotation = normalizedReward + (exp.done ? 0 : discountFactor * maxQValueRotation);
             targetX = Math.max(MIN_Q, Math.min(MAX_Q, targetX));
@@ -283,11 +302,9 @@ public class NeuralNetwork implements Serializable {
             double[] targetQValues = currentQValues.clone();
             targetQValues[exp.action[0]] = targetX;
             targetQValues[X_COORD_OUTPUTS + exp.action[1]] = targetRotation;
-
             inputs[i] = exp.state;
             targets[i] = targetQValues;
         }
-
         backwardPass(inputs, targets);
     }
 

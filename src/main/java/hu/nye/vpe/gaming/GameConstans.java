@@ -26,6 +26,6 @@ public class GameConstans {
     public static final Color PANEL_COLOR = new Color(30, 30, 30, 100);
     public static final Color COLOR_STACK_BACKGROUND = new Color(15, 15, 15);
     public static final Color COLOR_STACK_BORDER = new Color(100, 100, 100, 100);
-    public static final Color COLOR_HELPER = new Color(30, 30, 30, 40);
-    public static final Color COLOR_HELPER_LINE = new Color(40, 40, 40, 40);
+    public static final Color COLOR_HELPER = new Color(80, 80, 80, 80);
+    public static final Color COLOR_HELPER_LINE = new Color(50, 50, 50, 50);
 }

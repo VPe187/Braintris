@@ -11,6 +11,7 @@ import hu.nye.vpe.GlobalConfig;
 public class BatchNormalizer implements Serializable {
     private static final double DEFAULT_EPSILON = GlobalConfig.getInstance().getBatchEpsilon();
     private static final double DEFAULT_MOMENTUM = GlobalConfig.getInstance().getBatchMomentum();
+    private static final int MINIMUM_BATCH_SIZE = GlobalConfig.getInstance().getMinimumBatchSize();
 
     private final int size;
     private final double epsilon;
@@ -40,8 +41,11 @@ public class BatchNormalizer implements Serializable {
         this.momentum = momentum;
         this.runningMean = new double[size];
         this.runningVariance = new double[size];
-        this.batchInputs = new double[batchSize][size];
-        this.batchNormalized = new double[batchSize][size];
+
+
+        int actualBatchSize = Math.max(batchSize, MINIMUM_BATCH_SIZE);
+        this.batchInputs = new double[actualBatchSize][size];
+        this.batchNormalized = new double[actualBatchSize][size];
         this.batchIndex = 0;
         this.samplesSeen = 0;
     }
@@ -68,39 +72,46 @@ public class BatchNormalizer implements Serializable {
             output[i] = ((input[i] - runningMean[i]) / stdDev) * gamma[i] + beta[i];
         }
 
-        System.arraycopy(input, 0, batchInputs[batchIndex], 0, size);
-        System.arraycopy(output, 0, batchNormalized[batchIndex], 0, size);
+        if (batchIndex < batchInputs.length) {
+            System.arraycopy(input, 0, batchInputs[batchIndex], 0, size);
+            System.arraycopy(output, 0, batchNormalized[batchIndex], 0, size);
 
-        if (++batchIndex == batchInputs.length) {
-            processBatch();
-            batchIndex = 0;
+            if (++batchIndex == batchInputs.length) {
+                processBatch();
+                batchIndex = 0;
+            }
         }
 
         return output;
     }
 
     private void processBatch() {
-        int currentBatchSize = batchIndex;
-        if (currentBatchSize <= 1) {
+        if (batchIndex < MINIMUM_BATCH_SIZE) {
+            System.out.println("Warning: Batch size " + batchIndex +
+                    " is smaller than minimum batch size " + MINIMUM_BATCH_SIZE);
             return;
         }
+
         double[] batchMean = new double[size];
         double[] batchVariance = new double[size];
 
+        // Calculate batch statistics
         for (int i = 0; i < size; i++) {
             double sum = 0;
             double sumSquares = 0;
-            for (int j = 0; j < currentBatchSize; j++) {
+            for (int j = 0; j < batchIndex; j++) {
                 double val = batchInputs[j][i];
                 sum += val;
                 sumSquares += val * val;
             }
-            batchMean[i] = sum / currentBatchSize;
-            batchVariance[i] = (sumSquares / currentBatchSize) - (batchMean[i] * batchMean[i]);
 
+            batchMean[i] = sum / batchIndex;
+            batchVariance[i] = (sumSquares / batchIndex) - (batchMean[i] * batchMean[i]);
+
+            // Update running statistics with batch values
             runningMean[i] = momentum * runningMean[i] + (1 - momentum) * batchMean[i];
-            runningVariance[i] = momentum * runningVariance[i] + (1 - momentum) * batchVariance[i] *
-                    currentBatchSize / (currentBatchSize - 1);
+            runningVariance[i] = momentum * runningVariance[i] +
+                    (1 - momentum) * batchVariance[i] * batchIndex / (batchIndex - 1);
         }
     }
 
@@ -119,6 +130,19 @@ public class BatchNormalizer implements Serializable {
 
     private double[][] forwardBatchTraining(double[][] inputs) {
         int currentBatchSize = inputs.length;
+
+        if (currentBatchSize < MINIMUM_BATCH_SIZE) {
+            double[][] paddedInputs = new double[MINIMUM_BATCH_SIZE][];
+            for (int i = 0; i < currentBatchSize; i++) {
+                paddedInputs[i] = inputs[i].clone();
+            }
+            for (int i = currentBatchSize; i < MINIMUM_BATCH_SIZE; i++) {
+                paddedInputs[i] = inputs[currentBatchSize - 1].clone();
+            }
+            inputs = paddedInputs;
+            currentBatchSize = MINIMUM_BATCH_SIZE;
+        }
+
         double[][] outputs = new double[currentBatchSize][size];
 
         for (int i = 0; i < size; i++) {

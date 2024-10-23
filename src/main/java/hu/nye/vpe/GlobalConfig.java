@@ -153,6 +153,31 @@ public class GlobalConfig {
     }
 
     /**
+     * Get minimum batch size for batch normalization.
+     * This ensures we have enough samples for statistical calculations.
+     *
+     * @return minimum batch size, defaults to 2
+     */
+    public int getMinimumBatchSize() {
+        return getInt("MINIMUM_BATCH_SIZE", 2);
+    }
+
+    /**
+     * Get actual batch size for batch normalization.
+     * Returns the maximum of the configured batch size and minimum batch size.
+     *
+     * @return actual batch size to use
+     */
+    public int getActualBatchSize() {
+        if (getUseExperience()) {
+            return getExperienceBatchSize();
+        } else {
+            // Experience replay nélkül használjuk a minimum batch size-t
+            return getMinimumBatchSize();
+        }
+    }
+
+    /**
      * Get layer names.
      *
      * @return layer names

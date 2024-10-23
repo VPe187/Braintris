@@ -1,5 +1,7 @@
 package hu.nye.vpe.nn;
 
+import hu.nye.vpe.GlobalConfig;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,7 +10,6 @@ import java.util.List;
  * Layer class.
  */
 public class Layer implements Serializable {
-    private static final int BATCH_SIZE = 32;
     private final List<Neuron> neurons;
     private final Activation activation;
     private final WeightInitStrategy initStrategy;
@@ -35,11 +36,19 @@ public class Layer implements Serializable {
             neurons.add(new Neuron(inputSize, outputSize, activation, initStrategy, gradientClipper, lambdaL2));
         }
 
+        int actualBatchSize;
+        if (GlobalConfig.getInstance().getUseExperience()) {
+            actualBatchSize = GlobalConfig.getInstance().getExperienceBatchSize();
+        } else {
+            actualBatchSize = GlobalConfig.getInstance().getMinimumBatchSize();
+        }
+
         if (useBatchNorm) {
-            this.batchNormalizer = new BatchNormalizer(outputSize, BATCH_SIZE, batchNormParameters.gamma,
+            this.batchNormalizer = new BatchNormalizer(outputSize, actualBatchSize, batchNormParameters.gamma,
                     batchNormParameters.beta, learningRate);
         }
-        this.batchOutputs = new double[BATCH_SIZE][outputSize];
+
+        this.batchOutputs = new double[actualBatchSize][outputSize];
 
         if (activation == Activation.SOFTMAX_SPLIT) {
             this.splitIndex = 12;
