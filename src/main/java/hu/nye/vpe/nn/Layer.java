@@ -1,10 +1,10 @@
 package hu.nye.vpe.nn;
 
-import hu.nye.vpe.GlobalConfig;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+
+import hu.nye.vpe.GlobalConfig;
 
 /**
  * Layer class.

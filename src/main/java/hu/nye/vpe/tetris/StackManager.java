@@ -127,7 +127,9 @@ public class StackManager implements StackComponent {
                     final int nextRow = baseRow + i + 1;
                     final int col = baseCol + j;
 
-                    if (nextRow >= ROWS) return true;
+                    if (nextRow >= ROWS) {
+                        return true;
+                    }
                     if (col < COLS && stack[nextRow][col].getTetrominoId() != 0 &&
                             !isPartOfCurrentTetromino(tetromino, nextRow, col)) {
                         return true;
@@ -505,7 +507,7 @@ public class StackManager implements StackComponent {
     protected void clearRows() {
         int writeRow = ROWS - 1;
         int fullRows = 0;
-        Cell[] rowBuffer = new Cell[COLS]; // Újrahasználható buffer a sorok mozgatásához
+        Cell[] rowBuffer = new Cell[COLS];
 
         for (int readRow = ROWS - 1; readRow >= 0; readRow--) {
             if (isRowFull(stackArea[readRow])) {
@@ -514,14 +516,12 @@ public class StackManager implements StackComponent {
             }
 
             if (writeRow != readRow) {
-                // Használjuk a buffert a sor másolásához
                 System.arraycopy(stackArea[readRow], 0, rowBuffer, 0, COLS);
                 System.arraycopy(rowBuffer, 0, stackArea[writeRow], 0, COLS);
             }
             writeRow--;
         }
 
-        // Törölt sorok helyének feltöltése üres cellákkal
         while (writeRow >= 0) {
             for (int col = 0; col < COLS; col++) {
                 stackArea[writeRow][col] = new Cell(EMPTY_CELL.getTetrominoId(), EMPTY_CELL.getColor());
@@ -558,14 +558,17 @@ public class StackManager implements StackComponent {
      * @param targetRotation A célforgatás állapota (0-3, ahol 0 az eredeti állapot)
      */
     public void moveAndRotateTetrominoTo(Cell[][] stack, Tetromino tetromino, int targetX, int targetRotation) {
-        if (tetromino == null) return;
+        if (tetromino == null) {
+            return;
+        }
 
-        // Számoljuk ki a legrövidebb utat a célrotációhoz
         int currentRotation = (int) tetrominoRotation;
         int rotationDiff = ((targetRotation - currentRotation + 360) % 360) / 90;
 
         for (int i = 0; i < rotationDiff; i++) {
-            if (!rotateTetrominoRight(stack, tetromino)) break;
+            if (!rotateTetrominoRight(stack, tetromino)) {
+                break;
+            }
         }
 
         int moveDirection = Integer.compare(targetX, tetromino.getStackCol());
@@ -573,7 +576,9 @@ public class StackManager implements StackComponent {
             boolean moved = moveDirection > 0 ?
                     moveTetrominoRight(stack, tetromino) :
                     moveTetrominoLeft(stack, tetromino);
-            if (!moved) break;
+            if (!moved) {
+                break;
+            }
         }
 
         while (!moveTetrominoDown(stack, tetromino)) {

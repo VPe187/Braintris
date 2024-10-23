@@ -1,6 +1,9 @@
 package hu.nye.vpe.nn;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 
@@ -59,35 +62,36 @@ public class Visualization implements GameElement {
     private int maxOutputIndexFirst12;
     private int maxOutputIndexLast3;
 
-    // Új konstansok a gyorsítótárhoz
     private static final int COLOR_CACHE_SIZE = 100;
     private static final Color[] weightColorCache = new Color[COLOR_CACHE_SIZE];
     private static final Color[] activationColorCache = new Color[COLOR_CACHE_SIZE];
     private static final Color[] outputActivationColorCache = new Color[COLOR_CACHE_SIZE];
 
     static {
-        // Előre kiszámoljuk a színeket
         for (int i = 0; i < COLOR_CACHE_SIZE; i++) {
-            double normalizedValue = i / (double)(COLOR_CACHE_SIZE - 1);
+            double normalizedValue = i / (double) (COLOR_CACHE_SIZE - 1);
 
-            // Súly színek
-            double weight = (normalizedValue * 2 - 1); // -1 to 1
-            int value = (int)(255 * Math.abs(weight));
-            int alpha = (int)(20 + 20 * Math.abs(weight));
+            double weight = (normalizedValue * 2 - 1);
+            int value = (int) (255 * Math.abs(weight));
+            int alpha = (int) (20 + 20 * Math.abs(weight));
             weightColorCache[i] = new Color(value, value, value, alpha);
 
-            // Aktivációs színek
-            int r = (int)(INACTIVE_NODE_COLOR.getRed() + (ACTIVE_NODE_COLOR.getRed() - INACTIVE_NODE_COLOR.getRed()) * normalizedValue);
-            int g = (int)(INACTIVE_NODE_COLOR.getGreen() + (ACTIVE_NODE_COLOR.getGreen() - INACTIVE_NODE_COLOR.getGreen()) * normalizedValue);
-            int b = (int)(INACTIVE_NODE_COLOR.getBlue() + (ACTIVE_NODE_COLOR.getBlue() - INACTIVE_NODE_COLOR.getBlue()) * normalizedValue);
-            int a = (int)(INACTIVE_NODE_COLOR.getAlpha() + (ACTIVE_NODE_COLOR.getAlpha() - INACTIVE_NODE_COLOR.getAlpha()) * normalizedValue);
+            int r = (int) (INACTIVE_NODE_COLOR.getRed() + (ACTIVE_NODE_COLOR.getRed() - INACTIVE_NODE_COLOR.getRed()) * normalizedValue);
+            int g = (int) (INACTIVE_NODE_COLOR.getGreen() + (ACTIVE_NODE_COLOR.getGreen() - INACTIVE_NODE_COLOR.getGreen()) *
+                    normalizedValue);
+            int b = (int) (INACTIVE_NODE_COLOR.getBlue() + (ACTIVE_NODE_COLOR.getBlue() - INACTIVE_NODE_COLOR.getBlue()) * normalizedValue);
+            int a = (int) (INACTIVE_NODE_COLOR.getAlpha() + (ACTIVE_NODE_COLOR.getAlpha() - INACTIVE_NODE_COLOR.getAlpha()) *
+                    normalizedValue);
             activationColorCache[i] = new Color(r, g, b, a);
 
-            // Kimeneti aktivációs színek
-            r = (int)(INACTIVE_OUTPUT_NODE_COLOR.getRed() + (ACTIVE_OUTPUT_NODE_COLOR.getRed() - INACTIVE_OUTPUT_NODE_COLOR.getRed()) * normalizedValue);
-            g = (int)(INACTIVE_OUTPUT_NODE_COLOR.getGreen() + (ACTIVE_OUTPUT_NODE_COLOR.getGreen() - INACTIVE_OUTPUT_NODE_COLOR.getGreen()) * normalizedValue);
-            b = (int)(INACTIVE_OUTPUT_NODE_COLOR.getBlue() + (ACTIVE_OUTPUT_NODE_COLOR.getBlue() - INACTIVE_OUTPUT_NODE_COLOR.getBlue()) * normalizedValue);
-            a = (int)(INACTIVE_OUTPUT_NODE_COLOR.getAlpha() + (ACTIVE_OUTPUT_NODE_COLOR.getAlpha() - INACTIVE_OUTPUT_NODE_COLOR.getAlpha()) * normalizedValue);
+            r = (int) (INACTIVE_OUTPUT_NODE_COLOR.getRed() + (ACTIVE_OUTPUT_NODE_COLOR.getRed() - INACTIVE_OUTPUT_NODE_COLOR.getRed()) *
+                    normalizedValue);
+            g = (int) (INACTIVE_OUTPUT_NODE_COLOR.getGreen() + (ACTIVE_OUTPUT_NODE_COLOR.getGreen() - INACTIVE_OUTPUT_NODE_COLOR.getGreen())
+                    * normalizedValue);
+            b = (int) (INACTIVE_OUTPUT_NODE_COLOR.getBlue() + (ACTIVE_OUTPUT_NODE_COLOR.getBlue() - INACTIVE_OUTPUT_NODE_COLOR.getBlue())
+                    * normalizedValue);
+            a = (int) (INACTIVE_OUTPUT_NODE_COLOR.getAlpha() + (ACTIVE_OUTPUT_NODE_COLOR.getAlpha() - INACTIVE_OUTPUT_NODE_COLOR.getAlpha())
+                    * normalizedValue);
             outputActivationColorCache[i] = new Color(r, g, b, a);
         }
     }
@@ -186,7 +190,6 @@ public class Visualization implements GameElement {
         int nodeCount = layerSizes[layerIndex];
         int nextNodeCount = layerSizes[layerIndex + 1];
 
-        // Előre kiszámoljuk az X koordinátákat
         int startX = networkStartX + layerIndex * layerDistance;
         int nextX = networkStartX + (layerIndex + 1) * layerDistance;
 
@@ -202,15 +205,14 @@ public class Visualization implements GameElement {
                 if (layerIndex < weights.length && k < weights[layerIndex].length && j < weights[layerIndex][k].length) {
                     double weight = weights[layerIndex][k][j];
 
-                    int colorIndex = (int)((Math.tanh(weight) + 1) * (COLOR_CACHE_SIZE - 1) / 2);
+                    int colorIndex = (int) ((Math.tanh(weight) + 1) * (COLOR_CACHE_SIZE - 1) / 2);
                     colorIndex = Math.min(COLOR_CACHE_SIZE - 1, Math.max(0, colorIndex));
                     Color lineColor = weightColorCache[colorIndex];
 
-                    // Csak akkor számolunk színkeverést, ha tényleg van változás
                     if (hasWeightChanges && k < weightChanges[layerIndex].length &&
                             j < weightChanges[layerIndex][k].length) {
                         double change = weightChanges[layerIndex][k][j];
-                        if (Math.abs(change) > 0.001) { // Csak jelentős változásnál
+                        if (Math.abs(change) > 0.001) {
                             double min = Math.min(1.0, Math.abs(change) * 25);
                             lineColor = blendColors(lineColor,
                                     change > 0 ? POSITIVE_CHANGE_COLOR : NEGATIVE_CHANGE_COLOR,
@@ -227,13 +229,16 @@ public class Visualization implements GameElement {
     }
 
     private Color blendColors(Color c1, Color c2, double ratio) {
-        if (ratio < 0.01) return c1;
-        if (ratio > 0.99) return c2;
-
-        int r = (int)(c1.getRed() * (1 - ratio) + c2.getRed() * ratio);
-        int g = (int)(c1.getGreen() * (1 - ratio) + c2.getGreen() * ratio);
-        int b = (int)(c1.getBlue() * (1 - ratio) + c2.getBlue() * ratio);
-        int a = (int)(c1.getAlpha() * (1 - ratio) + c2.getAlpha() * ratio);
+        if (ratio < 0.01) {
+            return c1;
+        }
+        if (ratio > 0.99) {
+            return c2;
+        }
+        int r = (int) (c1.getRed() * (1 - ratio) + c2.getRed() * ratio);
+        int g = (int) (c1.getGreen() * (1 - ratio) + c2.getGreen() * ratio);
+        int b = (int) (c1.getBlue() * (1 - ratio) + c2.getBlue() * ratio);
+        int a = (int) (c1.getAlpha() * (1 - ratio) + c2.getAlpha() * ratio);
         return new Color(r, g, b, a);
     }
 
@@ -293,7 +298,7 @@ public class Visualization implements GameElement {
 
     private Color getColorForActivation(double activation, boolean isOutputLayer) {
         activation = Math.max(0, Math.min(1, activation));
-        int colorIndex = (int)(activation * (COLOR_CACHE_SIZE - 1));
+        int colorIndex = (int) (activation * (COLOR_CACHE_SIZE - 1));
         return isOutputLayer ? outputActivationColorCache[colorIndex] : activationColorCache[colorIndex];
     }
 
