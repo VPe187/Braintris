@@ -157,9 +157,7 @@ public class StackUI implements GameElement, StackComponent {
     public void render(Graphics2D g2D) {
         renderPlayArea(g2D);
         renderStack(g2D);
-        if (stackManager.getNextTetromino() != null) {
-            renderNextTetrominoPanel(g2D);
-        }
+        renderNextTetrominoPanel(g2D);
         renderScorePanel(g2D);
         renderPenaltyPanel(g2D);
         renderLevelPanel(g2D);
@@ -910,17 +908,20 @@ public class StackUI implements GameElement, StackComponent {
 
     private void renderNextTetrominoPanel(Graphics2D g2D) {
         nextPanel.render(g2D);
-        int nbW = stackManager.getNextTetromino().getPixels()[0].length * GameConstans.BLOCK_SIZE;
-        int nbH = stackManager.getNextTetromino().getPixels().length * GameConstans.BLOCK_SIZE;
-        int nbX = nextPanel.getPanelX() + (nextPanel.getPanelWidth() / 2 - nbW / 2);
-        int nbY = nextPanel.getPanelY() + GameConstans.BLOCK_SIZE + (nextPanel.getPanelHeight() / 2 - nbH / 2);
-        if (stackManager.getGameState() != GameState.PAUSED) {
+
+        if (stackManager.getGameState() != GameState.PAUSED && stackManager.getNextTetromino() != null) {
+            int nbW = stackManager.getNextTetromino().getPixels()[0].length * GameConstans.BLOCK_SIZE;
+            int nbH = stackManager.getNextTetromino().getPixels().length * GameConstans.BLOCK_SIZE;
+            int nbX = nextPanel.getPanelX() + (nextPanel.getPanelWidth() / 2 - nbW / 2);
+            int nbY = nextPanel.getPanelY() + GameConstans.BLOCK_SIZE + (nextPanel.getPanelHeight() / 2 - nbH / 2);
+
+            // A tetromino összes blokkjának renderelése az új stílussal
             for (int i = 0; i < stackManager.getNextTetromino().getPixels().length; i++) {
                 for (int j = 0; j < stackManager.getNextTetromino().getPixels()[i].length; j++) {
                     if (stackManager.getNextTetromino().getPixels()[i][j] != 0) {
-                        g2D.setColor(stackManager.getNextTetromino().getColor());
-                        g2D.fill3DRect(nbX + j * GameConstans.BLOCK_SIZE, nbY + i * GameConstans.BLOCK_SIZE, GameConstans.BLOCK_SIZE,
-                                GameConstans.BLOCK_SIZE, true);
+                        int blockX = nbX + j * GameConstans.BLOCK_SIZE;
+                        int blockY = nbY + i * GameConstans.BLOCK_SIZE;
+                        renderShinyBlock(g2D, blockX, blockY, stackManager.getNextTetromino().getColor());
                     }
                 }
             }

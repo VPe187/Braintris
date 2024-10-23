@@ -267,7 +267,7 @@ public class Tetris {
 
         double[] columns = stackMetrics.getMetricColumnHeights();
         for (double column : columns) {
-            feedData[k++] = column;
+            feedData[k++] = column / 10;
         }
 
         feedData[k++] = stackManager.getAllFullRows();

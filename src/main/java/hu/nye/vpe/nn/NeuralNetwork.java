@@ -230,6 +230,7 @@ public class NeuralNetwork implements Serializable {
             forward(nextState);
             double[] currentQValues = forward(state);
             double normalizedReward = reward / Math.sqrt(reward * reward + 1);
+            //double normalizedReward = reward;
             double targetX = normalizedReward + (gameOver ? 0 : discountFactor * maxQValueX);
             double targetRotation = normalizedReward + (gameOver ? 0 : discountFactor * maxQValueRotation);
 
