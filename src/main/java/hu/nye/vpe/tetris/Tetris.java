@@ -49,10 +49,10 @@ public class Tetris {
     private static final BatchNormParameters[] BATCH_NORMS = GlobalConfig.getInstance().getBatchNorms();
     private static final double[] L2_REGULARIZATION = GlobalConfig.getInstance().getL2Regularization();
 
-    private static final long DROP_SPEED = 10L;
+    private static final long DROP_SPEED = 1L;
     private NeuralNetwork brain;
     private static final long speed = 1000L;
-    private final long learningSpeed = 10L;
+    private final long learningSpeed = 1L;
     private Tetromino nextTetromino = null;
     private static final TetrominoFactory sf = TetrominoFactory.getInstance();
     private StackUI stackUI;
@@ -72,8 +72,8 @@ public class Tetris {
 
     public Tetris(int width, int height, GameInput gameInput, boolean learning) {
         tickBackground = new GameTimeTicker(80);
-        tickControl = new GameTimeTicker(10);
-        tickAnim = new GameTimeTicker(20);
+        tickControl = new GameTimeTicker((learning) ? 1 : 20);
+        tickAnim = new GameTimeTicker((learning) ? 1 : 20);
         starField = new GameStarfield(width, height);
         initializeComponents(learning);
         this.gameInput = gameInput;
@@ -173,7 +173,7 @@ public class Tetris {
                                     stackManager.getCurrentTetromino(),
                                     targetX, targetRotation);
                             stackManager.setTetrominoRotation(targetRotation);
-                            double reward = calculateReward(false);
+                            double reward = calculateReward();
                             double[] nextState = getFeedData();
                             brain.learn(lastState, lastAction, reward, nextState, stackManager.getGameState() == GameState.GAMEOVER);
                         }
@@ -271,7 +271,6 @@ public class Tetris {
         for (double column : columns) {
             feedData[k++] = column / 10;
         }
-
         feedData[k++] = stackManager.getAllFullRows();
         feedData[k++] = stackMetrics.getMetricNearlyFullRows();
         feedData[k++] = stackMetrics.getMetricAvgDensity() * 4;
@@ -281,6 +280,10 @@ public class Tetris {
         feedData[k++] = stackMetrics.getMetricBumpiness() / 20;
         feedData[k++] = stackMetrics.getMetricMaxHeight() / 10;
         feedData[k] = stackMetrics.getMetricAvgColumnHeight() * 10;
+
+        for (int i = 0; i < feedData.length; i++) {
+            feedData[i] = feedData[i] * 10;
+        }
 
         if (NORMALIZE_FEED_DATA) {
             if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
@@ -297,7 +300,7 @@ public class Tetris {
         }
     }
 
-    private double calculateReward(Boolean gameOver) {
+    private double calculateReward() {
         double reward = 0;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
 
