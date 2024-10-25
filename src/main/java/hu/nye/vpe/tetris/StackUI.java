@@ -714,7 +714,11 @@ public class StackUI implements GameElement, StackComponent {
         int penaltyHeight = penaltyPanel.getTitleHeight() - penaltyPanel.getBorderWidth() * 2;
         int ppX = penaltyPanel.getPanelX() + penaltyPanel.getBorderWidth();
         int ppY = penaltyPanel.getPanelY() + GameConstans.BLOCK_SIZE + penaltyPanel.getBorderWidth();
-        g2D.setColor(new Color(55 + (200 / GameConstans.PENALTY_NO_FULL_ROW) * stackManager.getNoFullRows(), 0, 0, 100));
+
+        // Calculate red value with bounds checking
+        int redValue = Math.min(255, 55 + (int) ((200.0 / GameConstans.PENALTY_NO_FULL_ROW) * stackManager.getNoFullRows()));
+        g2D.setColor(new Color(redValue, 0, 0, 100));
+
         if (stackManager.getNoFullRows() > 0) {
             g2D.fillRect(ppX, ppY, (int) penaltyWidth, penaltyHeight);
         }
@@ -774,7 +778,7 @@ public class StackUI implements GameElement, StackComponent {
             infoStrA = "Height (avg): " + String.format("%.2f", stackMetrics.getMetricAvgColumnHeight());
             infoStrN = "Nearly full rows: " + String.format("%.0f", stackMetrics.getMetricNearlyFullRows());
             infoStrB = "Blocked rows: " + String.format("%.0f", stackMetrics.getMetricBlockedRows());
-            infoStrH = "Surrounding holes: " + String.format("%.0f", stackMetrics.getMetricSurroundingHoles());
+            infoStrH = "Surrounding holes: " + String.format("%.0f", stackMetrics.getMetricSurroundedHoles());
             infoStrO = "Tetromino rotation: " + String.format("%.0f", stackManager.getTetrominoRotation());
             infoStrD = "Dropped elements: " + String.format("%.0f", stackMetrics.getMetricDroppedElements());
             infoStrV = "Average density: " + String.format("%.2f", stackMetrics.getMetricAvgDensity());

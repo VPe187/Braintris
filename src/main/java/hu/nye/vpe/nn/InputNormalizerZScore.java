@@ -88,10 +88,6 @@ public class InputNormalizerZScore {
         return fitTransform(data);
     }
 
-    public double getMean() {
-        return mean;
-    }
-
     public double getStandardDeviation() {
         return standardDeviation;
     }

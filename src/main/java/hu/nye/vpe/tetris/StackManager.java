@@ -1,12 +1,16 @@
 package hu.nye.vpe.tetris;
 
 import java.awt.Color;
+import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import hu.nye.vpe.GlobalConfig;
 import hu.nye.vpe.gaming.GameAudio;
 import hu.nye.vpe.gaming.GameConstans;
 import hu.nye.vpe.gaming.GameState;
+import hu.nye.vpe.nn.InputNormalizerMinmax;
+import hu.nye.vpe.nn.InputNormalizerZScore;
 
 /**
  * Stack manager class.
@@ -27,14 +31,19 @@ public class StackManager implements StackComponent {
     private static final int LEVEL_BONUS = GameConstans.LEVEL_BONUS;
     private static final int ROW_SCORE = GameConstans.ROW_SCORE;
     private static final int LEVEL_CHANGE_ROWS = GameConstans.LEVEL_CHANGE_ROWS;
+    private static final int X_COORD_OUTPUTS = 12;
+    private static final int ROTATION_OUTPUTS = 3;
+    private static final int FEED_DATA_SIZE = GlobalConfig.getInstance().getFeedDataSize();
+    private static final boolean NORMALIZE_FEED_DATA = GlobalConfig.getInstance().getNormalizeFeedData();
+    private static final String FEED_DATA_NORMALIZER = GlobalConfig.getInstance().getFeedDataNormalizer();
 
-    private Cell[][] stackArea = new Cell[ROWS][COLS];
-    private boolean learning;
+    private final Cell[][] stackArea = new Cell[ROWS][COLS];
+    private final boolean learning;
     private Tetromino currentTetromino;
     private Tetromino nextTetromino;
     private GameState gameState;
     private static int iteration;
-    private double tetrominoRotation;
+    private int tetrominoRotation;
     private int noFullRows;
     private int allFullRows;
     private int gameScore;
@@ -151,14 +160,14 @@ public class StackManager implements StackComponent {
     /**
      * moveTetrominoDown method.
      */
-    protected boolean moveTetrominoDown(Cell[][] stackArea, Tetromino tetromino) {
+    protected boolean moveTetrominoDown(Cell[][] stackArea, Tetromino tetromino, Boolean isSimulation) {
         if (!isTetrominoDown(stackArea, tetromino)) {
             removeTetromino(stackArea, tetromino);
             tetromino.setRowPosition(tetromino.getStackRow() + 1);
             putTetromino(stackArea, tetromino);
             return false;
         } else {
-            itemFalled(stackArea, tetromino);
+            itemFalled(stackArea, tetromino, isSimulation);
             return true;
         }
     }
@@ -298,7 +307,7 @@ public class StackManager implements StackComponent {
         if (checkTetrominoCanRotateRight(stackArea, tetromino)) {
             removeTetromino(stackArea, tetromino);
             tetromino.rotateRight();
-            tetrominoRotation = (tetrominoRotation + 90) % 360;
+            tetrominoRotation = (tetrominoRotation + 1) % 4;
             putTetromino(stackArea, tetromino);
             return true;
         } else {
@@ -309,13 +318,15 @@ public class StackManager implements StackComponent {
     /**
      * Rotate tetromino (left).
      */
-    public void rotateTetrominoLeft(Cell[][] stackArea, Tetromino tetromino) {
+    public boolean rotateTetrominoLeft(Cell[][] stackArea, Tetromino tetromino) {
         if (checkTetrominoCanRotateLeft(stackArea, tetromino)) {
             removeTetromino(stackArea, tetromino);
             tetromino.rotateLeft();
-            tetrominoRotation = (tetrominoRotation + 270) % 360; // 270 fokkal való forgatás megegyezik a -90 fokkal
+            tetrominoRotation = (tetrominoRotation + 3) % 4;
             putTetromino(stackArea, tetromino);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -370,8 +381,6 @@ public class StackManager implements StackComponent {
         for (int i = ROW_OFFSET; i < stackArea.length; i++) {
             System.arraycopy(stackArea[i], 0, stackArea[i - 1], 0, stackArea[i].length);
         }
-        Random rnd = new Random();
-        int rn;
         for (int w = ROWS - ROW_OFFSET; w >= ROWS - (rowNum + 1); w--) {
             for (int h = 1; h <= COLS; h++) {
                 if (h >= 3) {
@@ -452,7 +461,7 @@ public class StackManager implements StackComponent {
         }
     }
 
-    private void itemFalled(Cell[][] stackArea, Tetromino tetromino) {
+    private void itemFalled(Cell[][] stackArea, Tetromino tetromino, Boolean isSimulation) {
         putTetromino(stackArea, tetromino);
         boolean wasFullRow = getFullRowsNum() > 0;
         if (!wasFullRow) {
@@ -472,8 +481,10 @@ public class StackManager implements StackComponent {
         } else {
             flagFullRows();
         }
-        currentTetromino = null;
-        droppedElements++;
+        if (!isSimulation) {
+            currentTetromino = null;
+            droppedElements++;
+        }
     }
 
     private boolean tetrominoIsDownAfter(Cell[][] stackArea, Tetromino tetromino, int p) {
@@ -554,18 +565,15 @@ public class StackManager implements StackComponent {
     /**
      * Megpróbálja az aktuális elemet a megadott pozícióba mozgatni és elforgatni.
      *
-     * @param targetX        A célpozíció x koordinátája
-     * @param targetRotation A célforgatás állapota (0-3, ahol 0 az eredeti állapot)
+     * @param targetX           A célpozíció x koordinátája
+     * @param rotationCount     Az elforgatások száma (1-3)
      */
-    public void moveAndRotateTetrominoTo(Cell[][] stack, Tetromino tetromino, int targetX, int targetRotation) {
+    public void moveAndRotateTetrominoTo(Cell[][] stack, Tetromino tetromino, int targetX, int rotationCount) {
         if (tetromino == null) {
             return;
         }
 
-        int currentRotation = (int) tetrominoRotation;
-        int rotationDiff = ((targetRotation - currentRotation + 360) % 360) / 90;
-
-        for (int i = 0; i < rotationDiff; i++) {
+        for (int i = 0; i < rotationCount; i++) {
             if (!rotateTetrominoRight(stack, tetromino)) {
                 break;
             }
@@ -581,8 +589,78 @@ public class StackManager implements StackComponent {
             }
         }
 
-        while (!moveTetrominoDown(stack, tetromino)) {
+        while (!moveTetrominoDown(stack, tetromino, false)) {
         }
+    }
+
+    /**
+     * Simulate all possible actions.
+     *
+     * @param stackArea Stack area.
+     *
+     * @param tetromino Investigated tetromino.
+     *
+     *
+     * @param metrics Metric object.
+
+     * @return All possible position with score.
+     */
+    public double[][] simulateAllPossibleActions(Cell[][] stackArea, Tetromino tetromino, StackMetrics metrics) {
+        double[][] results = new double[X_COORD_OUTPUTS * ROTATION_OUTPUTS][];
+        Cell[][] simStack = new Cell[ROWS][COLS];
+        Tetromino simTetromino = copyTetromino(tetromino);
+        int index = 0;
+
+        for (int x = 0; x < X_COORD_OUTPUTS; x++) {
+            for (int rot = 0; rot < ROTATION_OUTPUTS; rot++) {
+                for (int i = 0; i < ROWS; i++) {
+                    for (int j = 0; j < COLS; j++) {
+                        simStack[i][j] = new Cell(stackArea[i][j].getTetrominoId(), stackArea[i][j].getColor());
+                    }
+                }
+                for (int i = 0; i < rot; i++) {
+                    if (!rotateTetrominoRight(simStack, simTetromino)) {
+                        break;
+                    }
+                }
+                int moveDirection = Integer.compare(x, simTetromino.getStackCol());
+                while (simTetromino.getStackCol() != x) {
+                    boolean moved = moveDirection > 0 ?
+                            moveTetrominoRight(simStack, simTetromino) :
+                            moveTetrominoLeft(simStack, simTetromino);
+                    if (!moved) {
+                        break;
+                    }
+                }
+                while (!moveTetrominoDown(simStack, simTetromino, true)) {
+                }
+                metrics.calculateGameMetrics(simStack);
+                double[] state = new double[4];
+
+                double metricFullRows = getAllFullRows();
+                state[0] = metricFullRows / 4;
+                double metricNumberOfHoles = metrics.getMetricNumberOfHoles() / 20;
+                state[1] = metricNumberOfHoles / 2;
+                double metricBumpiness = metrics.getMetricBumpiness() / 2;
+                state[2] = metricBumpiness / 10;
+                double metricMaxheight = metrics.getMetricMaxHeight() / 12;
+                state[3] = metricMaxheight;
+
+                if (NORMALIZE_FEED_DATA) {
+                    if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
+                        InputNormalizerMinmax normalizer = new InputNormalizerMinmax(FEED_DATA_SIZE);
+                        state = normalizer.normalizeAutomatically(state);
+                    } else if (Objects.equals(FEED_DATA_NORMALIZER, "ZSCORE")) {
+                        InputNormalizerZScore normalizer = new InputNormalizerZScore(FEED_DATA_SIZE);
+                        state = normalizer.normalizeAutomatically(state);
+                    } else {
+                        throw new IllegalArgumentException("Unsupported normalization type: " + FEED_DATA_NORMALIZER);
+                    }
+                }
+                results[index++] = state;
+            }
+        }
+        return results;
     }
 
     public void nextIteration() {
@@ -635,8 +713,7 @@ public class StackManager implements StackComponent {
      * @return et
      */
     protected Long getElapsedTimeLong() {
-        long et = System.currentTimeMillis() - this.getStartTime();
-        return et;
+        return System.currentTimeMillis() - this.getStartTime();
     }
 
     protected String getElapsedTime() {
@@ -673,7 +750,7 @@ public class StackManager implements StackComponent {
         this.setTetrominoRotation(0);
     }
 
-    public void setTetrominoRotation(double tetrominoRotation) {
+    public void setTetrominoRotation(int tetrominoRotation) {
         this.tetrominoRotation = tetrominoRotation;
     }
 

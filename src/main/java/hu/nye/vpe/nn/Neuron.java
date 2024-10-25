@@ -8,10 +8,10 @@ import java.io.Serializable;
 public class Neuron implements Serializable {
     private double[] weights;
     private double bias;
-    private Activation activation;
-    private WeightInitStrategy initStrategy;
-    private GradientClipper gradientClipper;
-    private double lambdaL2;
+    private final Activation activation;
+    private final WeightInitStrategy initStrategy;
+    private final GradientClipper gradientClipper;
+    private final double lambdaL2;
 
     public Neuron(int inputSize, int outputSize, Activation activation, WeightInitStrategy initStrategy,
                   GradientClipper gradientClipper, Double lambdaL2) {
@@ -55,15 +55,14 @@ public class Neuron implements Serializable {
 
         biasGradient = gradientClipper.clip(biasGradient);
         bias -= learningRate * biasGradient;
-
     }
 
     /**
      * Linear transform.
      *
-     * @param inputs
+     * @param inputs All inputs.
      *
-     * @return transformed summa
+     * @return Transformed summa.
      */
     public double linearTransform(double[] inputs) {
         double sum = bias;
@@ -75,21 +74,5 @@ public class Neuron implements Serializable {
 
     public double[] getWeights() {
         return weights;
-    }
-
-    public double getBias() {
-        return bias;
-    }
-
-    public void setBias(double bias) {
-        this.bias = bias;
-    }
-
-    public Activation getActivation() {
-        return activation;
-    }
-
-    public WeightInitStrategy getInitStrategy() {
-        return initStrategy;
     }
 }

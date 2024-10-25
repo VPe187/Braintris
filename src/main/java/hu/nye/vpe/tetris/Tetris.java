@@ -1,7 +1,6 @@
 package hu.nye.vpe.tetris;
 
 import java.awt.Graphics2D;
-import java.util.Objects;
 
 import hu.nye.vpe.GlobalConfig;
 import hu.nye.vpe.gaming.GameAudio;
@@ -12,8 +11,6 @@ import hu.nye.vpe.gaming.GameState;
 import hu.nye.vpe.gaming.GameTimeTicker;
 import hu.nye.vpe.nn.Activation;
 import hu.nye.vpe.nn.BatchNormParameters;
-import hu.nye.vpe.nn.InputNormalizerMinmax;
-import hu.nye.vpe.nn.InputNormalizerZScore;
 import hu.nye.vpe.nn.NeuralNetwork;
 import hu.nye.vpe.nn.WeightInitStrategy;
 
@@ -38,18 +35,17 @@ public class Tetris {
     private static final double REWARD_AVG_COLUMN_HEIGHT = GlobalConfig.getInstance().getRewardAvgColumnHeight();
     private static final double REWARD_MAXIMUM_HEIGHT = GlobalConfig.getInstance().getRewardMaximumHeight();
 
-    private static final int FEED_DATA_SIZE = GlobalConfig.getInstance().getFeedDataSize();
-    private static final boolean NORMALIZE_FEED_DATA = GlobalConfig.getInstance().getNormalizeFeedData();
-    private static final String FEED_DATA_NORMALIZER = GlobalConfig.getInstance().getFeedDataNormalizer();
-
     private static final String[] LAYER_NAMES = GlobalConfig.getInstance().getLayerNames();
     private static final int[] LAYER_SIZES = GlobalConfig.getInstance().getLayerSizes();
     private static final Activation[] LAYER_ACTIVATIONS = GlobalConfig.getInstance().getLayerActivations();
     private static final WeightInitStrategy[] WEIGHT_INIT_STRATEGIES = GlobalConfig.getInstance().getWeightInitStrategies();
     private static final BatchNormParameters[] BATCH_NORMS = GlobalConfig.getInstance().getBatchNorms();
     private static final double[] L2_REGULARIZATION = GlobalConfig.getInstance().getL2Regularization();
-
+    private static final int ROTATION_OUTPUTS = 3;
     private static final long DROP_SPEED = 1L;
+
+    private static final Boolean DEBUG = false;
+
     private NeuralNetwork brain;
     private static final long speed = 1000L;
     private final long learningSpeed = 1L;
@@ -160,35 +156,123 @@ public class Tetris {
         if (tickDown.tick()) {
             if (stackManager.getGameState() == GameState.RUNNING) {
                 if (stackManager.getCurrentTetromino() == null) {
-                    nextTetromino();
                     if (learning) {
-                        if (stackManager.getCurrentTetromino() != null) {
-                            double[] currentState = getFeedData(0);
-                            int[] action = brain.selectAction(currentState);
+
+                        // 1. előző jutalom kiszámítása
+                        double reward = 0;
+                        if (lastState != null && lastAction != null) {
+                            stackMetrics.calculateGameMetrics(stackManager.getStackArea());
+                            reward = calculateReward();
+                        }
+                        if (DEBUG) {
+                            System.out.println("1. előző jutalom: " + reward);
+                        }
+
+                        // 2. Új elem generálása
+                        nextTetromino();
+                        if (DEBUG) {
+                            System.out.println("2. új elem létrehozása.");
+                        }
+
+                        // 3. Új állapotok kiszámítása
+                        StackMetrics metrics = new StackMetrics();
+                        double[][] possibleStates = stackManager.simulateAllPossibleActions(
+                                stackManager.getStackArea(),
+                                stackManager.getCurrentTetromino(),
+                                metrics
+                        );
+
+                        if (DEBUG) {
+                            System.out.println("3. Új állapotok kiszámítása: ");
+                        }
+
+                        for (double[] possibleState : possibleStates) {
+                            for (double v : possibleState) {
+                                if (DEBUG) {
+                                    System.out.print(v + " ");
+                                }
+                            }
+                            if (DEBUG) {
+                                System.out.println();
+                            }
+                        }
+
+                        // 4. Tanuljunk az előző akcióból (ha volt)
+                        if (lastState != null && lastAction != null) {
+                            brain.learn(
+                                    lastState,
+                                    lastAction,
+                                    reward,
+                                    possibleStates.length > 0 ? possibleStates[0] : null,
+                                    false,
+                                    possibleStates
+                            );
+
+                            if (DEBUG) {
+                                System.out.println("4. Tanulás.");
+                            }
+
+                        }
+
+                        // 5. Válasszuk ki az új akciót
+                        if (possibleStates.length > 0) {
+                            int[] action = brain.selectAction(possibleStates);
                             int targetX = action[0];
-                            int targetRotation = (action[1] * 90) % 360;
-                            lastAction = action;
-                            lastState = currentState;
-                            stackManager.moveAndRotateTetrominoTo(stackManager.getStackArea(),
-                                    stackManager.getCurrentTetromino(),
-                                    targetX, targetRotation);
-                            double[] nextState = getFeedData(targetRotation);
-                            double reward = calculateReward();
-                            brain.learn(lastState, lastAction, reward, nextState, stackManager.getGameState() == GameState.GAMEOVER);
+                            int rotationCount = action[1];
+
+                            if (DEBUG) {
+                                System.out.println("5. Új akció választás:" + action[0] + " " + action[1]);
+                            }
+
+                            int newStateIndex = targetX * ROTATION_OUTPUTS + rotationCount;
+                            if (newStateIndex < possibleStates.length) {
+                                // Az új állapot és akció mentése
+                                lastState = possibleStates[newStateIndex];
+                                lastAction = action;
+
+                                // 6. Hajtsuk végre az akciót
+
+                                if (DEBUG) {
+                                    System.out.println("Akció végrehajtása: " + targetX + " " + rotationCount);
+                                }
+
+                                stackManager.moveAndRotateTetrominoTo(
+                                        stackManager.getStackArea(),
+                                        stackManager.getCurrentTetromino(),
+                                        targetX,
+                                        rotationCount
+                                );
+
+                                if (DEBUG) {
+                                    System.out.println();
+                                }
+                            }
                         }
                     }
                 } else {
-                    stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino());
+                    stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino(), false);
                 }
             }
         }
         if (stackManager.getGameState() == GameState.GAMEOVER) {
             if (learning) {
+
+                brain.learn(
+                        lastState,
+                        lastAction,
+                        calculateReward(),
+                        null,
+                        true,
+                        null
+                );
+
                 try {
                     brain.saveToFile();
                 } catch (Exception e) {
                     System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());
                 }
+                lastState = null;
+                lastAction = null;
                 start();
             }
         }
@@ -250,91 +334,12 @@ public class Tetris {
         stackUI.render(g2d);
     }
 
-    private double[] getFeedData(double rotation) {
-        double[] feedData = new double[FEED_DATA_SIZE];
-        int k = 0;
-        stackMetrics.calculateGameMetrics(stackManager.getStackArea());
-
-        if (stackManager.getCurrentTetromino() != null) {
-            feedData[k++] = stackManager.getCurrentTetromino().getId() / 3;
-            feedData[k++] = stackManager.getNextTetromino().getId() / 3;
-        } else {
-            feedData[k++] = 0.0;
-            feedData[k++] = 0.0;
-        }
-
-        feedData[k++] = rotation / 10;
-
-        double[] columns = stackMetrics.getMetricColumnHeights();
-        for (double column : columns) {
-            feedData[k++] = column / 10;
-        }
-
-        feedData[k++] = stackManager.getAllFullRows();
-        feedData[k++] = stackMetrics.getMetricNearlyFullRows();
-        feedData[k++] = stackMetrics.getMetricAvgDensity();
-        feedData[k++] = stackMetrics.getMetricNumberOfHoles() / 10;
-        feedData[k++] = stackMetrics.getMetricSurroundingHoles() / 10;
-        feedData[k++] = stackMetrics.getMetricBlockedRows() / 10;
-        feedData[k++] = stackMetrics.getMetricBumpiness() / 10;
-        feedData[k++] = (double) stackMetrics.getMetricMaxHeight() / 5;
-        feedData[k] = stackMetrics.getMetricAvgColumnHeight() * 20;
-
-        if (NORMALIZE_FEED_DATA) {
-            if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
-                InputNormalizerMinmax normalizer = new InputNormalizerMinmax(FEED_DATA_SIZE);
-                return normalizer.normalizeAutomatically(feedData);
-            } else if (Objects.equals(FEED_DATA_NORMALIZER, "ZSCORE")) {
-                InputNormalizerZScore normalizer = new InputNormalizerZScore(FEED_DATA_SIZE);
-                return normalizer.normalizeAutomatically(feedData);
-            } else {
-                throw new IllegalArgumentException("Unsupported normalization type: " + FEED_DATA_NORMALIZER);
-            }
-        } else {
-            return feedData;
-        }
-    }
-
     private double calculateReward() {
-        double reward = 0;
+        double reward;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
 
-        // Jutalom teljes kirakott sorokra
         double fullRows = stackManager.getAllFullRows();
-        reward += fullRows * REWARD_FULLROW;
-
-        // Jutalom a közel teli sorokra
-        double nearlyFullRows = stackMetrics.getMetricNearlyFullRows();
-        reward += nearlyFullRows * REWARD_NEARLY_FULLROW;
-
-        // Jutalom az átlagsűrűségért
-        double avgDensity = stackMetrics.getMetricAvgDensity();
-        reward += avgDensity * REWARD_AVG_DENSITY;
-
-        // Büntetés a lyukakért
-        double numberofHoles = stackMetrics.getMetricNumberOfHoles();
-        reward -= numberofHoles * REWARD_NUMBER_OF_HOLES - 30;
-
-        // Büntetés a végleges lyukakért
-        double surroundingHoles = stackMetrics.getMetricSurroundingHoles();
-        reward -= surroundingHoles * REWARD_SURROUNDED_HOLES;
-
-        // Büntetés a blokkolt sorokért
-        double blockedRows = stackMetrics.getMetricBlockedRows();
-        reward -= blockedRows * REWARD_BLOCKED_ROW;
-
-        // Büntetés az egyenetlenségért
-        double bumpiness = stackMetrics.getMetricBumpiness();
-        reward -= bumpiness * REWARD_BUMPINESS;
-
-        // Büntetés a magasra helyezésért
-        double maxHeight = stackMetrics.getMetricMaxHeight();
-        reward -= maxHeight * REWARD_MAXIMUM_HEIGHT;
-
-        // Büntetés az átlagos magasságért
-        double avgColumnHeights = stackMetrics.getMetricAvgColumnHeight();
-        reward -= avgColumnHeights * REWARD_AVG_COLUMN_HEIGHT;
-
+        reward = fullRows * fullRows * COLS + 1;
         return reward;
     }
 

@@ -283,7 +283,7 @@ public class StackMetrics implements StackComponent {
         return metricBlockedRows;
     }
 
-    public double getMetricSurroundingHoles() {
+    public double getMetricSurroundedHoles() {
         return metricSurroundingHoles;
     }
 

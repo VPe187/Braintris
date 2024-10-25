@@ -12,7 +12,6 @@ import hu.nye.vpe.GlobalConfig;
 public class Layer implements Serializable {
     private final List<Neuron> neurons;
     private final Activation activation;
-    private final WeightInitStrategy initStrategy;
     private final GradientClipper gradientClipper;
     private final String name;
     private BatchNormalizer batchNormalizer;
@@ -27,7 +26,6 @@ public class Layer implements Serializable {
         this.name = name;
         this.neurons = new ArrayList<>();
         this.activation = activation;
-        this.initStrategy = initStrategy;
         this.gradientClipper = gradientClipper;
         this.useBatchNorm = batchNormParameters.useBatchNorm;
         this.learningRate = learningRate;
@@ -238,14 +236,6 @@ public class Layer implements Serializable {
         return name;
     }
 
-    public WeightInitStrategy getInitStrategy() {
-        return initStrategy;
-    }
-
-    public Activation getActivation() {
-        return activation;
-    }
-
     public List<Neuron> getNeurons() {
         return neurons;
     }
@@ -262,18 +252,4 @@ public class Layer implements Serializable {
         }
     }
 
-    /**
-     * Set split index.
-     *
-     * @param splitIndex Spit index
-     */
-    public void setSplitIndex(int splitIndex) {
-        if (this.activation != Activation.SOFTMAX_SPLIT) {
-            throw new IllegalStateException("Split index can only be set for SOFTMAX_SPLIT activation");
-        }
-        if (splitIndex <= 0 || splitIndex >= this.neurons.size()) {
-            throw new IllegalArgumentException("Split index must be between 1 and " + (this.neurons.size() - 1));
-        }
-        this.splitIndex = splitIndex;
-    }
 }

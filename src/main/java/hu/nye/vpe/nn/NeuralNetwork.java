@@ -7,7 +7,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -39,7 +38,6 @@ public class NeuralNetwork implements Serializable {
     private static final int EXPERIENCE_BATCH_SIZE = GlobalConfig.getInstance().getExperienceBatchSize();
     private static final int X_COORD_OUTPUTS = 12;
     private static final int ROTATION_OUTPUTS = 3;
-    private static final int TOTAL_OUTPUTS = X_COORD_OUTPUTS + ROTATION_OUTPUTS;
     private static final int MINIMUM_BATCH_SIZE = GlobalConfig.getInstance().getMinimumBatchSize();
 
     private final List<Layer> layers;
@@ -48,25 +46,23 @@ public class NeuralNetwork implements Serializable {
     private double epsilon;
     private int episodeCount;
     private final Random random;
-    private final GradientClipper gradientClipper;
-    private double maxQValueX;
-    private double maxQValueRotation;
+    private double maxQ;
     private double lastReward;
     private double bestReward;
     private double[][] lastActivations;
     private final List<Double> recentRewards;
     private double movingAverage;
+    private double maxMovingAverage;
     private final ExperienceReplay experienceReplay;
-    private List<double[]> inputBatch;
-    private List<double[]> targetBatch;
+    private final List<double[]> inputBatch;
+    private final List<double[]> targetBatch;
     private double rms;
-    private double[] layerMins;
-    private double[] layerMaxs;
-    private double[] layerMeans;
+    private final double[] layerMins;
+    private final double[] layerMaxs;
+    private final double[] layerMeans;
     private double averageWeightChange;
     private double[][][] weightChanges;
     private double[][][] previousWeights;
-
 
     public NeuralNetwork(String[] names, int[] layerSizes, Activation[] activations, WeightInitStrategy[] initStrategies,
                          BatchNormParameters[] batchNormParameters, double[] l2) {
@@ -78,7 +74,7 @@ public class NeuralNetwork implements Serializable {
                     "the length of activations, initStrategies, and useBatchNorm arrays");
         }
 
-        this.gradientClipper = new GradientClipper(CLIP_MIN, CLIP_MAX, CLIP_NORM, GRADIENT_SCALE);
+        GradientClipper gradientClipper = new GradientClipper(CLIP_MIN, CLIP_MAX, CLIP_NORM, GRADIENT_SCALE);
         this.layers = new ArrayList<>();
         this.learningRate = INITIAL_LEARNING_RATE;
 
@@ -106,6 +102,8 @@ public class NeuralNetwork implements Serializable {
         this.previousWeights = null;
         this.averageWeightChange = 0.0;
         this.weightChanges = null;
+        this.maxMovingAverage = Double.NEGATIVE_INFINITY;
+        this.maxQ = 0;
     }
 
     /**
@@ -131,24 +129,7 @@ public class NeuralNetwork implements Serializable {
             currentInput[i] = Math.max(MIN_Q, Math.min(MAX_Q, currentInput[i]));
         }
 
-        updateMaxQValue(currentInput);
         return currentInput;
-    }
-
-    private void updateMaxQValue(double[] qvalues) {
-        maxQValueX = qvalues[0];
-        for (int i = 1; i < X_COORD_OUTPUTS; i++) {
-            if (qvalues[i] > maxQValueX) {
-                maxQValueX = qvalues[i];
-            }
-        }
-
-        maxQValueRotation = qvalues[X_COORD_OUTPUTS];
-        for (int i = X_COORD_OUTPUTS + 1; i < TOTAL_OUTPUTS; i++) {
-            if (qvalues[i] > maxQValueRotation) {
-                maxQValueRotation = qvalues[i];
-            }
-        }
     }
 
     private void backwardPass(double[][] batchInputs, double[][] batchTargets) {
@@ -180,20 +161,32 @@ public class NeuralNetwork implements Serializable {
     /**
      * Select action from network.
      *
-     * @param state metric datas
+     * @param possibleActions metric datas
      *
      * @return action
      */
-    public int[] selectAction(double[] state) {
+    public int[] selectAction(double[][] possibleActions) {
         if (random.nextDouble() < epsilon) {
             return new int[]{
                     random.nextInt(X_COORD_OUTPUTS),
                     random.nextInt(ROTATION_OUTPUTS)
             };
         } else {
-            double[] qvalues = forward(state);
-            int xaction = argmax(qvalues, 0, X_COORD_OUTPUTS);
-            int rotationAction = argmax(qvalues, X_COORD_OUTPUTS, TOTAL_OUTPUTS) - X_COORD_OUTPUTS;
+            double[] qvalues = new double[possibleActions.length];
+            for (int i = 0; i < possibleActions.length; i++) {
+                qvalues[i] = forward(possibleActions[i])[0];
+            }
+
+            int bestActionIndex = 0;
+            for (int i = 1; i < qvalues.length; i++) {
+                if (qvalues[i] > qvalues[bestActionIndex]) {
+                    bestActionIndex = i;
+                }
+            }
+
+            int xaction = bestActionIndex / ROTATION_OUTPUTS;
+            int rotationAction = bestActionIndex % ROTATION_OUTPUTS;
+
             return new int[]{xaction, rotationAction};
         }
     }
@@ -201,78 +194,19 @@ public class NeuralNetwork implements Serializable {
     /**
      * Learn method.
      *
-     * @param state current metric data
-     *
-     * @param action last action
-     *
-     * @param reward reward
-     *
+     * @param state     current metric data
+     * @param action    last action
+     * @param reward    reward
      * @param nextState next state datas
-     *
-     * @param gameOver game is over?
+     * @param gameOver  game is over?
      */
-    public void learn(double[] state, int[] action, double reward, double[] nextState, boolean gameOver) {
+    public void learn(double[] state, int[] action, double reward, double[] nextState, boolean gameOver, double[][] nextPossibleStates) {
         if (USE_EXPERIENCE) {
-            Experience experience = new Experience(state, action, reward, nextState, gameOver);
-            experienceReplay.add(experience);
-
-            if (experienceReplay.size() >= EXPERIENCE_BATCH_SIZE) {
-                List<Experience> batch = experienceReplay.sample(EXPERIENCE_BATCH_SIZE);
-                processBatchWithExperience(batch);
-            }
+            learnWithExperinece(state, action, reward, nextState, gameOver, nextPossibleStates);
         } else {
-            if (action[0] < 0 || action[0] >= X_COORD_OUTPUTS ||
-                    action[1] < 0 || action[1] >= ROTATION_OUTPUTS) {
-                System.out.println("Érvénytelen akció: " + Arrays.toString(action));
-                return;
-            }
-
-            forward(nextState);
-            double[] currentQValues = forward(state);
-            double normalizedReward = reward / Math.sqrt(reward * reward + 1);
-            //double normalizedReward = reward;
-            double targetX = normalizedReward + (gameOver ? 0 : discountFactor * maxQValueX);
-            double targetRotation = normalizedReward + (gameOver ? 0 : discountFactor * maxQValueRotation);
-
-            targetX = Math.max(MIN_Q, Math.min(MAX_Q, targetX));
-            targetRotation = Math.max(MIN_Q, Math.min(MAX_Q, targetRotation));
-
-            double[] targetQValues = currentQValues.clone();
-            targetQValues[action[0]] = targetX;
-            targetQValues[X_COORD_OUTPUTS + action[1]] = targetRotation;
-
-            inputBatch.add(state);
-            targetBatch.add(targetQValues);
-
-            boolean shouldProcessBatch = false;
-            if (inputBatch.size() >= MINIMUM_BATCH_SIZE) {
-                shouldProcessBatch = true;
-            } else if (gameOver && inputBatch.size() >= MINIMUM_BATCH_SIZE / 2) {
-                int currentSize = inputBatch.size();
-                int needed = MINIMUM_BATCH_SIZE - currentSize;
-                for (int i = 0; i < needed; i++) {
-                    int idx = i % currentSize;
-                    inputBatch.add(inputBatch.get(idx));
-                    targetBatch.add(targetBatch.get(idx));
-                }
-                shouldProcessBatch = true;
-            } else if (gameOver) {
-                shouldProcessBatch = false;
-            }
-
-            if (shouldProcessBatch) {
-                double[][] inputs = inputBatch.toArray(new double[0][]);
-                double[][] targets = targetBatch.toArray(new double[0][]);
-
-                backwardPass(inputs, targets);
-
-                inputBatch.clear();
-                targetBatch.clear();
-            }
+            learnWithoutExperience(state, reward, gameOver, nextPossibleStates);
         }
-
         lastReward = reward;
-
         if (gameOver) {
             if (reward > this.bestReward) {
                 this.bestReward = reward;
@@ -285,36 +219,112 @@ public class NeuralNetwork implements Serializable {
         }
     }
 
-    private void processBatchWithExperience(List<Experience> batch) {
-        double[][] inputs = new double[EXPERIENCE_BATCH_SIZE][];
-        double[][] targets = new double[EXPERIENCE_BATCH_SIZE][];
-
-        for (int i = 0; i < EXPERIENCE_BATCH_SIZE; i++) {
-            Experience exp = batch.get(i);
-            forward(exp.nextState);
-            double[] currentQValues = forward(exp.state);
-            double normalizedReward = exp.reward / Math.sqrt(exp.reward * exp.reward + 1);
-            //double normalizedReward = exp.reward;
-            double targetX = normalizedReward + (exp.done ? 0 : discountFactor * maxQValueX);
-            double targetRotation = normalizedReward + (exp.done ? 0 : discountFactor * maxQValueRotation);
-            targetX = Math.max(MIN_Q, Math.min(MAX_Q, targetX));
-            targetRotation = Math.max(MIN_Q, Math.min(MAX_Q, targetRotation));
-
-            double[] targetQValues = currentQValues.clone();
-            targetQValues[exp.action[0]] = targetX;
-            targetQValues[X_COORD_OUTPUTS + exp.action[1]] = targetRotation;
-            inputs[i] = exp.state;
-            targets[i] = targetQValues;
+    private void learnWithExperinece(double[] state, int[] action, double reward, double[] nextState, boolean gameOver,
+                                     double[][] nextPossibleStates) {
+        Experience experience = new Experience(state, action, reward, nextState, nextPossibleStates, gameOver);
+        experienceReplay.add(experience);
+        if (experienceReplay.size() >= EXPERIENCE_BATCH_SIZE) {
+            List<Experience> batch = experienceReplay.sample(EXPERIENCE_BATCH_SIZE);
+            processBatchWithExperience(batch);
         }
-        backwardPass(inputs, targets);
+    }
+
+    private void learnWithoutExperience(double[] state, double reward, boolean gameOver, double[][] nextPossibleStates) {
+        double maxNextQ = Double.NEGATIVE_INFINITY;
+        if (nextPossibleStates != null) {
+            for (double[] possibleState : nextPossibleStates) {
+                double stateQ = forward(possibleState)[0];
+                maxNextQ = (Math.max(maxNextQ, stateQ));
+                maxNextQ = Math.min(MAX_Q, Math.max(MIN_Q, maxNextQ));
+            }
+        }
+
+        maxNextQ = Math.min(MAX_Q, Math.max(MIN_Q, maxNextQ));
+        maxQ = maxNextQ;
+
+        double targetQ;
+        if (gameOver) {
+            targetQ = reward;
+        } else {
+            targetQ = reward + discountFactor * maxNextQ;
+        }
+        targetQ = Math.max(MIN_Q, Math.min(MAX_Q, targetQ));
+
+        inputBatch.add(state);
+        targetBatch.add(new double[]{targetQ});
+
+        boolean shouldProcessBatch = false;
+        if (inputBatch.size() >= MINIMUM_BATCH_SIZE) {
+            shouldProcessBatch = true;
+        } else if (gameOver && inputBatch.size() >= MINIMUM_BATCH_SIZE / 2) {
+            padBatchToMinimumSize();
+            shouldProcessBatch = true;
+        }
+        if (shouldProcessBatch) {
+            processBatchWithoutExperience();
+        }
+    }
+
+    private void padBatchToMinimumSize() {
+        int currentSize = inputBatch.size();
+        int needed = MINIMUM_BATCH_SIZE - currentSize;
+        for (int i = 0; i < needed; i++) {
+            int idx = i % currentSize;
+            inputBatch.add(inputBatch.get(idx));
+            targetBatch.add(targetBatch.get(idx));
+        }
+    }
+
+    private void processBatchWithExperience(List<Experience> batch) {
+        inputBatch.clear();
+        targetBatch.clear();
+
+        for (Experience exp : batch) {
+            if (exp == null || exp.state == null || exp.action == null ||
+                    exp.action[0] < 0 || exp.action[0] >= X_COORD_OUTPUTS ||
+                    exp.action[1] < 0 || exp.action[1] >= ROTATION_OUTPUTS) {
+                continue;
+            }
+
+            double maxNextQ = Double.NEGATIVE_INFINITY;
+            if (!exp.done && exp.nextPossibleStates != null) {
+                for (double[] possibleState : exp.nextPossibleStates) {
+                    if (possibleState != null) {
+                        double stateQ = forward(possibleState)[0];
+                        maxNextQ = Math.max(maxNextQ, stateQ);
+                        maxNextQ = Math.min(MAX_Q, Math.max(MIN_Q, maxNextQ));
+                    }
+                }
+            }
+
+            maxNextQ = Math.min(MAX_Q, Math.max(MIN_Q, maxNextQ));
+            maxQ = maxNextQ;
+
+            double targetQ;
+            if (exp.done) {
+                targetQ = exp.reward;
+            } else {
+                targetQ = exp.reward + discountFactor * maxNextQ;
+            }
+
+            targetQ = Math.max(MIN_Q, Math.min(MAX_Q, targetQ));
+
+            inputBatch.add(exp.state);
+            targetBatch.add(new double[]{targetQ});
+        }
+
+        if (inputBatch.size() >= MINIMUM_BATCH_SIZE) {
+            processBatchWithoutExperience();
+        } else if (!inputBatch.isEmpty()) {
+            padBatchToMinimumSize();
+            processBatchWithoutExperience();
+        }
     }
 
     private void processBatchWithoutExperience() {
         double[][] inputs = inputBatch.toArray(new double[0][]);
         double[][] targets = targetBatch.toArray(new double[0][]);
-
         backwardPass(inputs, targets);
-
         inputBatch.clear();
         targetBatch.clear();
     }
@@ -330,6 +340,10 @@ public class NeuralNetwork implements Serializable {
             sum += r;
         }
         movingAverage = sum / recentRewards.size();
+
+        if (movingAverage > maxMovingAverage) {
+            maxMovingAverage = movingAverage;
+        }
     }
 
     private void updateEpsilon() {
@@ -345,40 +359,6 @@ public class NeuralNetwork implements Serializable {
 
     private void updateDiscountFactor() {
         discountFactor = Math.min(MAX_DISCOUNT_FACTOR, discountFactor + DISCOUNT_FACTOR_INCREMENT);
-    }
-
-    private int argmaxOLD(double[] array) {
-        int bestIndex = 0;
-        double maxValue = array[0];
-        for (int i = 1; i < array.length; i++) {
-            if (array[i] > maxValue) {
-                maxValue = array[i];
-                bestIndex = i;
-            }
-        }
-        return bestIndex;
-    }
-
-    private int argmax(double[] array, int start, int end) {
-        int bestIndex = start;
-        double maxValue = array[start];
-        for (int i = start + 1; i < end; i++) {
-            if (array[i] > maxValue) {
-                maxValue = array[i];
-                bestIndex = i;
-            }
-        }
-        return bestIndex;
-    }
-
-    private double max(double[] array) {
-        double maxValue = array[0];
-        for (int i = 1; i < array.length; i++) {
-            if (array[i] > maxValue) {
-                maxValue = array[i];
-            }
-        }
-        return maxValue;
     }
 
     /**
@@ -572,12 +552,8 @@ public class NeuralNetwork implements Serializable {
         return episodeCount;
     }
 
-    public double getMaxQValueX() {
-        return maxQValueX;
-    }
-
-    public double getMaxQValueRotation() {
-        return maxQValueRotation;
+    public double getMaxQ() {
+        return maxQ;
     }
 
     public double getLastReward() {
@@ -622,17 +598,8 @@ public class NeuralNetwork implements Serializable {
      *
      * @return A legnagyobb átlagos reward
      */
-    public double getMaxAverageReward() {
-        if (recentRewards.isEmpty()) {
-            return Double.NEGATIVE_INFINITY;
-        }
-        double maxReward = Double.NEGATIVE_INFINITY;
-        for (double reward : recentRewards) {
-            if (reward > maxReward) {
-                maxReward = reward;
-            }
-        }
-        return maxReward;
+    public double getMaxMovingAverage() {
+        return maxMovingAverage;
     }
 
     /**

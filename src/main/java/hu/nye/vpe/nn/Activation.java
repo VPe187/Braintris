@@ -184,8 +184,6 @@ public enum Activation {
         }
 
         double[] jacobian = new double[output.length * output.length];
-
-        // First part
         for (int i = 0; i < splitIndex; i++) {
             for (int j = 0; j < splitIndex; j++) {
                 if (i == j) {
@@ -196,7 +194,6 @@ public enum Activation {
             }
         }
 
-        // Second part
         for (int i = splitIndex; i < output.length; i++) {
             for (int j = splitIndex; j < output.length; j++) {
                 if (i == j) {

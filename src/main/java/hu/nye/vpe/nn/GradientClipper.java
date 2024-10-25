@@ -2,7 +2,6 @@ package hu.nye.vpe.nn;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.Arrays;
 
 /**
  * Gradient clipper class for clipping and normalizing gradients.

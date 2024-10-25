@@ -33,7 +33,7 @@ public class Visualization implements GameElement {
     private static final Color NEGATIVE_CHANGE_COLOR = new Color(0, 0, 0, 200);
     private static final Color INCREASE_COLOR = new Color(200, 255, 100, 200);
     private static final Color DECREASE_COLOR = new Color(255, 100, 200, 200);
-    private static final int REFRESH_RATE = 100;
+    private static final int REFRESH_RATE = 50;
 
     private final NeuralNetwork network;
     private final int width;
@@ -42,7 +42,7 @@ public class Visualization implements GameElement {
     private int[] layerSizes;
     private double[][] activations;
     private double rms;
-    private String[] layerNames;
+    private final String[] layerNames;
     private double[] layerMins;
     private double[] layerMaxs;
     private double[] layerMeans;
@@ -59,8 +59,6 @@ public class Visualization implements GameElement {
     private double currentMovingAverage;
     private double maxMovingAverage;
     private boolean isMovingAverageUpdated;
-    private int maxOutputIndexFirst12;
-    private int maxOutputIndexLast3;
 
     private static final int COLOR_CACHE_SIZE = 100;
     private static final Color[] weightColorCache = new Color[COLOR_CACHE_SIZE];
@@ -111,9 +109,7 @@ public class Visualization implements GameElement {
         this.lastKnownMovingAverage = network.getLastMovingAverage();
         this.currentMovingAverage = this.lastKnownMovingAverage;
         this.isMovingAverageUpdated = false;
-        this.maxMovingAverage = Math.max(network.getMaxAverageReward(), this.lastKnownMovingAverage);
-        this.maxOutputIndexFirst12 = -1;
-        this.maxOutputIndexLast3 = -1;
+        this.maxMovingAverage = network.getMaxMovingAverage();
         updateNetworkData();
         calculateDynamicSizing();
     }
@@ -149,11 +145,9 @@ public class Visualization implements GameElement {
         double newMovingAverage = network.getMovingAverage();
 
         if (newMovingAverage != currentMovingAverage) {
-            if (newMovingAverage > maxMovingAverage) {
-                maxMovingAverage = newMovingAverage;
-            }
             lastKnownMovingAverage = currentMovingAverage;
             currentMovingAverage = newMovingAverage;
+            maxMovingAverage = network.getMaxMovingAverage();
             isMovingAverageUpdated = true;
         }
 
@@ -311,7 +305,7 @@ public class Visualization implements GameElement {
     }
 
     private void drawLeftColumn(Graphics2D g2d) {
-        String maxQ = String.format("Max Q: %.8f", network.getMaxQValueX());
+        String maxQ = String.format("Max Q: %.8f", network.getMaxQ());
         g2d.drawString(maxQ, STAT_X, height - 9 * Y_OFFSET);
 
         Color rmsColor;
