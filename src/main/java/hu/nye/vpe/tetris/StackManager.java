@@ -1,8 +1,13 @@
 package hu.nye.vpe.tetris;
 
 import java.awt.Color;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import hu.nye.vpe.GlobalConfig;
@@ -638,13 +643,18 @@ public class StackManager implements StackComponent {
                 double[] state = new double[4];
 
                 double metricFullRows = getAllFullRows();
-                state[0] = metricFullRows / 4;
-                double metricNumberOfHoles = metrics.getMetricNumberOfHoles() / 20;
-                state[1] = metricNumberOfHoles / 2;
-                double metricBumpiness = metrics.getMetricBumpiness() / 2;
-                state[2] = metricBumpiness / 10;
-                double metricMaxheight = metrics.getMetricMaxHeight() / 12;
+                state[0] = metricFullRows;
+                double metricNumberOfHoles = metrics.getMetricNumberOfHoles();
+                state[1] = metricNumberOfHoles;
+                double metricBumpiness = metrics.getMetricBumpiness();
+                state[2] = metricBumpiness;
+                double metricMaxheight = metrics.getMetricMaxHeight();
                 state[3] = metricMaxheight;
+
+                //state[0] = 1.0;
+                //state[1] = 8.0;
+                //state[2] = 1.25;
+                //state[3] = 10.0;
 
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
@@ -660,6 +670,22 @@ public class StackManager implements StackComponent {
                 results[index++] = state;
             }
         }
+
+        /*
+        // Ismétlődő metrikák kiszűrése
+        Set<String> uniqueStates = new HashSet<>();
+        List<double[]> filteredResults = new ArrayList<>();
+
+        for (double[] resultState : results) {
+            String stateKey = Arrays.toString(resultState);
+            if (!uniqueStates.contains(stateKey)) {
+                uniqueStates.add(stateKey);
+                filteredResults.add(resultState);
+            }
+        }
+        results = filteredResults.toArray(new double[0][0]);
+         */
+
         return results;
     }
 

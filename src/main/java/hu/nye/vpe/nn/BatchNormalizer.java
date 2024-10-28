@@ -41,8 +41,6 @@ public class BatchNormalizer implements Serializable {
         this.momentum = momentum;
         this.runningMean = new double[size];
         this.runningVariance = new double[size];
-
-
         int actualBatchSize = Math.max(batchSize, MINIMUM_BATCH_SIZE);
         this.batchInputs = new double[actualBatchSize][size];
         this.batchNormalized = new double[actualBatchSize][size];
@@ -241,6 +239,50 @@ public class BatchNormalizer implements Serializable {
         }
 
         return gradInputs;
+    }
+
+    /**
+     * Backward pass for a single gradient value.
+     *
+     * @param gradient The input gradient to transform
+     * @param batchIdx The index in the batch
+     * @param featureIdx The feature/neuron index
+     * @return The transformed gradient
+     */
+    public double backwardSingle(double gradient, int batchIdx, int featureIdx) {
+        // Safety check for batch storage
+        if (batchInputs == null || batchNormalized == null ||
+                batchIdx >= batchInputs.length || featureIdx >= size) {
+            return gradient;
+        }
+
+        // Get batch statistics
+        double batchMean = 0;
+        double batchVar = 0;
+        int currentBatchSize = Math.min(batchIndex, batchInputs.length);
+
+        // Calculate batch mean
+        for (int j = 0; j < currentBatchSize; j++) {
+            batchMean += batchInputs[j][featureIdx];
+        }
+        batchMean /= currentBatchSize;
+
+        // Calculate batch variance
+        for (int j = 0; j < currentBatchSize; j++) {
+            double diff = batchInputs[j][featureIdx] - batchMean;
+            batchVar += diff * diff;
+        }
+        batchVar /= currentBatchSize;
+        batchVar = Math.max(batchVar, epsilon);
+
+        // Calculate normalized input
+        double xnorm = (batchInputs[batchIdx][featureIdx] - batchMean) / Math.sqrt(batchVar + epsilon);
+
+        // Calculate gradient components
+        double gradientScale = gamma[featureIdx] / Math.sqrt(batchVar + epsilon);
+
+        // Apply the chain rule with the batch normalization equation
+        return gradient * gradientScale;
     }
 
     public void setLearningRate(double learningRate) {

@@ -22,7 +22,17 @@ public class GradientClipper implements Serializable {
         this.gradientScale = gradientScale;
     }
 
+    /**
+     * Clip gradient.
+     *
+     * @param gradient Gradient.
+     *
+     * @return Clipped gradient.
+     */
     public double clip(double gradient) {
+        if (Double.isNaN(gradient) || Double.isInfinite(gradient)) {
+            return 0.0;
+        }
         double scaledGradient = gradient * gradientScale;
         return Math.max(minValue, Math.min(maxValue, scaledGradient));
     }

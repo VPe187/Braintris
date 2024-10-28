@@ -22,7 +22,7 @@ public class Visualization implements GameElement {
     private static final String FONT_NAME = "Truly Madly Dpad";
     private static final Color INACTIVE_NODE_COLOR = new Color(100, 100, 100, 100);
     private static final Color ACTIVE_NODE_COLOR = new Color(255, 255, 255, 200);
-    private static final Color INACTIVE_OUTPUT_NODE_COLOR = new Color(255, 165, 0, 100);
+    private static final Color INACTIVE_OUTPUT_NODE_COLOR = new Color(120, 120, 120, 100);
     private static final Color ACTIVE_OUTPUT_NODE_COLOR = new Color(227, 156, 21, 200);
     private static final Color HIGHLIGHTED_OUTPUT_NODE_COLOR = new Color(255, 255, 0, 255);
     private static final Color FONT_COLOR = new Color(255, 255, 255, 120);
@@ -42,6 +42,7 @@ public class Visualization implements GameElement {
     private int[] layerSizes;
     private double[][] activations;
     private double rms;
+    private double maxRms;
     private final String[] layerNames;
     private double[] layerMins;
     private double[] layerMaxs;
@@ -137,6 +138,7 @@ public class Visualization implements GameElement {
         network.updateStatistics();
 
         this.rms = network.getRMS();
+        this.maxRms = network.getMaxRMS();
         this.layerMins = network.getLayerMins();
         this.layerMaxs = network.getLayerMaxs();
         this.layerMeans = network.getLayerMeans();
@@ -199,7 +201,7 @@ public class Visualization implements GameElement {
                 if (layerIndex < weights.length && k < weights[layerIndex].length && j < weights[layerIndex][k].length) {
                     double weight = weights[layerIndex][k][j];
 
-                    int colorIndex = (int) ((Math.tanh(weight) + 1) * (COLOR_CACHE_SIZE - 1) / 2);
+                    int colorIndex = (int) ((Math.tanh(weight) + 1.2) * (COLOR_CACHE_SIZE - 1) / 2);
                     colorIndex = Math.min(COLOR_CACHE_SIZE - 1, Math.max(0, colorIndex));
                     Color lineColor = weightColorCache[colorIndex];
 
@@ -305,8 +307,9 @@ public class Visualization implements GameElement {
     }
 
     private void drawLeftColumn(Graphics2D g2d) {
-        String maxQ = String.format("Max Q: %.8f", network.getMaxQ());
-        g2d.drawString(maxQ, STAT_X, height - 9 * Y_OFFSET);
+        //String maxQ = String.format("Max RMS: %.8f", network.getMaxRMS());
+        String nextQ = String.format("NextQ: %.4f", network.getNextQ());
+        g2d.drawString(nextQ, STAT_X, height - 9 * Y_OFFSET);
 
         Color rmsColor;
         if (rms <= 10) {
@@ -368,7 +371,7 @@ public class Visualization implements GameElement {
         String discountFactor = String.format("Discount Factor: %.4f", network.getDiscountFactor());
         g2d.drawString(discountFactor, rightColumnX - metrics.stringWidth(discountFactor), height - 40);
 
-        String avgWeightChange = String.format("Avg Weight Change: %.6f", this.averageWeightChange);
+        String avgWeightChange = String.format("Avg Weight Change: %.8f", this.averageWeightChange);
         g2d.drawString(avgWeightChange, rightColumnX - metrics.stringWidth(avgWeightChange), height - 20);
     }
 }

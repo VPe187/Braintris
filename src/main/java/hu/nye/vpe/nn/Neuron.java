@@ -1,6 +1,8 @@
 package hu.nye.vpe.nn;
 
 import java.io.Serializable;
+import java.util.Arrays;
+
 
 /**
  * Neuron class.
@@ -12,6 +14,8 @@ public class Neuron implements Serializable {
     private final WeightInitStrategy initStrategy;
     private final GradientClipper gradientClipper;
     private final double lambdaL2;
+    private double[] weightGradients; // New field
+    private double biasGradient;
 
     public Neuron(int inputSize, int outputSize, Activation activation, WeightInitStrategy initStrategy,
                   GradientClipper gradientClipper, Double lambdaL2) {
@@ -20,6 +24,18 @@ public class Neuron implements Serializable {
         this.initStrategy = initStrategy;
         this.lambdaL2 = lambdaL2;
         initializeWeightsAndBias(inputSize, outputSize);
+        this.weightGradients = new double[inputSize];
+        this.biasGradient = 0.0;
+    }
+
+    /**
+     * Zerogradient, set gradients to zero.
+     */
+    public void zeroGradients() {
+        for (int i = 0; i < weightGradients.length; i++) {
+            weightGradients[i] = 0.0;
+        }
+        biasGradient = 0.0;
     }
 
     private void initializeWeightsAndBias(int inputSize, int outputSize) {
@@ -52,9 +68,31 @@ public class Neuron implements Serializable {
             double gradient = gradientClipper.clip(weightGradients[i]);
             weights[i] -= learningRate * (gradient + lambdaL2 * weights[i]);
         }
+        this.biasGradient = gradientClipper.clip(biasGradient);
+        bias -= learningRate * (biasGradient + lambdaL2 * bias);
+        //bias -= learningRate * biasGradient;
+    }
 
-        biasGradient = gradientClipper.clip(biasGradient);
-        bias -= learningRate * biasGradient;
+    /**
+     * Update neuron weight with adam.
+     *
+     * @param weightUpdates Weight updates.
+     *
+     * @param biasUpdate Bias updates.
+     */
+    public void updateWeightsWithAdam(double[] weightUpdates, double biasUpdate) {
+        for (int i = 0; i < weights.length; i++) {
+            //System.out.println("Weight " + i + ": Before update = " + weights[i]);
+
+            double clippedWeightUpdate = gradientClipper.clip(weightUpdates[i]);
+            weights[i] -= (clippedWeightUpdate + lambdaL2 * weights[i]);
+
+            //System.out.println("Weight " + i + ": After update = " + weights[i]);
+        }
+        //System.out.println("Bias before update = " + bias);
+        double clippedBiasUpdate = gradientClipper.clip(biasUpdate);
+        bias -= (clippedBiasUpdate + lambdaL2 * bias);
+        //System.out.println("Bias after update = " + bias);
     }
 
     /**
@@ -72,7 +110,25 @@ public class Neuron implements Serializable {
         return sum;
     }
 
+
+
     public double[] getWeights() {
         return weights;
+    }
+
+    public void setWeights(double[] weights) {
+        this.weights = weights;
+    }
+
+    public double getBias() {
+        return bias;
+    }
+
+    public void setBias(double bias) {
+        this.bias = bias;
+    }
+
+    public GradientClipper getGradientClipper() {
+        return gradientClipper;
     }
 }

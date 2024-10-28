@@ -44,8 +44,6 @@ public class Tetris {
     private static final int ROTATION_OUTPUTS = 3;
     private static final long DROP_SPEED = 1L;
 
-    private static final Boolean DEBUG = false;
-
     private NeuralNetwork brain;
     private static final long speed = 1000L;
     private final long learningSpeed = 1L;
@@ -65,6 +63,7 @@ public class Tetris {
     private final boolean learning;
     private double[] lastState;
     private int[] lastAction;
+    private double previousFullRows = 0;
 
     public Tetris(int width, int height, GameInput gameInput, boolean learning) {
         tickBackground = new GameTimeTicker(80);
@@ -162,17 +161,11 @@ public class Tetris {
                         double reward = 0;
                         if (lastState != null && lastAction != null) {
                             stackMetrics.calculateGameMetrics(stackManager.getStackArea());
-                            reward = calculateReward();
-                        }
-                        if (DEBUG) {
-                            System.out.println("1. előző jutalom: " + reward);
+                            reward = calculateReward(false);
                         }
 
                         // 2. Új elem generálása
                         nextTetromino();
-                        if (DEBUG) {
-                            System.out.println("2. új elem létrehozása.");
-                        }
 
                         // 3. Új állapotok kiszámítása
                         StackMetrics metrics = new StackMetrics();
@@ -181,21 +174,6 @@ public class Tetris {
                                 stackManager.getCurrentTetromino(),
                                 metrics
                         );
-
-                        if (DEBUG) {
-                            System.out.println("3. Új állapotok kiszámítása: ");
-                        }
-
-                        for (double[] possibleState : possibleStates) {
-                            for (double v : possibleState) {
-                                if (DEBUG) {
-                                    System.out.print(v + " ");
-                                }
-                            }
-                            if (DEBUG) {
-                                System.out.println();
-                            }
-                        }
 
                         // 4. Tanuljunk az előző akcióból (ha volt)
                         if (lastState != null && lastAction != null) {
@@ -207,11 +185,6 @@ public class Tetris {
                                     false,
                                     possibleStates
                             );
-
-                            if (DEBUG) {
-                                System.out.println("4. Tanulás.");
-                            }
-
                         }
 
                         // 5. Válasszuk ki az új akciót
@@ -219,11 +192,6 @@ public class Tetris {
                             int[] action = brain.selectAction(possibleStates);
                             int targetX = action[0];
                             int rotationCount = action[1];
-
-                            if (DEBUG) {
-                                System.out.println("5. Új akció választás:" + action[0] + " " + action[1]);
-                            }
-
                             int newStateIndex = targetX * ROTATION_OUTPUTS + rotationCount;
                             if (newStateIndex < possibleStates.length) {
                                 // Az új állapot és akció mentése
@@ -231,21 +199,13 @@ public class Tetris {
                                 lastAction = action;
 
                                 // 6. Hajtsuk végre az akciót
-
-                                if (DEBUG) {
-                                    System.out.println("Akció végrehajtása: " + targetX + " " + rotationCount);
-                                }
-
                                 stackManager.moveAndRotateTetrominoTo(
                                         stackManager.getStackArea(),
                                         stackManager.getCurrentTetromino(),
                                         targetX,
                                         rotationCount
                                 );
-
-                                if (DEBUG) {
-                                    System.out.println();
-                                }
+                                stackMetrics.calculateGameMetrics(stackManager.getStackArea());
                             }
                         }
                     }
@@ -260,7 +220,7 @@ public class Tetris {
                 brain.learn(
                         lastState,
                         lastAction,
-                        calculateReward(),
+                        calculateReward(true),
                         null,
                         true,
                         null
@@ -334,13 +294,16 @@ public class Tetris {
         stackUI.render(g2d);
     }
 
-    private double calculateReward() {
+    private double calculateReward(Boolean gameOver) {
         double reward;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
-
-        double fullRows = stackManager.getAllFullRows();
-        reward = fullRows * fullRows * COLS + 1;
-        return reward;
+        if (!gameOver) {
+            int rows = stackManager.getAllFullRows();
+            reward = 1.0 + (rows * rows) * COLS;
+            return reward;
+        } else {
+            return -2;
+        }
     }
 
     /**

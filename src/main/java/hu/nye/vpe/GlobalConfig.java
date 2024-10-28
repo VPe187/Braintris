@@ -404,4 +404,16 @@ public class GlobalConfig {
     public String getFeedDataNormalizer() {
         return getString("FEED_DATA_NORMALIZER", "MINMAX");
     }
+
+    public double getBeta1Momentum() {
+        return getDouble("BETA1_MOMENTUM", 0.99);
+    }
+
+    public double getBeta2RmsProp() {
+        return getDouble("BETA2_RMSPROP", 0.999);
+    }
+
+    public double getAdamMomentum() {
+        return getDouble("ADAM_MOMENTUM", 1e-6);
+    }
 }

@@ -2,6 +2,7 @@ package hu.nye.vpe.nn;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import hu.nye.vpe.GlobalConfig;
@@ -10,6 +11,10 @@ import hu.nye.vpe.GlobalConfig;
  * Layer class.
  */
 public class Layer implements Serializable {
+    private static final double BETA1_MOMENTUM = GlobalConfig.getInstance().getBeta1Momentum();
+    private static final double BETA2_RMSPROP = GlobalConfig.getInstance().getBeta2RmsProp();
+    private static final double ADAM_MOMENTUM = GlobalConfig.getInstance().getAdamMomentum();
+
     private final List<Neuron> neurons;
     private final Activation activation;
     private final GradientClipper gradientClipper;
@@ -19,6 +24,7 @@ public class Layer implements Serializable {
     private final boolean useBatchNorm;
     private double[][] batchOutputs;
     private int splitIndex;
+    private final AdamOptimizer optimizer;
 
     public Layer(String name, int inputSize, int outputSize, Activation activation, WeightInitStrategy initStrategy,
                  GradientClipper gradientClipper, double lambdaL2, BatchNormParameters batchNormParameters,
@@ -51,6 +57,15 @@ public class Layer implements Serializable {
         if (activation == Activation.SOFTMAX_SPLIT) {
             this.splitIndex = 12;
         }
+
+        this.optimizer = new AdamOptimizer(
+                outputSize, // neuronok száma
+                inputSize, // bemenetek száma
+                learningRate, // kezdeti tanulási ráta
+                BETA1_MOMENTUM, // beta1 (momentum) - PyTorch default
+                BETA2_RMSPROP, // beta2 (RMSprop) - PyTorch default
+                ADAM_MOMENTUM // epsilon - PyTorch default
+        );
     }
 
     /**
@@ -64,7 +79,6 @@ public class Layer implements Serializable {
      */
     public double[] forward(double[] inputs, boolean isTraining) {
         double[] linearOutputs = new double[neurons.size()];
-
         for (int i = 0; i < neurons.size(); i++) {
             linearOutputs[i] = neurons.get(i).linearTransform(inputs);
         }
@@ -136,6 +150,15 @@ public class Layer implements Serializable {
         return outputs;
     }
 
+    private void zeroGradients(double[][] weightGradients, double[] biasGradients) {
+        for (int i = 0; i < neurons.size(); i++) {
+            for (int j = 0; j < weightGradients[i].length; j++) {
+                weightGradients[i][j] = 0.0;
+            }
+            biasGradients[i] = 0.0;
+        }
+    }
+
     /**
      * Backward batch.
      *
@@ -153,6 +176,8 @@ public class Layer implements Serializable {
         double[][] inputGradients = new double[batchSize][inputSize];
         double[][] weightGradients = new double[outputSize][inputSize];
         double[] biasGradients = new double[outputSize];
+
+        zeroGradients(weightGradients, biasGradients);
 
         if (useBatchNorm) {
             nextLayerDeltas = batchNormalizer.backwardBatch(nextLayerDeltas);
@@ -184,19 +209,21 @@ public class Layer implements Serializable {
                         weightGradients[i][j] += gradientUpdate;
                         inputGradients[b][j] += neuronDelta * weights[j];
                     }
-
-                    biasGradients[i] += neuronDelta;
                 }
+
             } else {
                 for (int i = 0; i < outputSize; i++) {
-                    derivativeValues[i] = Math.max(derivativeValues[i], 1e-10);
                     double neuronDelta = nextLayerDeltas[b][i] * derivativeValues[i];
+                    if (Double.isNaN(neuronDelta) || Double.isInfinite(neuronDelta)) {
+                        neuronDelta = 0.0;
+                    }
+                    neuronDelta = gradientClipper.clip(neuronDelta);
 
                     double[] weights = neurons.get(i).getWeights();
                     for (int j = 0; j < inputSize; j++) {
                         double gradientUpdate = neuronDelta * inputs[b][j];
                         weightGradients[i][j] += gradientUpdate;
-                        inputGradients[b][j] += neuronDelta * weights[j];
+                        inputGradients[b][j] += neuronDelta * weights[j] / batchSize;
                     }
                     biasGradients[i] += neuronDelta;
                 }
@@ -205,21 +232,27 @@ public class Layer implements Serializable {
 
         for (int i = 0; i < outputSize; i++) {
             for (int j = 0; j < inputSize; j++) {
+                if (Double.isNaN(weightGradients[i][j]) || Double.isInfinite(weightGradients[i][j])) {
+                    weightGradients[i][j] = 0.0;
+                }
                 weightGradients[i][j] /= batchSize;
-            }
-            biasGradients[i] /= batchSize;
-        }
-
-        for (int i = 0; i < outputSize; i++) {
-            for (int j = 0; j < inputSize; j++) {
                 weightGradients[i][j] = gradientClipper.clip(weightGradients[i][j]);
             }
+            if (Double.isNaN(biasGradients[i]) || Double.isInfinite(biasGradients[i])) {
+                biasGradients[i] = 0.0;
+            }
+            biasGradients[i] /= batchSize;
             biasGradients[i] = gradientClipper.clip(biasGradients[i]);
         }
+
+        /*
         for (int i = 0; i < outputSize; i++) {
             Neuron neuron = neurons.get(i);
             neuron.updateWeights(weightGradients[i], biasGradients[i], this.learningRate);
         }
+         */
+
+        optimizer.updateWeights(neurons, weightGradients, biasGradients);
 
         for (int b = 0; b < batchSize; b++) {
             inputGradients[b] = gradientClipper.scaleAndClip(inputGradients[b]);
@@ -251,5 +284,4 @@ public class Layer implements Serializable {
             batchNormalizer.setLearningRate(learningRate);
         }
     }
-
 }

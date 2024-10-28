@@ -47,6 +47,7 @@ public class NeuralNetwork implements Serializable {
     private int episodeCount;
     private final Random random;
     private double maxQ;
+    private double nextQ = 0;
     private double lastReward;
     private double bestReward;
     private double[][] lastActivations;
@@ -57,12 +58,18 @@ public class NeuralNetwork implements Serializable {
     private final List<double[]> inputBatch;
     private final List<double[]> targetBatch;
     private double rms;
+    private double maxRms;
     private final double[] layerMins;
     private final double[] layerMaxs;
     private final double[] layerMeans;
     private double averageWeightChange;
     private double[][][] weightChanges;
     private double[][][] previousWeights;
+
+    private final double[] historicalLayerMins;  // minden réteg történeti minimuma
+    private final double[] historicalLayerMaxs;  // minden réteg történeti maximuma
+    private final double[] historicalLayerSums;  // összegek az átlag számításához
+    private final long[] layerActivationCounts;  // számláló az átlag számításához
 
     public NeuralNetwork(String[] names, int[] layerSizes, Activation[] activations, WeightInitStrategy[] initStrategies,
                          BatchNormParameters[] batchNormParameters, double[] l2) {
@@ -104,6 +111,20 @@ public class NeuralNetwork implements Serializable {
         this.weightChanges = null;
         this.maxMovingAverage = Double.NEGATIVE_INFINITY;
         this.maxQ = 0;
+        this.maxRms = 0;
+
+        this.historicalLayerMins = new double[layerSizes.length];
+        this.historicalLayerMaxs = new double[layerSizes.length];
+        this.historicalLayerSums = new double[layerSizes.length];
+        this.layerActivationCounts = new long[layerSizes.length];
+
+        // Kezdeti értékek beállítása
+        for (int i = 0; i < layerSizes.length; i++) {
+            historicalLayerMins[i] = Double.POSITIVE_INFINITY;
+            historicalLayerMaxs[i] = Double.NEGATIVE_INFINITY;
+            historicalLayerSums[i] = 0.0;
+            layerActivationCounts[i] = 0;
+        }
     }
 
     /**
@@ -114,36 +135,45 @@ public class NeuralNetwork implements Serializable {
      * @return forwarded input values
      */
 
-    public double[] forward(double[] inputs) {
+    public double[] forward(double[] inputs, boolean isTraining) {
         double[] currentInput = inputs;
         this.lastActivations = new double[layers.size() + 1][];
         this.lastActivations[0] = inputs;
 
         for (int i = 0; i < layers.size(); i++) {
             Layer layer = layers.get(i);
-            currentInput = layer.forward(currentInput, true);
+            currentInput = layer.forward(currentInput, isTraining);
             this.lastActivations[i + 1] = currentInput;
         }
 
+        /*
         for (int i = 0; i < currentInput.length; i++) {
             currentInput[i] = Math.max(MIN_Q, Math.min(MAX_Q, currentInput[i]));
         }
+         */
 
         return currentInput;
     }
 
     private void backwardPass(double[][] batchInputs, double[][] batchTargets) {
-        int batchSize = batchInputs.length;
+
         List<double[][]> allLayerOutputs = new ArrayList<>();
 
         double[][] currentInputs = batchInputs;
         allLayerOutputs.add(currentInputs);
+
+        for (int layerIndex = 0; layerIndex < layers.size(); layerIndex++) {
+            Layer layer = layers.get(layerIndex);
+            currentInputs = layer.forwardBatch(currentInputs, true);
+            allLayerOutputs.add(currentInputs);
+        }
 
         for (Layer layer : layers) {
             currentInputs = layer.forwardBatch(currentInputs, true);
             allLayerOutputs.add(currentInputs);
         }
 
+        int batchSize = batchInputs.length;
         double[][] deltas = new double[batchSize][layers.get(layers.size() - 1).getSize()];
         for (int i = 0; i < batchSize; i++) {
             for (int j = 0; j < deltas[i].length; j++) {
@@ -174,7 +204,7 @@ public class NeuralNetwork implements Serializable {
         } else {
             double[] qvalues = new double[possibleActions.length];
             for (int i = 0; i < possibleActions.length; i++) {
-                qvalues[i] = forward(possibleActions[i])[0];
+                qvalues[i] = forward(possibleActions[i], false)[0];
             }
 
             int bestActionIndex = 0;
@@ -206,16 +236,17 @@ public class NeuralNetwork implements Serializable {
         } else {
             learnWithoutExperience(state, reward, gameOver, nextPossibleStates);
         }
-        lastReward = reward;
         if (gameOver) {
-            if (reward > this.bestReward) {
-                this.bestReward = reward;
-            }
             updateEpsilon();
             updateDiscountFactor();
             updateLearningRate();
             this.episodeCount++;
+        } else {
+            if (reward > this.bestReward) {
+                this.bestReward = reward;
+            }
             updateMovingAverage(reward);
+            lastReward = reward;
         }
     }
 
@@ -231,16 +262,16 @@ public class NeuralNetwork implements Serializable {
 
     private void learnWithoutExperience(double[] state, double reward, boolean gameOver, double[][] nextPossibleStates) {
         double maxNextQ = Double.NEGATIVE_INFINITY;
-        if (nextPossibleStates != null) {
+        if (!gameOver && nextPossibleStates != null) {
             for (double[] possibleState : nextPossibleStates) {
-                double stateQ = forward(possibleState)[0];
+                double stateQ = forward(possibleState, false)[0];
                 maxNextQ = (Math.max(maxNextQ, stateQ));
-                maxNextQ = Math.min(MAX_Q, Math.max(MIN_Q, maxNextQ));
             }
         }
-
-        maxNextQ = Math.min(MAX_Q, Math.max(MIN_Q, maxNextQ));
-        maxQ = maxNextQ;
+        if (maxNextQ == Double.NEGATIVE_INFINITY) {
+            maxNextQ = 0.1;
+        }
+        nextQ = maxNextQ;
 
         double targetQ;
         if (gameOver) {
@@ -248,30 +279,45 @@ public class NeuralNetwork implements Serializable {
         } else {
             targetQ = reward + discountFactor * maxNextQ;
         }
-        targetQ = Math.max(MIN_Q, Math.min(MAX_Q, targetQ));
+
+        maxQ = Math.max(targetQ, maxQ);
 
         inputBatch.add(state);
         targetBatch.add(new double[]{targetQ});
 
-        boolean shouldProcessBatch = false;
         if (inputBatch.size() >= MINIMUM_BATCH_SIZE) {
-            shouldProcessBatch = true;
-        } else if (gameOver && inputBatch.size() >= MINIMUM_BATCH_SIZE / 2) {
-            padBatchToMinimumSize();
-            shouldProcessBatch = true;
-        }
-        if (shouldProcessBatch) {
             processBatchWithoutExperience();
+        } else if (gameOver) {
+            if (!inputBatch.isEmpty()) {
+                processBatchWithoutExperience();
+            }
+            inputBatch.clear();
+            targetBatch.clear();
         }
     }
 
-    private void padBatchToMinimumSize() {
-        int currentSize = inputBatch.size();
-        int needed = MINIMUM_BATCH_SIZE - currentSize;
-        for (int i = 0; i < needed; i++) {
-            int idx = i % currentSize;
-            inputBatch.add(inputBatch.get(idx));
-            targetBatch.add(targetBatch.get(idx));
+    private double[] getCurrentNextState(double[][] possibleStates) {
+        if (possibleStates == null || possibleStates.length == 0) {
+            return null;
+        }
+
+        if (random.nextDouble() < epsilon) {
+            // Random választás
+            int randIndex = random.nextInt(possibleStates.length);
+            return possibleStates[randIndex];
+        } else {
+            // Legjobb Q érték választása
+            double bestQ = Double.NEGATIVE_INFINITY;
+            double[] bestState = null;
+
+            for (double[] possibleState : possibleStates) {
+                double q = forward(possibleState, false)[0];
+                if (q > bestQ) {
+                    bestQ = q;
+                    bestState = possibleState;
+                }
+            }
+            return bestState;
         }
     }
 
@@ -290,15 +336,15 @@ public class NeuralNetwork implements Serializable {
             if (!exp.done && exp.nextPossibleStates != null) {
                 for (double[] possibleState : exp.nextPossibleStates) {
                     if (possibleState != null) {
-                        double stateQ = forward(possibleState)[0];
+                        double stateQ = forward(possibleState, false)[0];
                         maxNextQ = Math.max(maxNextQ, stateQ);
-                        maxNextQ = Math.min(MAX_Q, Math.max(MIN_Q, maxNextQ));
                     }
                 }
             }
-
-            maxNextQ = Math.min(MAX_Q, Math.max(MIN_Q, maxNextQ));
-            maxQ = maxNextQ;
+            if (maxNextQ == Double.NEGATIVE_INFINITY) {
+                maxNextQ = 0.1;
+            }
+            nextQ = maxNextQ;
 
             double targetQ;
             if (exp.done) {
@@ -307,7 +353,7 @@ public class NeuralNetwork implements Serializable {
                 targetQ = exp.reward + discountFactor * maxNextQ;
             }
 
-            targetQ = Math.max(MIN_Q, Math.min(MAX_Q, targetQ));
+            maxQ = Math.max(targetQ, maxQ);
 
             inputBatch.add(exp.state);
             targetBatch.add(new double[]{targetQ});
@@ -315,16 +361,16 @@ public class NeuralNetwork implements Serializable {
 
         if (inputBatch.size() >= MINIMUM_BATCH_SIZE) {
             processBatchWithoutExperience();
-        } else if (!inputBatch.isEmpty()) {
-            padBatchToMinimumSize();
-            processBatchWithoutExperience();
         }
     }
 
     private void processBatchWithoutExperience() {
         double[][] inputs = inputBatch.toArray(new double[0][]);
         double[][] targets = targetBatch.toArray(new double[0][]);
+
+        zeroGradients();
         backwardPass(inputs, targets);
+
         inputBatch.clear();
         targetBatch.clear();
     }
@@ -374,10 +420,13 @@ public class NeuralNetwork implements Serializable {
         this.previousWeights = deepCopy(currentWeights);
 
         calculateLayerStatistics();
-        this.rms = calculateRMS(lastActivations[lastActivations.length - 1]);
+        rms = calculateRMS(lastActivations[lastActivations.length - 1]);
+        if (rms > maxRms) {
+            maxRms = rms;
+        }
     }
 
-    private void calculateLayerStatistics() {
+    private void calculateLayerStatisticsActive() {
         for (int i = 0; i < lastActivations.length; i++) {
             double min = Double.POSITIVE_INFINITY;
             double max = Double.NEGATIVE_INFINITY;
@@ -392,6 +441,44 @@ public class NeuralNetwork implements Serializable {
             layerMins[i] = min;
             layerMaxs[i] = max;
             layerMeans[i] = sum / lastActivations[i].length;
+        }
+    }
+
+    private void calculateLayerStatistics() {
+        for (int i = 0; i < lastActivations.length; i++) {
+            // Az aktuális aktivációk statisztikái
+            double currentMin = Double.POSITIVE_INFINITY;
+            double currentMax = Double.NEGATIVE_INFINITY;
+            double sum = 0;
+
+            for (double activation : lastActivations[i]) {
+                currentMin = Math.min(currentMin, activation);
+                currentMax = Math.max(currentMax, activation);
+                sum += activation;
+            }
+
+            // Történeti értékek frissítése
+            historicalLayerMins[i] = Math.min(historicalLayerMins[i], currentMin);
+            historicalLayerMaxs[i] = Math.max(historicalLayerMaxs[i], currentMax);
+            historicalLayerSums[i] += sum;
+            layerActivationCounts[i] += lastActivations[i].length;
+
+            // A megjelenítendő értékek frissítése
+            layerMins[i] = historicalLayerMins[i];
+            layerMaxs[i] = historicalLayerMaxs[i];
+            layerMeans[i] = historicalLayerSums[i] / layerActivationCounts[i];
+        }
+    }
+
+    /**
+     * Reset layer statistic.
+     */
+    public void resetLayerStatistics() {
+        for (int i = 0; i < historicalLayerMins.length; i++) {
+            historicalLayerMins[i] = Double.POSITIVE_INFINITY;
+            historicalLayerMaxs[i] = Double.NEGATIVE_INFINITY;
+            historicalLayerSums[i] = 0.0;
+            layerActivationCounts[i] = 0;
         }
     }
 
@@ -443,6 +530,14 @@ public class NeuralNetwork implements Serializable {
         }
 
         return weightCount > 0 ? totalChange / weightCount : 0.0;
+    }
+
+    private void zeroGradients() {
+        for (Layer layer : layers) {
+            for (Neuron neuron : layer.getNeurons()) {
+                neuron.zeroGradients();
+            }
+        }
     }
 
     /**
@@ -564,6 +659,10 @@ public class NeuralNetwork implements Serializable {
         return rms;
     }
 
+    public double getMaxRMS() {
+        return maxRms;
+    }
+
     public double[] getLayerMins() {
         return layerMins;
     }
@@ -591,6 +690,10 @@ public class NeuralNetwork implements Serializable {
      */
     public double getMovingAverage() {
         return movingAverage;
+    }
+
+    public double getNextQ() {
+        return nextQ;
     }
 
     /**
