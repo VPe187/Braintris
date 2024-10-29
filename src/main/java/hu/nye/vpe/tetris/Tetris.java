@@ -216,7 +216,6 @@ public class Tetris {
         }
         if (stackManager.getGameState() == GameState.GAMEOVER) {
             if (learning) {
-
                 brain.learn(
                         lastState,
                         lastAction,
@@ -225,7 +224,6 @@ public class Tetris {
                         true,
                         null
                 );
-
                 try {
                     brain.saveToFile();
                 } catch (Exception e) {
@@ -300,9 +298,13 @@ public class Tetris {
         if (!gameOver) {
             int rows = stackManager.getAllFullRows();
             reward = 1.0 + (rows * rows) * COLS;
+            reward -= stackMetrics.getMetricNumberOfHoles();
+            reward -= stackMetrics.getMetricNumberOfHoles() / (ROWS * COLS);
+            reward -= stackMetrics.getMetricBumpiness() / ROWS;
+            reward -= stackMetrics.getMetricMaxHeight() / ROWS;
             return reward;
         } else {
-            return -2;
+            return -1;
         }
     }
 

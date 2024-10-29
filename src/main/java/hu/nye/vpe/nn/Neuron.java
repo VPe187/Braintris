@@ -82,17 +82,9 @@ public class Neuron implements Serializable {
      */
     public void updateWeightsWithAdam(double[] weightUpdates, double biasUpdate) {
         for (int i = 0; i < weights.length; i++) {
-            //System.out.println("Weight " + i + ": Before update = " + weights[i]);
-
-            double clippedWeightUpdate = gradientClipper.clip(weightUpdates[i]);
-            weights[i] -= (clippedWeightUpdate + lambdaL2 * weights[i]);
-
-            //System.out.println("Weight " + i + ": After update = " + weights[i]);
+            weights[i] += weightUpdates[i] - lambdaL2 * weights[i];
         }
-        //System.out.println("Bias before update = " + bias);
-        double clippedBiasUpdate = gradientClipper.clip(biasUpdate);
-        bias -= (clippedBiasUpdate + lambdaL2 * bias);
-        //System.out.println("Bias after update = " + bias);
+        bias += biasUpdate - lambdaL2 * bias;
     }
 
     /**

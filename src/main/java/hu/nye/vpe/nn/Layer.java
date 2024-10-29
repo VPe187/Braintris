@@ -2,7 +2,6 @@ package hu.nye.vpe.nn;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import hu.nye.vpe.GlobalConfig;
@@ -177,73 +176,31 @@ public class Layer implements Serializable {
         double[][] weightGradients = new double[outputSize][inputSize];
         double[] biasGradients = new double[outputSize];
 
+        // Gradiens nullázás akkumulálás előtt
         zeroGradients(weightGradients, biasGradients);
 
         if (useBatchNorm) {
             nextLayerDeltas = batchNormalizer.backwardBatch(nextLayerDeltas);
         }
 
+        // Batch iteráció
         for (int b = 0; b < batchSize; b++) {
-            double[] derivativeValues;
-            if (activation == Activation.SOFTMAX) {
-                derivativeValues = Activation.derivative(batchOutputs[b], activation);
-            } else if (activation == Activation.SOFTMAX_SPLIT) {
-                derivativeValues = Activation.derivative(batchOutputs[b], activation, splitIndex);
-            } else {
-                derivativeValues = new double[outputSize];
-                for (int i = 0; i < outputSize; i++) {
-                    derivativeValues[i] = Activation.derivative(new double[]{batchOutputs[b][i]}, activation)[0];
-                }
-            }
-
+            double[] derivativeValues = computeActivationDerivatives(b, neurons.size());
             if (activation == Activation.SOFTMAX || activation == Activation.SOFTMAX_SPLIT) {
-                for (int i = 0; i < outputSize; i++) {
-                    double neuronDelta = 0;
-                    for (int j = 0; j < outputSize; j++) {
-                        neuronDelta += nextLayerDeltas[b][j] * derivativeValues[j * outputSize + i];
-                    }
-
-                    double[] weights = neurons.get(i).getWeights();
-                    for (int j = 0; j < inputSize; j++) {
-                        double gradientUpdate = neuronDelta * inputs[b][j];
-                        weightGradients[i][j] += gradientUpdate;
-                        inputGradients[b][j] += neuronDelta * weights[j];
-                    }
-                }
-
+                // Softmax speciális kezelése - teljes Jacobian mátrix
+                processSoftmaxGradients(b, inputSize, outputSize, inputs,
+                        nextLayerDeltas, derivativeValues,
+                        weightGradients, inputGradients);
             } else {
-                for (int i = 0; i < outputSize; i++) {
-                    double neuronDelta = nextLayerDeltas[b][i] * derivativeValues[i];
-                    if (Double.isNaN(neuronDelta) || Double.isInfinite(neuronDelta)) {
-                        neuronDelta = 0.0;
-                    }
-                    neuronDelta = gradientClipper.clip(neuronDelta);
-
-                    double[] weights = neurons.get(i).getWeights();
-                    for (int j = 0; j < inputSize; j++) {
-                        double gradientUpdate = neuronDelta * inputs[b][j];
-                        weightGradients[i][j] += gradientUpdate;
-                        inputGradients[b][j] += neuronDelta * weights[j] / batchSize;
-                    }
-                    biasGradients[i] += neuronDelta;
-                }
+                // Egyéb aktivációs függvények gradiens számítása
+                processStandardGradients(b, inputSize, outputSize, inputs,
+                        nextLayerDeltas, derivativeValues,
+                        weightGradients, inputGradients, biasGradients);
             }
         }
 
-        for (int i = 0; i < outputSize; i++) {
-            for (int j = 0; j < inputSize; j++) {
-                if (Double.isNaN(weightGradients[i][j]) || Double.isInfinite(weightGradients[i][j])) {
-                    weightGradients[i][j] = 0.0;
-                }
-                weightGradients[i][j] /= batchSize;
-                weightGradients[i][j] = gradientClipper.clip(weightGradients[i][j]);
-            }
-            if (Double.isNaN(biasGradients[i]) || Double.isInfinite(biasGradients[i])) {
-                biasGradients[i] = 0.0;
-            }
-            biasGradients[i] /= batchSize;
-            biasGradients[i] = gradientClipper.clip(biasGradients[i]);
-        }
+        // Batch átlagolás és gradiens clipping
+        normalizeAndClipGradients(batchSize, outputSize, inputSize, weightGradients, biasGradients);
 
         /*
         for (int i = 0; i < outputSize; i++) {
@@ -252,13 +209,96 @@ public class Layer implements Serializable {
         }
          */
 
+        // Súlyok frissítése adam optimizerrel
         optimizer.updateWeights(neurons, weightGradients, biasGradients);
 
+        // Input gradiensek végső skálázása
         for (int b = 0; b < batchSize; b++) {
             inputGradients[b] = gradientClipper.scaleAndClip(inputGradients[b]);
         }
 
         return new LayerGradients(inputGradients, weightGradients, biasGradients);
+    }
+
+    // Aktivációs függvény deriváltak számítása
+    private double[] computeActivationDerivatives(int batchIndex, int outputSize) {
+        if (activation == Activation.SOFTMAX) {
+            return Activation.derivative(batchOutputs[batchIndex], activation);
+        } else if (activation == Activation.SOFTMAX_SPLIT) {
+            return Activation.derivative(batchOutputs[batchIndex], activation, splitIndex);
+        } else {
+            double[] derivativeValues = new double[outputSize];
+            for (int i = 0; i < outputSize; i++) {
+                derivativeValues[i] = Activation.derivative(
+                        new double[]{batchOutputs[batchIndex][i]}, activation)[0];
+            }
+            return derivativeValues;
+        }
+    }
+
+    // Softmax gradiensek feldolgozása
+    private void processSoftmaxGradients(int batchIndex, int inputSize, int outputSize,
+                                         double[][] inputs, double[][] nextLayerDeltas,
+                                         double[] derivativeValues, double[][] weightGradients,
+                                         double[][] inputGradients) {
+        // Softmax teljes Jacobian mátrix használata
+        for (int i = 0; i < outputSize; i++) {
+            double neuronDelta = 0;
+            for (int j = 0; j < outputSize; j++) {
+                // Jacobian mátrix elem: derivativeValues[j * outputSize + i]
+                neuronDelta += nextLayerDeltas[batchIndex][j] *
+                        derivativeValues[j * outputSize + i];
+            }
+
+            double[] weights = neurons.get(i).getWeights();
+            for (int j = 0; j < inputSize; j++) {
+                weightGradients[i][j] += neuronDelta * inputs[batchIndex][j];
+                inputGradients[batchIndex][j] += neuronDelta * weights[j];
+            }
+        }
+    }
+
+    // Standard gradiensek feldolgozása
+    private void processStandardGradients(int batchIndex, int inputSize, int outputSize,
+                                          double[][] inputs, double[][] nextLayerDeltas,
+                                          double[] derivativeValues, double[][] weightGradients,
+                                          double[][] inputGradients, double[] biasGradients) {
+        for (int i = 0; i < outputSize; i++) {
+            // Neuron delta számítása
+            double neuronDelta = nextLayerDeltas[batchIndex][i] * derivativeValues[i];
+
+            // NaN és Inf ellenőrzés
+            if (Double.isNaN(neuronDelta) || Double.isInfinite(neuronDelta)) {
+                neuronDelta = 0.0;
+            }
+            neuronDelta = gradientClipper.clip(neuronDelta);
+
+            // Gradiens akkumulálás
+            double[] weights = neurons.get(i).getWeights();
+            for (int j = 0; j < inputSize; j++) {
+                weightGradients[i][j] += neuronDelta * inputs[batchIndex][j];
+                inputGradients[batchIndex][j] += neuronDelta * weights[j];
+            }
+            biasGradients[i] += neuronDelta;
+        }
+    }
+
+    // Gradiensek normalizálása és clippelése
+    private void normalizeAndClipGradients(int batchSize, int outputSize, int inputSize,
+                                           double[][] weightGradients, double[] biasGradients) {
+        for (int i = 0; i < outputSize; i++) {
+            for (int j = 0; j < inputSize; j++) {
+                weightGradients[i][j] = processGradient(weightGradients[i][j], batchSize);
+            }
+            biasGradients[i] = processGradient(biasGradients[i], batchSize);
+        }
+    }
+
+    private double processGradient(double gradient, int batchSize) {
+        if (Double.isNaN(gradient) || Double.isInfinite(gradient)) {
+            return 0.0;
+        }
+        return gradientClipper.clip(gradient / batchSize);
     }
 
     public int getSize() {

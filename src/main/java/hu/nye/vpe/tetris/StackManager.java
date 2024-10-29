@@ -1,13 +1,8 @@
 package hu.nye.vpe.tetris;
 
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import hu.nye.vpe.GlobalConfig;
@@ -93,6 +88,16 @@ public class StackManager implements StackComponent {
         );
         copy.setColPosition(original.getStackCol());
         copy.setRowPosition(original.getStackRow());
+        return copy;
+    }
+
+    private Cell[][] copyStack(Cell[][] original) {
+        Cell[][] copy = new Cell[original.length][original[0].length];
+        for (int i = 0; i < original.length; i++) {
+            for (int j = 0; j < original[0].length; j++) {
+                copy[i][j] = new Cell(original[i][j].getTetrominoId(), original[i][j].getColor());
+            }
+        }
         return copy;
     }
 
@@ -612,17 +617,12 @@ public class StackManager implements StackComponent {
      */
     public double[][] simulateAllPossibleActions(Cell[][] stackArea, Tetromino tetromino, StackMetrics metrics) {
         double[][] results = new double[X_COORD_OUTPUTS * ROTATION_OUTPUTS][];
-        Cell[][] simStack = new Cell[ROWS][COLS];
-        Tetromino simTetromino = copyTetromino(tetromino);
         int index = 0;
 
         for (int x = 0; x < X_COORD_OUTPUTS; x++) {
             for (int rot = 0; rot < ROTATION_OUTPUTS; rot++) {
-                for (int i = 0; i < ROWS; i++) {
-                    for (int j = 0; j < COLS; j++) {
-                        simStack[i][j] = new Cell(stackArea[i][j].getTetrominoId(), stackArea[i][j].getColor());
-                    }
-                }
+                Cell[][] simStack = copyStack(stackArea);
+                Tetromino simTetromino = copyTetromino(tetromino);
                 for (int i = 0; i < rot; i++) {
                     if (!rotateTetrominoRight(simStack, simTetromino)) {
                         break;
@@ -640,21 +640,82 @@ public class StackManager implements StackComponent {
                 while (!moveTetrominoDown(simStack, simTetromino, true)) {
                 }
                 metrics.calculateGameMetrics(simStack);
-                double[] state = new double[4];
+                double[] state = new double[6];
 
                 double metricFullRows = getAllFullRows();
-                state[0] = metricFullRows;
+                state[0] = x;
+                state[1] = rot;
+                state[2] = metricFullRows;
                 double metricNumberOfHoles = metrics.getMetricNumberOfHoles();
-                state[1] = metricNumberOfHoles;
+                state[3] = -metricNumberOfHoles / (ROWS * COLS);
                 double metricBumpiness = metrics.getMetricBumpiness();
-                state[2] = metricBumpiness;
+                state[4] = -metricBumpiness / ROWS;
                 double metricMaxheight = metrics.getMetricMaxHeight();
-                state[3] = metricMaxheight;
+                state[5] = -metricMaxheight / ROWS;
 
-                //state[0] = 1.0;
-                //state[1] = 8.0;
-                //state[2] = 1.25;
-                //state[3] = 10.0;
+
+                if (NORMALIZE_FEED_DATA) {
+                    if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
+                        InputNormalizerMinmax normalizer = new InputNormalizerMinmax(FEED_DATA_SIZE + 2);
+                        state = normalizer.normalizeAutomatically(state);
+                    } else if (Objects.equals(FEED_DATA_NORMALIZER, "ZSCORE")) {
+                        InputNormalizerZScore normalizer = new InputNormalizerZScore(FEED_DATA_SIZE + 2);
+                        state = normalizer.normalizeAutomatically(state);
+                    } else {
+                        throw new IllegalArgumentException("Unsupported normalization type: " + FEED_DATA_NORMALIZER);
+                    }
+                }
+                results[index++] = state;
+            }
+        }
+
+        return results;
+    }
+
+    private double[][] simulateAllPossibleActionsOLD(Cell[][] stackArea, Tetromino tetromino, StackMetrics metrics) {
+        double[][] results = new double[X_COORD_OUTPUTS * ROTATION_OUTPUTS][];
+        int index = 0;
+
+        for (int x = 0; x < X_COORD_OUTPUTS; x++) {
+            for (int rot = 0; rot < ROTATION_OUTPUTS; rot++) {
+                Cell[][] simStack = copyStack(stackArea);
+                Tetromino simTetromino = copyTetromino(tetromino);
+
+                // Forgatás és mozgatás végrehajtása
+                boolean validMove = true;
+                for (int i = 0; i < rot && validMove; i++) {
+                    validMove = rotateTetrominoRight(simStack, simTetromino);
+                }
+
+                if (validMove) {
+                    int moveDirection = Integer.compare(x, simTetromino.getStackCol());
+                    while (validMove && simTetromino.getStackCol() != x) {
+                        validMove = moveDirection > 0 ?
+                                moveTetrominoRight(simStack, simTetromino) :
+                                moveTetrominoLeft(simStack, simTetromino);
+                    }
+                }
+
+                // Ha érvényes a mozgatás, szimuláljuk a leesést
+                if (validMove) {
+                    while (moveTetrominoDown(simStack, simTetromino, true)) {
+                    }
+                }
+
+                // Metrikai számítások
+                metrics.calculateGameMetrics(simStack);
+
+                double[] state = new double[6];
+                state[0] = x;
+                state[1] = rot;
+                double metricFullRows = getAllFullRows();
+                state[2] = metricFullRows;
+                double metricNumberOfHoles = metrics.getMetricNumberOfHoles();
+                state[3] = metricNumberOfHoles;
+                double metricBumpiness = metrics.getMetricBumpiness();
+                state[4] = metricBumpiness;
+                double metricMaxheight = metrics.getMetricMaxHeight();
+                state[5] = metricMaxheight;
 
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
@@ -670,22 +731,6 @@ public class StackManager implements StackComponent {
                 results[index++] = state;
             }
         }
-
-        /*
-        // Ismétlődő metrikák kiszűrése
-        Set<String> uniqueStates = new HashSet<>();
-        List<double[]> filteredResults = new ArrayList<>();
-
-        for (double[] resultState : results) {
-            String stateKey = Arrays.toString(resultState);
-            if (!uniqueStates.contains(stateKey)) {
-                uniqueStates.add(stateKey);
-                filteredResults.add(resultState);
-            }
-        }
-        results = filteredResults.toArray(new double[0][0]);
-         */
-
         return results;
     }
 

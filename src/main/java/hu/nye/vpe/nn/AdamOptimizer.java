@@ -1,6 +1,7 @@
 package hu.nye.vpe.nn;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -40,28 +41,54 @@ public class AdamOptimizer implements Serializable {
      */
     public void updateWeights(List<Neuron> neurons, double[][] weightGradients, double[] biasGradients) {
         iter++;
+
+        double beta1Correction = 1.0 / (1.0 - Math.pow(beta1, iter));
+        double beta2Correction = 1.0 / (1.0 - Math.pow(beta2, iter));
+
         for (int i = 0; i < neurons.size(); i++) {
             Neuron neuron = neurons.get(i);
             double[] weightUpdates = new double[weightGradients[i].length];
             GradientClipper clipper = neuron.getGradientClipper();
 
+            // Súlyok frissítése
             for (int j = 0; j < weightUpdates.length; j++) {
-                mmean[i][j] = clipper.clip(beta1 * mmean[i][j] + (1 - beta1) * weightGradients[i][j]);
-                vmean[i][j] = clipper.clip(beta2 * vmean[i][j] + (1 - beta2) * Math.pow(weightGradients[i][j], 2));
+                double clippedGradient = clipper.clip(weightGradients[i][j]);
 
-                double mhat = mmean[i][j] / (1 - Math.pow(beta1, iter));
-                double vhat = vmean[i][j] / (1 - Math.pow(beta2, iter));
+                // Momentum update
+                mmean[i][j] = beta1 * mmean[i][j] + (1.0 - beta1) * clippedGradient;
+                // RMSprop update
+                vmean[i][j] = beta2 * vmean[i][j] + (1.0 - beta2) * clippedGradient * clippedGradient;
+                // Bias correction
+                double mhat = mmean[i][j] * beta1Correction;
+                double vhat = vmean[i][j] * beta2Correction;
 
-                weightUpdates[j] = learningRate * mhat / (Math.sqrt(vhat) + epsilon);
+                if (Double.isNaN(mhat) || Double.isInfinite(mhat)) {
+                    mhat = 0.0;
+                }
+                if (Double.isNaN(vhat) || Double.isInfinite(vhat)) {
+                    vhat = epsilon;
+                }
+
+                // Súlyok átírása
+                weightUpdates[j] = clipper.clip(learningRate * mhat / (Math.sqrt(vhat) + epsilon));
             }
 
             // Bias update számítása
-            mbias[i] = clipper.clip(beta1 * mbias[i] + (1 - beta1) * biasGradients[i]);
-            vbias[i] = clipper.clip(beta2 * vbias[i] + (1 - beta2) * Math.pow(biasGradients[i], 2));
+            mbias[i] = beta1 * mbias[i] + (1 - beta1) * biasGradients[i];
+            vbias[i] = beta2 * vbias[i] + (1 - beta2) * (biasGradients[i] * biasGradients[i]);
 
-            double mhatBias = mbias[i] / (1 - Math.pow(beta1, iter));
-            double vhatBias = vbias[i] / (1 - Math.pow(beta2, iter));
-            double biasUpdate = learningRate * mhatBias / (Math.sqrt(vhatBias) + epsilon);
+            double mhatBias = mbias[i] * beta1Correction;
+            double vhatBias = vbias[i] * beta2Correction;
+
+            if (Double.isNaN(mhatBias) || Double.isInfinite(mhatBias)) {
+                mhatBias = 0.0;
+            }
+            if (Double.isNaN(vhatBias) || Double.isInfinite(vhatBias)) {
+                vhatBias = epsilon;
+            }
+
+            //double biasUpdate = clipper.clip(learningRate * mhatBias / (Math.sqrt(vhatBias) + epsilon));
+            double biasUpdate = clipper.clip(learningRate * mhatBias / (Math.sqrt(Math.max(vhatBias, epsilon)) + epsilon));
 
             neuron.updateWeightsWithAdam(weightUpdates, biasUpdate);
         }
