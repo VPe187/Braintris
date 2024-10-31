@@ -256,7 +256,7 @@ public class NeuralNetwork implements Serializable {
         if (gameOver) {
             updateEpsilon();
             updateDiscountFactor();
-            //updateLearningRate();
+            updateLearningRate();
             this.episodeCount++;
         } else {
             if (reward > this.bestReward) {

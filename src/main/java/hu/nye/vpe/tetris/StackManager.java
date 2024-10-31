@@ -57,6 +57,7 @@ public class StackManager implements StackComponent {
     private final GameAudio audio = new GameAudio();
     private long startTime;
     private int droppedElements;
+    private int simFullRows = 0;
 
     public StackManager(boolean learning) {
         this.learning = learning;
@@ -392,28 +393,6 @@ public class StackManager implements StackComponent {
         noFullRows = 0;
     }
 
-    private void generateEasyRows(int rowNum) {
-        for (int i = ROW_OFFSET; i < stackArea.length; i++) {
-            System.arraycopy(stackArea[i], 0, stackArea[i - 1], 0, stackArea[i].length);
-        }
-        for (int w = ROWS - ROW_OFFSET; w >= ROWS - (rowNum + 1); w--) {
-            for (int h = 1; h <= COLS; h++) {
-                if (h >= 3) {
-                    insertPixel(w, h, true);
-                }
-            }
-        }
-
-        for (int w = ROWS - ROW_OFFSET; w >= ROWS - (rowNum + 2); w--) {
-            for (int h = 1; h <= COLS; h++) {
-                if (h >= 5) {
-                    insertPixel(w, h, true);
-                }
-            }
-        }
-
-    }
-
     protected void checkPenalty() {
         if (noFullRows >= PENALTY_NO_FULL_ROW) {
             if (!learning) {
@@ -554,7 +533,7 @@ public class StackManager implements StackComponent {
             }
             writeRow--;
         }
-
+        simFullRows = fullRows; // VPE
         updateScoreAndLevel(fullRows);
     }
 
@@ -644,15 +623,12 @@ public class StackManager implements StackComponent {
                 }
                 while (!moveTetrominoDown(simStack, simTetromino, true)) {
                 }
-                metrics.calculateGameMetrics(simStack);
-                double[] state = new double[FEED_DATA_SIZE + 2];
-
 
                 int fullRows = 0;
                 for (int row = 0; row < ROWS; row++) {
                     boolean isRowFull = true;
                     for (int col = 0; col < COLS; col++) {
-                        if (stackArea[row][col].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId()) {
+                        if (stackArea[row][col].getTetrominoId() == TetrominoType.ERASED.getTetrominoTypeId()) {
                             isRowFull = false;
                             break;
                         }
@@ -661,6 +637,10 @@ public class StackManager implements StackComponent {
                         fullRows++;
                     }
                 }
+
+                double[] state = new double[FEED_DATA_SIZE + 2];
+
+                metrics.calculateGameMetrics(simStack);
                 state[0] = x;
                 state[1] = rot;
                 state[2] = POINT_FULLROW * fullRows;
