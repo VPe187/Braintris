@@ -9,6 +9,9 @@ public class StackMetrics implements StackComponent {
     private StackManager manager;
     private double metricNumberOfHoles;
     private double[] metricColumnHeights;
+    private double[] metricColumnHoles;
+    private double metricColumnHeightSum;
+    private double metricColumnHoleSum;
     private double metricAvgColumnHeight;
     private int metricMaxHeight;
     private double metricBumpiness;
@@ -30,17 +33,19 @@ public class StackMetrics implements StackComponent {
      */
     public void calculateGameMetrics(Cell[][] stack) {
         metricBumpiness = calculateBumpiness(stack);
-
         metricMaxHeight = calculateMaxHeight(stack);
         metricColumnHeights = calculateColumnHeights(stack);
-        //metricAvgColumnHeight = calculateAverageHeightDifference(stack);
+        metricColumnHeightSum = calculateColumnHeightSum(stack);
+        metricColumnHoles = calculateColumnHoles(stack);
+        metricColumnHoleSum = calculateColumnHoleSum(stack);
+        metricAvgColumnHeight = calculateAverageHeightDifference(stack);
         metricSurroundingHoles = calculateHolesSurrounded(stack);
-        //metricNumberOfHoles = countHoles(stack);
-        //metricBlockedRows = countBlockedRows(stack);
-        //metricNearlyFullRows = countNearlyFullRows(stack);
-        //metricAvgDensity = calculateAverageDensity(stack);
-        //metricAccessibleEmptyCells = countAccessibleEmptyCells(stack);
-        //metricHighestOccupiedCell = calculateHighestOccupiedCells(stack);
+        metricNumberOfHoles = countHoles(stack);
+        metricBlockedRows = countBlockedRows(stack);
+        metricNearlyFullRows = countNearlyFullRows(stack);
+        metricAvgDensity = calculateAverageDensity(stack);
+        metricAccessibleEmptyCells = countAccessibleEmptyCells(stack);
+        metricHighestOccupiedCell = calculateHighestOccupiedCells(stack);
     }
 
     private int countHoles(Cell[][] stack) {
@@ -82,11 +87,9 @@ public class StackMetrics implements StackComponent {
                 }
             }
             if (isEmpty) {
-                //return row;
                 return GameConstans.ROWS - 1 - row;
             }
         }
-        //return GameConstans.ROWS;
         return 0;
     }
 
@@ -95,7 +98,7 @@ public class StackMetrics implements StackComponent {
         boolean[] columnBlocked = new boolean[GameConstans.COLS];
         int blockedColumns = 0;
 
-        for (int row = GameConstans.ROWS - 1; row >= 0; row--) {  // Lentről felfelé haladunk
+        for (int row = GameConstans.ROWS - 1; row >= 0; row--) {
             for (int col = 0; col < GameConstans.COLS; col++) {
                 if (!columnBlocked[col]) {
                     if (stack[row][col].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId()) {
@@ -106,7 +109,6 @@ public class StackMetrics implements StackComponent {
                     }
                 }
             }
-            // Ha minden oszlop blokkolttá vált, megszakítjuk a ciklust
             if (blockedColumns == GameConstans.COLS) {
                 break;
             }
@@ -118,7 +120,6 @@ public class StackMetrics implements StackComponent {
         int[] columnHeights = new int[stack[0].length];
 
         for (int col = 0; col < stack[0].length; col++) {
-            // Soronként fentről lefelé
             for (int row = 0; row < stack.length; row++) {
                 if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                     columnHeights[col] = stack.length - row;
@@ -235,6 +236,45 @@ public class StackMetrics implements StackComponent {
         return columnHeights;
     }
 
+    private double calculateColumnHeightSum(Cell[][] stack) {
+        double sum = 0;
+        double[] columnHeights = calculateColumnHeights(stack);
+        for (int i = 0; i < columnHeights.length; i++) {
+            sum += columnHeights[i];
+        }
+        return sum;
+    }
+
+    private double[] calculateColumnHoles(Cell[][] stack) {
+        double[] columnHoles = new double[GameConstans.COLS];
+
+        for (int j = 0; j < GameConstans.COLS; j++) {
+            boolean foundFirstPiece = false;
+            int holes = 0;
+
+            for (int i = 0; i < GameConstans.ROWS; i++) {
+                if (stack[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
+                    foundFirstPiece = true;
+                } else if (foundFirstPiece &&
+                        stack[i][j].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId()) {
+                    holes++;
+                }
+            }
+            columnHoles[j] = holes;
+        }
+
+        return columnHoles;
+    }
+
+    private double calculateColumnHoleSum(Cell[][] stack) {
+        double sum = 0;
+        double[] columnHoles = calculateColumnHoles(stack);
+        for (int i = 0; i < columnHoles.length; i++) {
+            sum += columnHoles[i];
+        }
+        return sum;
+    }
+
     private double[] calculateHeightDifferences(Cell[][] stack) {
         double[] columnHeights = calculateColumnHeights(stack);
         double[] heightDifferences = new double[GameConstans.COLS - 1];
@@ -330,6 +370,18 @@ public class StackMetrics implements StackComponent {
 
     public double getMetricSurroundingHoles() {
         return metricSurroundingHoles;
+    }
+
+    public double[] getMetricColumnHoles() {
+        return metricColumnHoles;
+    }
+
+    public double getMetricColumnHeightSum() {
+        return metricColumnHeightSum;
+    }
+
+    public double getMetricColumnHoleSum() {
+        return metricColumnHoleSum;
     }
 
     @Override

@@ -84,61 +84,6 @@ public class GlobalConfig {
         return properties.getProperty(key, defaultValue);
     }
 
-    // Tetris osztály konstansai
-    public double getRewardFullRow() {
-        return getDouble("REWARD_FULLROW", 100);
-    }
-
-    public double getRewardNearlyFullRow() {
-        return getDouble("REWARD_NEARLY_FULLROW", 40);
-    }
-
-    public double getRewardPlaceWithoutHole() {
-        return getDouble("REWARD_PLACE_WITHOUT_HOLE", 60);
-    }
-
-    public double getRewardDropLower() {
-        return getDouble("REWARD_DROP_LOWER", 20);
-    }
-
-    public double getRewardDropHigher() {
-        return getDouble("REWARD_DROP_HIGHER", 1);
-    }
-
-    public double getRewardDropedElements() {
-        return getDouble("REWARD_DROPPED_ELEMENTS", 0.01);
-    }
-
-    public double getRewardAvgDensity() {
-        return getDouble("REWARD_AVG_DENSITY", 100);
-    }
-
-    public double getRewardNumberOfHoles() {
-        return getDouble("REWARD_NUMBER_OF_HOLES", 0.1);
-    }
-
-    public double getRewardSurroundedHoles() {
-        return getDouble("REWARD_SURROUNDED_HOLES", 0.2);
-    }
-
-    public double getRewardBlockedRow() {
-        return getDouble("REWARD_BLOCKED_ROW", 1.2);
-    }
-
-    public double getRewardBumpiness() {
-        return getDouble("REWARD_BUMPINESS", 0.3);
-    }
-
-    public double getRewardAvgColumnHeight() {
-        return getDouble("REWARD_AVG_COLUMN_HEIGHT", 0.5);
-    }
-
-
-    public double getRewardMaximumHeight() {
-        return getDouble("REWARD_MAXIMUM_HEIGHT", 0.9);
-    }
-
-
     // NeuralNetwork osztály konstansai
     public String getBrainFilename() {
         return getString("FILE_NAME", "brain.dat");
@@ -415,5 +360,21 @@ public class GlobalConfig {
 
     public double getAdamMomentum() {
         return getDouble("ADAM_MOMENTUM", 1e-6);
+    }
+
+    public double getPointFullRow() {
+        return getDouble("POINT_FULLROW", 1);
+    }
+
+    public double getPointHeights() {
+        return getDouble("POINT_HEIGHTS", -1);
+    }
+
+    public double getPointHoes() {
+        return getDouble("POINT_HOLES", -1);
+    }
+
+    public double getPoinBumpiness() {
+        return getDouble("POINT_BUMPINESS", -1);
     }
 }

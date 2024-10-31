@@ -106,7 +106,6 @@ public class BatchNormalizer implements Serializable {
             batchMean[i] = sum / batchIndex;
             batchVariance[i] = (sumSquares / batchIndex) - (batchMean[i] * batchMean[i]);
 
-            // Update running statistics with batch values
             runningMean[i] = momentum * runningMean[i] + (1 - momentum) * batchMean[i];
             runningVariance[i] = momentum * runningVariance[i] +
                     (1 - momentum) * batchVariance[i] * batchIndex / (batchIndex - 1);
@@ -250,24 +249,20 @@ public class BatchNormalizer implements Serializable {
      * @return The transformed gradient
      */
     public double backwardSingle(double gradient, int batchIdx, int featureIdx) {
-        // Safety check for batch storage
         if (batchInputs == null || batchNormalized == null ||
                 batchIdx >= batchInputs.length || featureIdx >= size) {
             return gradient;
         }
 
-        // Get batch statistics
         double batchMean = 0;
         double batchVar = 0;
         int currentBatchSize = Math.min(batchIndex, batchInputs.length);
 
-        // Calculate batch mean
         for (int j = 0; j < currentBatchSize; j++) {
             batchMean += batchInputs[j][featureIdx];
         }
         batchMean /= currentBatchSize;
 
-        // Calculate batch variance
         for (int j = 0; j < currentBatchSize; j++) {
             double diff = batchInputs[j][featureIdx] - batchMean;
             batchVar += diff * diff;
@@ -275,13 +270,8 @@ public class BatchNormalizer implements Serializable {
         batchVar /= currentBatchSize;
         batchVar = Math.max(batchVar, epsilon);
 
-        // Calculate normalized input
         double xnorm = (batchInputs[batchIdx][featureIdx] - batchMean) / Math.sqrt(batchVar + epsilon);
-
-        // Calculate gradient components
         double gradientScale = gamma[featureIdx] / Math.sqrt(batchVar + epsilon);
-
-        // Apply the chain rule with the batch normalization equation
         return gradient * gradientScale;
     }
 

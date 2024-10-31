@@ -202,6 +202,7 @@ public class Layer implements Serializable {
         normalizeAndClipGradients(batchSize, outputSize, inputSize, weightGradients, biasGradients);
 
         /*
+        // Súlyok frissítése normál módon
         for (int i = 0; i < outputSize; i++) {
             Neuron neuron = neurons.get(i);
             neuron.updateWeights(weightGradients[i], biasGradients[i], this.learningRate);

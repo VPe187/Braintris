@@ -37,6 +37,11 @@ public class StackManager implements StackComponent {
     private static final boolean NORMALIZE_FEED_DATA = GlobalConfig.getInstance().getNormalizeFeedData();
     private static final String FEED_DATA_NORMALIZER = GlobalConfig.getInstance().getFeedDataNormalizer();
 
+    private static final double POINT_FULLROW = GlobalConfig.getInstance().getPointFullRow();
+    private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
+    private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
+    private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
+
     private final Cell[][] stackArea = new Cell[ROWS][COLS];
     private final boolean learning;
     private Tetromino currentTetromino;
@@ -656,48 +661,12 @@ public class StackManager implements StackComponent {
                         fullRows++;
                     }
                 }
-
                 state[0] = x;
                 state[1] = rot;
-
-                /*
-                state[2] = getAllFullRows() * getAllFullRows();
-                state[3] = -metrics.getMetricSurroundedHoles();
-                state[4] = -metrics.getMetricBumpiness();
-                double[] heights = metrics.getMetricColumnHeights();
-                for (int i = 0; i < heights.length; i++) {
-                    state[5] += heights[i];
-                }
-                state[5] = -state[5];
-                 */
-
-                double rows = fullRows;
-                double metricFullRows = 1.0 + (rows * rows) * metrics.getMetricMaxHeight();
-                state[2] = metricFullRows;
-
-                double metricBumpiness = metrics.getMetricBumpiness();
-                state[3] = -metricBumpiness;
-
-                double metricMaxheight = metrics.getMetricMaxHeight();
-                state[4] = -metricMaxheight;
-
-                double metricHoleSurrounded = metrics.getMetricSurroundedHoles();
-                state[5] = -metricHoleSurrounded;
-
-                double metricAccessibleEmptyCells = metrics.getMetricAccessibleEmptyCells();
-                state[6] = metricAccessibleEmptyCells;
-
-                double metricNearlyFullRows = metrics.getMetricNearlyFullRows();
-                state[7] = metricNearlyFullRows;
-
-                double metricBlockedRows = metrics.getMetricBlockedRows();
-                state[8] = -metricBlockedRows;
-
-                double metricAvgDensity = metrics.getMetricAvgDensity();
-                state[9] = -metricAvgDensity;
-
-                double metricNumberOfHoles = metrics.getMetricNumberOfHoles();
-                state[10] = -metricNumberOfHoles;
+                state[2] = POINT_FULLROW * fullRows;
+                state[3] = POINT_HOLES * metrics.getMetricColumnHoleSum();
+                state[4] = POINT_BUMPINESS * metrics.getMetricBumpiness();
+                state[5] = POINT_HEIGHTS * metrics.getMetricColumnHeightSum();
 
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {

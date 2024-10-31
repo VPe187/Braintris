@@ -150,7 +150,7 @@ public class NeuralNetwork implements Serializable {
     }
 
     private void backwardPass(double[][] batchInputs, double[][] batchTargets) {
-        // 1. Forward pass és minden réteg kimenetének tárolása
+        // Forward pass és minden réteg kimenetének tárolása
         List<double[][]> allLayerOutputs = new ArrayList<>();
         double[][] currentInputs = batchInputs;
         allLayerOutputs.add(currentInputs); // Input réteg kimenetek
@@ -166,7 +166,7 @@ public class NeuralNetwork implements Serializable {
         double[][] finalLayerOutput = allLayerOutputs.get(allLayerOutputs.size() - 1);
 
         /*
-        // Gradiens számítása
+        // Gradiens számítás
         for (int i = 0; i < batchSize; i++) {
             for (int j = 0; j < deltas[i].length; j++) {
                 deltas[i][j] = batchTargets[i][j] - currentInputs[i][j];
@@ -256,7 +256,7 @@ public class NeuralNetwork implements Serializable {
         if (gameOver) {
             updateEpsilon();
             updateDiscountFactor();
-            updateLearningRate();
+            //updateLearningRate();
             this.episodeCount++;
         } else {
             if (reward > this.bestReward) {

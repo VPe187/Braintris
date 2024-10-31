@@ -21,19 +21,10 @@ public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
 
-    private static final double REWARD_FULLROW = GlobalConfig.getInstance().getRewardFullRow();
-    private static final double REWARD_NEARLY_FULLROW = GlobalConfig.getInstance().getRewardNearlyFullRow();
-    private static final double REWARD_PLACE_WITHOUT_HOLE = GlobalConfig.getInstance().getRewardPlaceWithoutHole();
-    private static final double REWARD_DROP_LOWER = GlobalConfig.getInstance().getRewardDropLower();
-    private static final double REWARD_DROPPED_ELEMENTS = GlobalConfig.getInstance().getRewardDropedElements();
-    private static final double REWARD_AVG_DENSITY = GlobalConfig.getInstance().getRewardAvgDensity();
-    private static final double REWARD_NUMBER_OF_HOLES = GlobalConfig.getInstance().getRewardNumberOfHoles();
-    private static final double REWARD_SURROUNDED_HOLES = GlobalConfig.getInstance().getRewardSurroundedHoles();
-    private static final double REWARD_DROP_HIGHER = GlobalConfig.getInstance().getRewardDropHigher();
-    private static final double REWARD_BLOCKED_ROW = GlobalConfig.getInstance().getRewardBlockedRow();
-    private static final double REWARD_BUMPINESS = GlobalConfig.getInstance().getRewardBumpiness();
-    private static final double REWARD_AVG_COLUMN_HEIGHT = GlobalConfig.getInstance().getRewardAvgColumnHeight();
-    private static final double REWARD_MAXIMUM_HEIGHT = GlobalConfig.getInstance().getRewardMaximumHeight();
+    private static final double POINT_FULLROW = GlobalConfig.getInstance().getPointFullRow();
+    private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
+    private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
+    private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
 
     private static final String[] LAYER_NAMES = GlobalConfig.getInstance().getLayerNames();
     private static final int[] LAYER_SIZES = GlobalConfig.getInstance().getLayerSizes();
@@ -176,18 +167,6 @@ public class Tetris {
                                 metrics
                         );
 
-                        /*
-                        if (TEST_ALGORITHM) {
-                            for (int i = 0; i < possibleStates.length; i++) {
-                                for (int j = 0; j < possibleStates[i].length; j++) {
-                                    System.out.print(possibleStates[i][j] + " ");
-                                }
-                                System.out.println();
-                            }
-                            System.out.println();
-                        }
-                         */
-
                         if (!TEST_ALGORITHM_ONLY) {
                             // 3. Tanuljunk az előző akcióból (ha volt)
                             if (lastState != null && lastAction != null) {
@@ -215,11 +194,11 @@ public class Tetris {
 
                             int newStateIndex = targetX * ROTATION_OUTPUTS + rotationCount;
                             if (newStateIndex < possibleStates.length) {
-                                // Az új állapot és akció mentése
+                                // 5. Az új állapot és akció mentése
                                 lastState = possibleStates[newStateIndex];
                                 lastAction = action;
 
-                                // 5. Akció végrehajtása
+                                // 6. Akció végrehajtása
                                 stackManager.moveAndRotateTetrominoTo(
                                         stackManager.getStackArea(),
                                         stackManager.getCurrentTetromino(),
@@ -321,33 +300,16 @@ public class Tetris {
         double reward;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
         if (!gameOver) {
-
             double rows = stackManager.getAllFullRows() - previousFullRows;
             previousFullRows = rows;
-
-            reward = 1.0 + (rows * rows) * stackMetrics.getMetricMaxHeight();
-            reward -= stackMetrics.getMetricBumpiness();
-            reward -= stackMetrics.getMetricMaxHeight();
-            reward -= stackMetrics.getMetricSurroundedHoles();
-
-            /*
-            // Good
-            reward = 5.0 + (rows * rows) * stackMetrics.getMetricMaxHeight() * 2;
-            reward += stackMetrics.getMetricAccessibleEmptyCells() / 100;
-            reward += stackMetrics.getMetricNearlyFullRows() / 50;
-
-            // Bad
-            reward -= stackMetrics.getMetricBumpiness();
-            reward -= (stackMetrics.getMetricMaxHeight() - 14) * 2;
-            reward -= stackMetrics.getMetricBlockedRows();
-            reward -= stackMetrics.getMetricSurroundedHoles();
-            reward -= stackMetrics.getMetricAvgDensity() * 20;
-            //reward -= 0.5 * (stackMetrics.getMetricNumberOfHoles());
-             */
-            return 20 + reward;
+            reward = POINT_FULLROW * rows;
+            reward += POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
+            reward += POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
+            reward += POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
+            return reward;
         } else {
             previousFullRows = 0;
-            return -2.0;
+            return 0.0;
         }
     }
 
