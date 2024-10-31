@@ -58,12 +58,12 @@ public class Layer implements Serializable {
         }
 
         this.optimizer = new AdamOptimizer(
-                outputSize, // neuronok száma
-                inputSize, // bemenetek száma
-                learningRate, // kezdeti tanulási ráta
-                BETA1_MOMENTUM, // beta1 (momentum) - PyTorch default
-                BETA2_RMSPROP, // beta2 (RMSprop) - PyTorch default
-                ADAM_MOMENTUM // epsilon - PyTorch default
+                outputSize,
+                inputSize,
+                learningRate,
+                BETA1_MOMENTUM,
+                BETA2_RMSPROP,
+                ADAM_MOMENTUM
         );
     }
 
@@ -176,7 +176,6 @@ public class Layer implements Serializable {
         double[][] weightGradients = new double[outputSize][inputSize];
         double[] biasGradients = new double[outputSize];
 
-        // Gradiens nullázás akkumulálás előtt
         zeroGradients(weightGradients, biasGradients);
 
         if (useBatchNorm) {

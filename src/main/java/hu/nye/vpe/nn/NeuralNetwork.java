@@ -7,7 +7,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -38,8 +37,9 @@ public class NeuralNetwork implements Serializable {
     private static final int EXPERIENCE_REPLAY_CAPACITY = GlobalConfig.getInstance().getExperiebceReplayCapacity();
     private static final int EXPERIENCE_BATCH_SIZE = GlobalConfig.getInstance().getExperienceBatchSize();
     private static final int X_COORD_OUTPUTS = 12;
-    private static final int ROTATION_OUTPUTS = 3;
+    private static final int ROTATION_OUTPUTS = 4;
     private static final int MINIMUM_BATCH_SIZE = GlobalConfig.getInstance().getMinimumBatchSize();
+    private static final int FEED_DATA_SIZE = GlobalConfig.getInstance().getFeedDataSize();
 
     private final List<Layer> layers;
     private double learningRate;
@@ -119,7 +119,6 @@ public class NeuralNetwork implements Serializable {
         this.historicalLayerSums = new double[layerSizes.length];
         this.layerActivationCounts = new long[layerSizes.length];
 
-        // Kezdeti értékek beállítása
         for (int i = 0; i < layerSizes.length; i++) {
             historicalLayerMins[i] = Double.POSITIVE_INFINITY;
             historicalLayerMaxs[i] = Double.NEGATIVE_INFINITY;
@@ -213,10 +212,9 @@ public class NeuralNetwork implements Serializable {
             double[] qvalues = new double[possibleActions.length];
             double maxQ = Double.NEGATIVE_INFINITY;
 
-            // Q-értékek számítása az utolsó 4 metrikából
+            // Q-értékek számítása a metrikából
             for (int i = 0; i < possibleActions.length; i++) {
-                // Az utolsó 4 elem kivétele (metrikák)
-                double[] metrics = Arrays.copyOfRange(possibleActions[i], 2, 6);
+                double[] metrics = copyToFeedDataSize(possibleActions[i]);
                 qvalues[i] = forward(metrics, false)[0];
                 maxQ = Math.max(maxQ, qvalues[i]);
             }
@@ -233,37 +231,10 @@ public class NeuralNetwork implements Serializable {
 
             // Véletlenszerű választás a legjobb akciók közül
             int bestActionIndex = bestActions.get(random.nextInt(bestActions.size()));
-
             return new int[]{
                     (int) possibleActions[bestActionIndex][0],  // X koordináta
                     (int) possibleActions[bestActionIndex][1]   // Forgatás
             };
-        }
-    }
-
-    private int[] selectActionOLD(double[][] possibleActions) {
-        if (random.nextDouble() < epsilon) {
-            return new int[]{
-                    random.nextInt(X_COORD_OUTPUTS),
-                    random.nextInt(ROTATION_OUTPUTS)
-            };
-        } else {
-            double[] qvalues = new double[possibleActions.length];
-            for (int i = 0; i < possibleActions.length; i++) {
-                qvalues[i] = forward(possibleActions[i], false)[0];
-            }
-
-            int bestActionIndex = 0;
-            for (int i = 1; i < qvalues.length; i++) {
-                if (qvalues[i] > qvalues[bestActionIndex]) {
-                    bestActionIndex = i;
-                }
-            }
-
-            int xaction = bestActionIndex / ROTATION_OUTPUTS;
-            int rotationAction = bestActionIndex % ROTATION_OUTPUTS;
-
-            return new int[]{xaction, rotationAction};
         }
     }
 
@@ -310,8 +281,7 @@ public class NeuralNetwork implements Serializable {
         double maxNextQ = Double.NEGATIVE_INFINITY;
         if (!gameOver && nextPossibleStates != null) {
             for (double[] possibleState : nextPossibleStates) {
-                double[] metrics = new double[4];
-                System.arraycopy(possibleState, possibleState.length - 4, metrics, 0, 4);
+                double[] metrics = copyToFeedDataSize(possibleState);
                 double stateQ = forward(metrics, false)[0];
                 maxNextQ = (Math.max(maxNextQ, stateQ));
             }
@@ -322,17 +292,19 @@ public class NeuralNetwork implements Serializable {
 
         nextQ = maxNextQ;
 
+        double[] stateMetrics = copyToFeedDataSize(state);
+        double[] currentOutput = forward(stateMetrics, false);
+
         double targetQ;
         if (gameOver) {
             targetQ = reward;
         } else {
-            targetQ = reward + discountFactor * maxNextQ;
+            //targetQ = reward + discountFactor * maxNextQ * learningRate;
+            targetQ = currentOutput[0] + learningRate * (reward + discountFactor * maxNextQ - currentOutput[0]);
         }
 
         maxQ = Math.max(targetQ, maxQ);
 
-        double[] stateMetrics = new double[4];
-        System.arraycopy(state, state.length - 4, stateMetrics, 0, 4);
         inputBatch.add(stateMetrics);
         targetBatch.add(new double[]{targetQ});
 
@@ -387,7 +359,7 @@ public class NeuralNetwork implements Serializable {
             if (!exp.done && exp.nextPossibleStates != null) {
                 for (double[] possibleState : exp.nextPossibleStates) {
                     if (possibleState != null) {
-                        double[] metrics = Arrays.copyOfRange(possibleState, 2, 6);
+                        double[] metrics = copyToFeedDataSize(possibleState);
                         double stateQ = forward(metrics, false)[0];
                         maxNextQ = Math.max(maxNextQ, stateQ);
                     }
@@ -396,18 +368,22 @@ public class NeuralNetwork implements Serializable {
             if (Double.isNaN(maxNextQ) || Double.isInfinite(maxNextQ)) {
                 maxNextQ = 0.0;
             }
+
+            double[] stateMetrics = copyToFeedDataSize(exp.state);
+            double[] currentOutput = forward(stateMetrics, false);
+
             nextQ = maxNextQ;
             double targetQ;
             if (exp.done) {
                 targetQ = exp.reward;
             } else {
-                targetQ = exp.reward + discountFactor * maxNextQ;
+                //targetQ = exp.reward + discountFactor * maxNextQ * learningRate;
+                targetQ = currentOutput[0] + learningRate * (exp.reward + discountFactor * maxNextQ - currentOutput[0]);
             }
 
             maxQ = Math.max(targetQ, maxQ);
 
-            double[] stateMetrics = new double[4];
-            System.arraycopy(exp.state, exp.state.length - 4, stateMetrics, 0, 4);
+
             inputBatch.add(stateMetrics);
             targetBatch.add(new double[]{targetQ});
         }
@@ -589,6 +565,12 @@ public class NeuralNetwork implements Serializable {
                 neuron.zeroGradients();
             }
         }
+    }
+
+    private static double[] copyToFeedDataSize(double[] source) {
+        double[] target = new double[FEED_DATA_SIZE];
+        System.arraycopy(source, 2, target, 0, FEED_DATA_SIZE);
+        return target;
     }
 
     /**

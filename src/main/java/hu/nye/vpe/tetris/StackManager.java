@@ -32,7 +32,7 @@ public class StackManager implements StackComponent {
     private static final int ROW_SCORE = GameConstans.ROW_SCORE;
     private static final int LEVEL_CHANGE_ROWS = GameConstans.LEVEL_CHANGE_ROWS;
     private static final int X_COORD_OUTPUTS = 12;
-    private static final int ROTATION_OUTPUTS = 3;
+    private static final int ROTATION_OUTPUTS = 4;
     private static final int FEED_DATA_SIZE = GlobalConfig.getInstance().getFeedDataSize();
     private static final boolean NORMALIZE_FEED_DATA = GlobalConfig.getInstance().getNormalizeFeedData();
     private static final String FEED_DATA_NORMALIZER = GlobalConfig.getInstance().getFeedDataNormalizer();
@@ -640,19 +640,64 @@ public class StackManager implements StackComponent {
                 while (!moveTetrominoDown(simStack, simTetromino, true)) {
                 }
                 metrics.calculateGameMetrics(simStack);
-                double[] state = new double[6];
+                double[] state = new double[FEED_DATA_SIZE + 2];
 
-                double metricFullRows = getAllFullRows();
+
+                int fullRows = 0;
+                for (int row = 0; row < ROWS; row++) {
+                    boolean isRowFull = true;
+                    for (int col = 0; col < COLS; col++) {
+                        if (stackArea[row][col].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId()) {
+                            isRowFull = false;
+                            break;
+                        }
+                    }
+                    if (isRowFull) {
+                        fullRows++;
+                    }
+                }
+
                 state[0] = x;
                 state[1] = rot;
-                state[2] = metricFullRows;
-                double metricNumberOfHoles = metrics.getMetricNumberOfHoles();
-                state[3] = -metricNumberOfHoles / (ROWS * COLS);
-                double metricBumpiness = metrics.getMetricBumpiness();
-                state[4] = -metricBumpiness / ROWS;
-                double metricMaxheight = metrics.getMetricMaxHeight();
-                state[5] = -metricMaxheight / ROWS;
 
+                /*
+                state[2] = getAllFullRows() * getAllFullRows();
+                state[3] = -metrics.getMetricSurroundedHoles();
+                state[4] = -metrics.getMetricBumpiness();
+                double[] heights = metrics.getMetricColumnHeights();
+                for (int i = 0; i < heights.length; i++) {
+                    state[5] += heights[i];
+                }
+                state[5] = -state[5];
+                 */
+
+                double rows = fullRows;
+                double metricFullRows = 1.0 + (rows * rows) * metrics.getMetricMaxHeight();
+                state[2] = metricFullRows;
+
+                double metricBumpiness = metrics.getMetricBumpiness();
+                state[3] = -metricBumpiness;
+
+                double metricMaxheight = metrics.getMetricMaxHeight();
+                state[4] = -metricMaxheight;
+
+                double metricHoleSurrounded = metrics.getMetricSurroundedHoles();
+                state[5] = -metricHoleSurrounded;
+
+                double metricAccessibleEmptyCells = metrics.getMetricAccessibleEmptyCells();
+                state[6] = metricAccessibleEmptyCells;
+
+                double metricNearlyFullRows = metrics.getMetricNearlyFullRows();
+                state[7] = metricNearlyFullRows;
+
+                double metricBlockedRows = metrics.getMetricBlockedRows();
+                state[8] = -metricBlockedRows;
+
+                double metricAvgDensity = metrics.getMetricAvgDensity();
+                state[9] = -metricAvgDensity;
+
+                double metricNumberOfHoles = metrics.getMetricNumberOfHoles();
+                state[10] = -metricNumberOfHoles;
 
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
@@ -660,69 +705,6 @@ public class StackManager implements StackComponent {
                         state = normalizer.normalizeAutomatically(state);
                     } else if (Objects.equals(FEED_DATA_NORMALIZER, "ZSCORE")) {
                         InputNormalizerZScore normalizer = new InputNormalizerZScore(FEED_DATA_SIZE + 2);
-                        state = normalizer.normalizeAutomatically(state);
-                    } else {
-                        throw new IllegalArgumentException("Unsupported normalization type: " + FEED_DATA_NORMALIZER);
-                    }
-                }
-                results[index++] = state;
-            }
-        }
-
-        return results;
-    }
-
-    private double[][] simulateAllPossibleActionsOLD(Cell[][] stackArea, Tetromino tetromino, StackMetrics metrics) {
-        double[][] results = new double[X_COORD_OUTPUTS * ROTATION_OUTPUTS][];
-        int index = 0;
-
-        for (int x = 0; x < X_COORD_OUTPUTS; x++) {
-            for (int rot = 0; rot < ROTATION_OUTPUTS; rot++) {
-                Cell[][] simStack = copyStack(stackArea);
-                Tetromino simTetromino = copyTetromino(tetromino);
-
-                // Forgatás és mozgatás végrehajtása
-                boolean validMove = true;
-                for (int i = 0; i < rot && validMove; i++) {
-                    validMove = rotateTetrominoRight(simStack, simTetromino);
-                }
-
-                if (validMove) {
-                    int moveDirection = Integer.compare(x, simTetromino.getStackCol());
-                    while (validMove && simTetromino.getStackCol() != x) {
-                        validMove = moveDirection > 0 ?
-                                moveTetrominoRight(simStack, simTetromino) :
-                                moveTetrominoLeft(simStack, simTetromino);
-                    }
-                }
-
-                // Ha érvényes a mozgatás, szimuláljuk a leesést
-                if (validMove) {
-                    while (moveTetrominoDown(simStack, simTetromino, true)) {
-                    }
-                }
-
-                // Metrikai számítások
-                metrics.calculateGameMetrics(simStack);
-
-                double[] state = new double[6];
-                state[0] = x;
-                state[1] = rot;
-                double metricFullRows = getAllFullRows();
-                state[2] = metricFullRows;
-                double metricNumberOfHoles = metrics.getMetricNumberOfHoles();
-                state[3] = metricNumberOfHoles;
-                double metricBumpiness = metrics.getMetricBumpiness();
-                state[4] = metricBumpiness;
-                double metricMaxheight = metrics.getMetricMaxHeight();
-                state[5] = metricMaxheight;
-
-                if (NORMALIZE_FEED_DATA) {
-                    if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
-                        InputNormalizerMinmax normalizer = new InputNormalizerMinmax(FEED_DATA_SIZE);
-                        state = normalizer.normalizeAutomatically(state);
-                    } else if (Objects.equals(FEED_DATA_NORMALIZER, "ZSCORE")) {
-                        InputNormalizerZScore normalizer = new InputNormalizerZScore(FEED_DATA_SIZE);
                         state = normalizer.normalizeAutomatically(state);
                     } else {
                         throw new IllegalArgumentException("Unsupported normalization type: " + FEED_DATA_NORMALIZER);

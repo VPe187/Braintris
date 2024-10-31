@@ -43,6 +43,7 @@ public class Tetris {
     private static final double[] L2_REGULARIZATION = GlobalConfig.getInstance().getL2Regularization();
     private static final int ROTATION_OUTPUTS = 3;
     private static final long DROP_SPEED = 1L;
+    private static final Boolean TEST_ALGORITHM_ONLY = false;
 
     private NeuralNetwork brain;
     private static final long speed = 1000L;
@@ -155,19 +156,19 @@ public class Tetris {
         if (tickDown.tick()) {
             if (stackManager.getGameState() == GameState.RUNNING) {
                 if (stackManager.getCurrentTetromino() == null) {
-                    if (learning) {
+                    nextTetromino();
 
-                        // 1. előző jutalom kiszámítása
+                    if (learning) {
                         double reward = 0;
-                        if (lastState != null && lastAction != null) {
-                            stackMetrics.calculateGameMetrics(stackManager.getStackArea());
-                            reward = calculateReward(false);
+                        if (!TEST_ALGORITHM_ONLY) {
+                            // 1. előző jutalom kiszámítása
+                            if (lastState != null && lastAction != null) {
+                                stackMetrics.calculateGameMetrics(stackManager.getStackArea());
+                                reward = calculateReward(false);
+                            }
                         }
 
-                        // 2. Új elem generálása
-                        nextTetromino();
-
-                        // 3. Új állapotok kiszámítása
+                        // 2. Új állapotok kiszámítása
                         StackMetrics metrics = new StackMetrics();
                         double[][] possibleStates = stackManager.simulateAllPossibleActions(
                                 stackManager.getStackArea(),
@@ -175,30 +176,50 @@ public class Tetris {
                                 metrics
                         );
 
-                        // 4. Tanuljunk az előző akcióból (ha volt)
-                        if (lastState != null && lastAction != null) {
-                            brain.learn(
-                                    lastState,
-                                    lastAction,
-                                    reward,
-                                    possibleStates.length > 0 ? possibleStates[0] : null,
-                                    false,
-                                    possibleStates
-                            );
+                        /*
+                        if (TEST_ALGORITHM) {
+                            for (int i = 0; i < possibleStates.length; i++) {
+                                for (int j = 0; j < possibleStates[i].length; j++) {
+                                    System.out.print(possibleStates[i][j] + " ");
+                                }
+                                System.out.println();
+                            }
+                            System.out.println();
+                        }
+                         */
+
+                        if (!TEST_ALGORITHM_ONLY) {
+                            // 3. Tanuljunk az előző akcióból (ha volt)
+                            if (lastState != null && lastAction != null) {
+                                brain.learn(
+                                        lastState,
+                                        lastAction,
+                                        reward,
+                                        possibleStates.length > 0 ? possibleStates[0] : null,
+                                        false,
+                                        possibleStates
+                                );
+                            }
                         }
 
-                        // 5. Válasszuk ki az új akciót
+                        // 4. Válasszuk ki az új akciót
+                        int[] action;
                         if (possibleStates.length > 0) {
-                            int[] action = brain.selectAction(possibleStates);
+                            if (!TEST_ALGORITHM_ONLY) {
+                                action = brain.selectAction(possibleStates);
+                            } else {
+                                action = selectBestState(possibleStates);
+                            }
                             int targetX = action[0];
                             int rotationCount = action[1];
+
                             int newStateIndex = targetX * ROTATION_OUTPUTS + rotationCount;
                             if (newStateIndex < possibleStates.length) {
                                 // Az új állapot és akció mentése
                                 lastState = possibleStates[newStateIndex];
                                 lastAction = action;
 
-                                // 6. Hajtsuk végre az akciót
+                                // 5. Akció végrehajtása
                                 stackManager.moveAndRotateTetrominoTo(
                                         stackManager.getStackArea(),
                                         stackManager.getCurrentTetromino(),
@@ -216,18 +237,22 @@ public class Tetris {
         }
         if (stackManager.getGameState() == GameState.GAMEOVER) {
             if (learning) {
-                brain.learn(
-                        lastState,
-                        lastAction,
-                        calculateReward(true),
-                        null,
-                        true,
-                        null
-                );
-                try {
-                    brain.saveToFile();
-                } catch (Exception e) {
-                    System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());
+                if (!TEST_ALGORITHM_ONLY) {
+                    brain.learn(
+                            lastState,
+                            lastAction,
+                            calculateReward(true),
+                            null,
+                            true,
+                            null
+                    );
+                }
+                if (brain.getEpisodeCount() % 50 == 0) {
+                    try {
+                        brain.saveToFile();
+                    } catch (Exception e) {
+                        System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());
+                    }
                 }
                 lastState = null;
                 lastAction = null;
@@ -296,15 +321,33 @@ public class Tetris {
         double reward;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
         if (!gameOver) {
-            int rows = stackManager.getAllFullRows();
-            reward = 1.0 + (rows * rows) * COLS;
-            reward -= stackMetrics.getMetricNumberOfHoles();
-            reward -= stackMetrics.getMetricNumberOfHoles() / (ROWS * COLS);
-            reward -= stackMetrics.getMetricBumpiness() / ROWS;
-            reward -= stackMetrics.getMetricMaxHeight() / ROWS;
-            return reward;
+
+            double rows = stackManager.getAllFullRows() - previousFullRows;
+            previousFullRows = rows;
+
+            reward = 1.0 + (rows * rows) * stackMetrics.getMetricMaxHeight();
+            reward -= stackMetrics.getMetricBumpiness();
+            reward -= stackMetrics.getMetricMaxHeight();
+            reward -= stackMetrics.getMetricSurroundedHoles();
+
+            /*
+            // Good
+            reward = 5.0 + (rows * rows) * stackMetrics.getMetricMaxHeight() * 2;
+            reward += stackMetrics.getMetricAccessibleEmptyCells() / 100;
+            reward += stackMetrics.getMetricNearlyFullRows() / 50;
+
+            // Bad
+            reward -= stackMetrics.getMetricBumpiness();
+            reward -= (stackMetrics.getMetricMaxHeight() - 14) * 2;
+            reward -= stackMetrics.getMetricBlockedRows();
+            reward -= stackMetrics.getMetricSurroundedHoles();
+            reward -= stackMetrics.getMetricAvgDensity() * 20;
+            //reward -= 0.5 * (stackMetrics.getMetricNumberOfHoles());
+             */
+            return 20 + reward;
         } else {
-            return -1;
+            previousFullRows = 0;
+            return -2.0;
         }
     }
 
@@ -319,4 +362,27 @@ public class Tetris {
         }
         return brain;
     }
+
+    private static int[] selectBestState(double[][] possibleStates) {
+        if (possibleStates == null || possibleStates.length == 0 || possibleStates[0].length < 3) {
+            throw new IllegalArgumentException("A bemeneti tömb érvénytelen! Legalább 3 oszlopra van szükség.");
+        }
+        double maxSum = Double.NEGATIVE_INFINITY;
+        int[] result = new int[2];
+
+        for (double[] possibleState : possibleStates) {
+            double currentSum = 0;
+            for (int i = 2; i < possibleState.length; i++) {
+                currentSum += possibleState[i];
+            }
+            if (currentSum > maxSum) {
+                maxSum = currentSum;
+                result[0] = (int) possibleState[0];
+                result[1] = (int) possibleState[1];
+            }
+        }
+
+        return result;
+    }
+
 }

@@ -17,6 +17,8 @@ public class StackMetrics implements StackComponent {
     private double metricSurroundingHoles;
     private double metricDroppedElements;
     private double metricAvgDensity;
+    private double metricAccessibleEmptyCells;
+    private int[] metricHighestOccupiedCell;
 
     public StackMetrics() {
     }
@@ -28,14 +30,17 @@ public class StackMetrics implements StackComponent {
      */
     public void calculateGameMetrics(Cell[][] stack) {
         metricBumpiness = calculateBumpiness(stack);
+
         metricMaxHeight = calculateMaxHeight(stack);
         metricColumnHeights = calculateColumnHeights(stack);
-        metricAvgColumnHeight = calculateAverageHeightDifference(stack);
-        metricSurroundingHoles = calculateHolesSurroundings(stack);
-        metricNumberOfHoles = countHoles(stack);
-        metricBlockedRows = countBlockedRows(stack);
-        metricNearlyFullRows = countNearlyFullRows(stack);
-        metricAvgDensity = calculateAverageDensity(stack);
+        //metricAvgColumnHeight = calculateAverageHeightDifference(stack);
+        metricSurroundingHoles = calculateHolesSurrounded(stack);
+        //metricNumberOfHoles = countHoles(stack);
+        //metricBlockedRows = countBlockedRows(stack);
+        //metricNearlyFullRows = countNearlyFullRows(stack);
+        //metricAvgDensity = calculateAverageDensity(stack);
+        //metricAccessibleEmptyCells = countAccessibleEmptyCells(stack);
+        //metricHighestOccupiedCell = calculateHighestOccupiedCells(stack);
     }
 
     private int countHoles(Cell[][] stack) {
@@ -77,41 +82,57 @@ public class StackMetrics implements StackComponent {
                 }
             }
             if (isEmpty) {
-                return row;
+                //return row;
+                return GameConstans.ROWS - 1 - row;
             }
         }
-        return GameConstans.ROWS;
+        //return GameConstans.ROWS;
+        return 0;
     }
 
     private int countAccessibleEmptyCells(Cell[][] stack) {
         int accessibleEmptyCells = 0;
         boolean[] columnBlocked = new boolean[GameConstans.COLS];
-        for (int row = 0; row < GameConstans.ROWS; row++) {
+        int blockedColumns = 0;
+
+        for (int row = GameConstans.ROWS - 1; row >= 0; row--) {  // Lentről felfelé haladunk
             for (int col = 0; col < GameConstans.COLS; col++) {
-                if (stack[row][col].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId() && !columnBlocked[col]) {
-                    accessibleEmptyCells++;
-                } else if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
-                    columnBlocked[col] = true;
+                if (!columnBlocked[col]) {
+                    if (stack[row][col].getTetrominoId() == TetrominoType.EMPTY.getTetrominoTypeId()) {
+                        accessibleEmptyCells++;
+                    } else {
+                        columnBlocked[col] = true;
+                        blockedColumns++;
+                    }
                 }
+            }
+            // Ha minden oszlop blokkolttá vált, megszakítjuk a ciklust
+            if (blockedColumns == GameConstans.COLS) {
+                break;
             }
         }
         return accessibleEmptyCells;
     }
 
     private double calculateBumpiness(Cell[][] stack) {
-        int[] columnHeights = new int[GameConstans.COLS];
-        for (int col = 0; col < GameConstans.COLS; col++) {
-            for (int row = 0; row < GameConstans.ROWS; row++) {
+        int[] columnHeights = new int[stack[0].length];
+
+        for (int col = 0; col < stack[0].length; col++) {
+            // Soronként fentről lefelé
+            for (int row = 0; row < stack.length; row++) {
                 if (stack[row][col].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
-                    columnHeights[col] = GameConstans.ROWS - row;
+                    columnHeights[col] = stack.length - row;
                     break;
                 }
             }
         }
+
         double bumpiness = 0;
-        for (int i = 0; i < GameConstans.COLS - 1; i++) {
-            bumpiness += Math.abs(columnHeights[i] - columnHeights[i + 1]);
+        for (int i = 0; i < columnHeights.length - 1; i++) {
+            int diff = Math.abs(columnHeights[i] - columnHeights[i + 1]);
+            bumpiness += diff;
         }
+
         return bumpiness;
     }
 
@@ -131,7 +152,7 @@ public class StackMetrics implements StackComponent {
         return maxHeight;
     }
 
-    private int[] getHighestOccupiedCells(Cell[][] stack) {
+    private int[] calculateHighestOccupiedCells(Cell[][] stack) {
         int[] highestOccupied = new int[GameConstans.COLS];
         for (int col = 0; col < GameConstans.COLS; col++) {
             highestOccupied[col] = -1;
@@ -162,7 +183,7 @@ public class StackMetrics implements StackComponent {
             }
 
             if (foundNonEmptyRow) {
-                if (filledCells >= GameConstans.COLS - 3 && filledCells < GameConstans.COLS) {
+                if (filledCells >= GameConstans.COLS - 1 && filledCells < GameConstans.COLS) {
                     nearlyFullRows++;
                 }
 
@@ -235,7 +256,7 @@ public class StackMetrics implements StackComponent {
         return averageDifference / GameConstans.ROWS;
     }
 
-    private int calculateHolesSurroundings(Cell[][] stack) {
+    private int calculateHolesSurrounded(Cell[][] stack) {
         int surroundings = 0;
         for (int j = 0; j < GameConstans.COLS; j++) {
             boolean blockAbove = false;
@@ -297,6 +318,18 @@ public class StackMetrics implements StackComponent {
 
     public void setMetricDroppedElements(double metricDroppedElements) {
         this.metricDroppedElements = metricDroppedElements;
+    }
+
+    public double getMetricAccessibleEmptyCells() {
+        return metricAccessibleEmptyCells;
+    }
+
+    public int[] getMetricHighestOccupiedCell() {
+        return metricHighestOccupiedCell;
+    }
+
+    public double getMetricSurroundingHoles() {
+        return metricSurroundingHoles;
     }
 
     @Override

@@ -1,10 +1,6 @@
 package hu.nye.vpe.tetris;
 
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.util.Random;
 
@@ -224,60 +220,64 @@ public class StackUI implements GameElement, StackComponent {
 
     private void renderBorderBlock(Graphics2D g2D, int x, int y, boolean isVertical) {
         int size = GameConstans.BLOCK_SIZE;
-        int quarterSize = size / 2;
-        int gap = 2;
+        int margin = 1;
 
+        // Sötét, félig átlátszó színek - még finomabb különbségekkel
         Color baseColor = new Color(70, 70, 70, 180);
-        Color lightColor = new Color(90, 90, 90, 160);
-        Color highlightColor = new Color(110, 110, 110, 140);
-        Color shadowColor = new Color(50, 50, 50, 200);
+        Color lighterColor = new Color(85, 85, 85, 180);  // Kevésbé világos
+        Color darkerColor = new Color(55, 55, 55, 180);   // Kevésbé sötét
 
-        g2D.setColor(shadowColor);
-        g2D.fillRect(x, y, size, size);
+        // Antialiasing bekapcsolása
+        g2D.setRenderingHint(
+                RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON
+        );
 
-        int[][] quarters = {
-                {x + gap, y + gap},
-                {x + quarterSize, y + gap},
-                {x + gap, y + quarterSize},
-                {x + quarterSize, y + quarterSize}
-        };
+        // Alap blokk háttér
+        g2D.setColor(baseColor);
+        g2D.fillRect(x + margin, y + margin, size - 2*margin, size - 2*margin);
 
-        for (int k = 0; k < 4; k++) {
-            int qx = quarters[k][0];
-            int qy = quarters[k][1];
+        // Enyhe felső fényes gradiens
+        GradientPaint topGradient = new GradientPaint(
+                x + size/2f, y,
+                new Color(100, 100, 100, 40),  // Gyengébb fény
+                x + size/2f, y + size/2f,
+                new Color(70, 70, 70, 0)
+        );
+        g2D.setPaint(topGradient);
+        g2D.fillRect(x + margin, y + margin, size - 2*margin, size/2);
 
-            g2D.setColor(baseColor);
-            g2D.fill3DRect(qx, qy, quarterSize - gap, quarterSize - gap, true);
+        // Nagyon enyhe oldalsó árnyékolás
+        GradientPaint rightShade = new GradientPaint(
+                x + size*0.7f, y,
+                new Color(0, 0, 0, 0),
+                x + size - margin, y,
+                new Color(0, 0, 0, 30)  // Gyengébb árnyék
+        );
+        g2D.setPaint(rightShade);
+        g2D.fillRect(x + margin, y + margin, size - 2*margin, size - 2*margin);
 
-            if (isVertical) {
-                g2D.setColor(lightColor);
-                g2D.drawLine(
-                        qx + quarterSize - gap - 8,
-                        qy + 4,
-                        qx + 4,
-                        qy + quarterSize - gap - 8
-                );
-            } else {
-                g2D.setColor(lightColor);
-                g2D.drawLine(
-                        qx + 4,
-                        qy + 4,
-                        qx + quarterSize - gap - 8,
-                        qy + quarterSize - gap - 8
-                );
-            }
+        // Vékonyabb keret
+        g2D.setStroke(new BasicStroke(1.0f));  // Vékonyabb vonalak
 
-            g2D.setColor(highlightColor);
-            g2D.fillOval(qx + 3, qy + 3, 2, 2);
-        }
+        // Világos élek (felső, bal)
+        g2D.setColor(lighterColor);
+        g2D.drawLine(x + margin, y + margin, x + size - margin, y + margin);
+        g2D.drawLine(x + margin, y + margin, x + margin, y + size - margin);
 
-        int centerSize = 3;
-        g2D.setColor(highlightColor);
+        // Sötét élek (jobb, alsó)
+        g2D.setColor(darkerColor);
+        g2D.drawLine(x + size - margin, y + margin, x + size - margin, y + size - margin);
+        g2D.drawLine(x + margin, y + size - margin, x + size - margin, y + size - margin);
+
+        // Nagyon enyhe fénypont a bal felső sarokban
+        int highlightSize = 2;  // Kisebb fénypont
+        g2D.setColor(new Color(100, 100, 100, 80));  // Halványabb fénypont
         g2D.fillOval(
-                x + size / 2 - centerSize / 2,
-                y + size / 2 - centerSize / 2,
-                centerSize,
-                centerSize
+                x + margin + 3,
+                y + margin + 3,
+                highlightSize,
+                highlightSize
         );
     }
 
@@ -396,151 +396,142 @@ public class StackUI implements GameElement, StackComponent {
 
     private void renderPulsingBlock(Graphics2D g2D, int x, int y, Color baseColor) {
         int size = GameConstans.BLOCK_SIZE;
-        int quarterSize = size / 2;
-        int gap = 2;
+        int margin = 1;
 
-        Color superBright = new Color(
-                Math.min(255, baseColor.getRed() + 100),
-                Math.min(255, baseColor.getGreen() + 100),
-                Math.min(255, baseColor.getBlue() + 100)
+        // Származtatott színek létrehozása - fordított árnyékolás a homorú hatásért
+        Color darkerColor = new Color(
+                Math.max(0, baseColor.getRed() - 40),
+                Math.max(0, baseColor.getGreen() - 40),
+                Math.max(0, baseColor.getBlue() - 40)
         );
-        Color bright = new Color(
-                Math.min(255, baseColor.getRed() + 70),
-                Math.min(255, baseColor.getGreen() + 70),
-                Math.min(255, baseColor.getBlue() + 70)
-        );
-        Color glow = new Color(
+        Color lighterColor = new Color(
                 Math.min(255, baseColor.getRed() + 40),
                 Math.min(255, baseColor.getGreen() + 40),
                 Math.min(255, baseColor.getBlue() + 40)
         );
 
+        // Antialiasing bekapcsolása
+        g2D.setRenderingHint(
+                RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON
+        );
+
+        // Alap blokk háttér
         g2D.setColor(baseColor);
-        g2D.fillRect(x, y, size, size);
+        g2D.fillRect(x + margin, y + margin, size - 2*margin, size - 2*margin);
 
-        int[][] quarters = {
-                {x + gap, y + gap},
-                {x + quarterSize, y + gap},
-                {x + gap, y + quarterSize},
-                {x + quarterSize, y + quarterSize}
-        };
+        // Alsó fényes gradiens (fordított a homorú hatásért)
+        GradientPaint bottomGradient = new GradientPaint(
+                x + size/2f, y + size,
+                new Color(255, 255, 255, 100),
+                x + size/2f, y + size/2f,
+                new Color(255, 255, 255, 0)
+        );
+        g2D.setPaint(bottomGradient);
+        g2D.fillRect(x + margin, y + size/2, size - 2*margin, size/2 - margin);
 
-        int centerX = x + size / 2;
-        int centerY = y + size / 2;
+        // Bal oldali árnyékolás (fordított)
+        GradientPaint leftShade = new GradientPaint(
+                x + size*0.3f, y,
+                new Color(0, 0, 0, 0),
+                x + margin, y,
+                new Color(0, 0, 0, 40)
+        );
+        g2D.setPaint(leftShade);
+        g2D.fillRect(x + margin, y + margin, size - 2*margin, size - 2*margin);
 
-        g2D.setColor(bright);
-        int crossWidth = 8;
-        g2D.fillRect(centerX - crossWidth / 2, y + gap, crossWidth, size - 2 * gap);
-        g2D.fillRect(x + gap, centerY - crossWidth / 2, size - 2 * gap, crossWidth);
+        // Finom keret - fordított árnyékolással a homorú hatásért
+        g2D.setStroke(new BasicStroke(1.5f));
 
-        for (int k = 0; k < 4; k++) {
-            int qx = quarters[k][0];
-            int qy = quarters[k][1];
+        // Sötét élek (felső, bal) - fordítva az alap blokkhoz képest
+        g2D.setColor(darkerColor);
+        g2D.drawLine(x + margin, y + margin, x + size - margin, y + margin);
+        g2D.drawLine(x + margin, y + margin, x + margin, y + size - margin);
 
-            g2D.setColor(glow);
-            g2D.fill3DRect(qx, qy, quarterSize - gap, quarterSize - gap, true);
+        // Világos élek (jobb, alsó) - fordítva az alap blokkhoz képest
+        g2D.setColor(lighterColor);
+        g2D.drawLine(x + size - margin, y + margin, x + size - margin, y + size - margin);
+        g2D.drawLine(x + margin, y + size - margin, x + size - margin, y + size - margin);
 
-            g2D.setColor(superBright);
-            int cornerSize = 8;
-
-            if (k == 0) {
-                g2D.fillArc(qx, qy, cornerSize * 2, cornerSize * 2, 90, 90);
-            } else if (k == 1) {
-                g2D.fillArc(qx + quarterSize - gap - cornerSize * 2, qy, cornerSize * 2, cornerSize * 2, 0, 90);
-            } else if (k == 2) {
-                g2D.fillArc(qx, qy + quarterSize - gap - cornerSize * 2, cornerSize * 2, cornerSize * 2, 180, 90);
-            } else {
-                g2D.fillArc(qx + quarterSize - gap - cornerSize * 2, qy + quarterSize - gap - cornerSize * 2, cornerSize * 2,
-                        cornerSize * 2, 270, 90);
-            }
-
-            int innerCornerX = k % 2 == 0 ? qx + quarterSize - gap - cornerSize : qx;
-            int innerCornerY = k < 2 ? qy + quarterSize - gap - cornerSize : qy;
-            g2D.fillArc(innerCornerX, innerCornerY, cornerSize, cornerSize,
-                    k == 0 ? 315 : k == 1 ? 225 : k == 2 ? 45 : 135, 90);
-        }
-
-        int centerSize = 12;
-        g2D.setColor(superBright);
-        g2D.fillOval(centerX - centerSize / 2, centerY - centerSize / 2, centerSize, centerSize);
-
-        g2D.setColor(new Color(superBright.getRed(), superBright.getGreen(), superBright.getBlue(), 150));
-        for (int angle = 45; angle < 360; angle += 90) {
-            double rad = Math.toRadians(angle);
-            int rayLength = quarterSize - gap;
-            g2D.drawLine(
-                    centerX,
-                    centerY,
-                    centerX + (int) (Math.cos(rad) * rayLength),
-                    centerY + (int) (Math.sin(rad) * rayLength)
-            );
-        }
+        // Fénypont a jobb alsó sarokban (fordítva az alap blokkhoz képest)
+        int highlightSize = 3;
+        g2D.setColor(new Color(255, 255, 255, 120));
+        g2D.fillOval(
+                x + size - margin - highlightSize - 3,
+                y + size - margin - highlightSize - 3,
+                highlightSize,
+                highlightSize
+        );
     }
 
     private void renderShinyBlock(Graphics2D g2D, int x, int y, Color baseColor) {
         int size = GameConstans.BLOCK_SIZE;
-        int quarterSize = size / 2;
-        int gap = 2;
+        int margin = 1; // Vékony margó a blokkok között
 
-        Color superLight = new Color(
-                Math.min(255, baseColor.getRed() + 80),
-                Math.min(255, baseColor.getGreen() + 80),
-                Math.min(255, baseColor.getBlue() + 80)
-        );
+        // Származtatott színek létrehozása
         Color lighterColor = new Color(
-                Math.min(255, baseColor.getRed() + 50),
-                Math.min(255, baseColor.getGreen() + 50),
-                Math.min(255, baseColor.getBlue() + 50)
+                Math.min(255, baseColor.getRed() + 40),
+                Math.min(255, baseColor.getGreen() + 40),
+                Math.min(255, baseColor.getBlue() + 40)
         );
         Color darkerColor = new Color(
-                Math.max(0, baseColor.getRed() - 20),
-                Math.max(0, baseColor.getGreen() - 20),
-                Math.max(0, baseColor.getBlue() - 20)
+                Math.max(0, baseColor.getRed() - 30),
+                Math.max(0, baseColor.getGreen() - 30),
+                Math.max(0, baseColor.getBlue() - 30)
         );
 
+        // Antialiasing bekapcsolása a szebb megjelenésért
+        g2D.setRenderingHint(
+                RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON
+        );
+
+        // Alap blokk háttér
         g2D.setColor(baseColor);
-        g2D.fillRect(x, y, size, size);
+        g2D.fillRect(x + margin, y + margin, size - 2*margin, size - 2*margin);
 
-        int[][] quarters = {
-                {x + gap, y + gap},
-                {x + quarterSize, y + gap},
-                {x + gap, y + quarterSize},
-                {x + quarterSize, y + quarterSize}
-        };
+        // Felső fényes gradiens
+        GradientPaint topGradient = new GradientPaint(
+                x + size/2f, y,
+                new Color(255, 255, 255, 100),
+                x + size/2f, y + size/2f,
+                new Color(255, 255, 255, 0)
+        );
+        g2D.setPaint(topGradient);
+        g2D.fillRect(x + margin, y + margin, size - 2*margin, size/2);
 
-        for (int k = 0; k < 4; k++) {
-            int qx = quarters[k][0];
-            int qy = quarters[k][1];
+        // Enyhe oldalsó árnyékolás
+        GradientPaint rightShade = new GradientPaint(
+                x + size*0.7f, y,
+                new Color(0, 0, 0, 0),
+                x + size - margin, y,
+                new Color(0, 0, 0, 40)
+        );
+        g2D.setPaint(rightShade);
+        g2D.fillRect(x + margin, y + margin, size - 2*margin, size - 2*margin);
 
-            g2D.setColor(lighterColor);
-            g2D.fill3DRect(qx, qy, quarterSize - gap, quarterSize - gap, true);
+        // Finom keret
+        g2D.setStroke(new BasicStroke(1.5f));
 
-            g2D.setColor(superLight);
-            int[] xpoints = {qx + 4, qx + quarterSize - gap - 4, qx + quarterSize - gap - 8, qx + 8};
-            int[] ypoints = {qy + 4, qy + quarterSize - gap - 4, qy + quarterSize - gap - 8, qy + 8};
-            g2D.fillPolygon(xpoints, ypoints, 4);
+        // Világos élek (felső, bal)
+        g2D.setColor(lighterColor);
+        g2D.drawLine(x + margin, y + margin, x + size - margin, y + margin);
+        g2D.drawLine(x + margin, y + margin, x + margin, y + size - margin);
 
-            g2D.fillOval(qx + 3, qy + 3, 5, 5);
+        // Sötét élek (jobb, alsó)
+        g2D.setColor(darkerColor);
+        g2D.drawLine(x + size - margin, y + margin, x + size - margin, y + size - margin);
+        g2D.drawLine(x + margin, y + size - margin, x + size - margin, y + size - margin);
 
-            g2D.setColor(darkerColor);
-            g2D.drawRect(qx, qy, quarterSize - gap - 1, quarterSize - gap - 1);
-        }
-
-        g2D.setColor(superLight);
-        int centerSize = 6;
-        g2D.fillOval(x + size / 2 - centerSize / 2, y + size / 2 - centerSize / 2, centerSize, centerSize);
-
-        g2D.setColor(new Color(superLight.getRed(), superLight.getGreen(), superLight.getBlue(), 150));
-        for (int angle = 0; angle < 360; angle += 45) {
-            double rad = Math.toRadians(angle);
-            int rayLength = 8;
-            g2D.drawLine(
-                    x + size / 2,
-                    y + size / 2,
-                    x + size / 2 + (int) (Math.cos(rad) * rayLength),
-                    y + size / 2 + (int) (Math.sin(rad) * rayLength)
-            );
-        }
+        // Fénypont a bal felső sarokban
+        int highlightSize = 3;
+        g2D.setColor(new Color(255, 255, 255, 120));
+        g2D.fillOval(
+                x + margin + 3,
+                y + margin + 3,
+                highlightSize,
+                highlightSize
+        );
     }
 
     /**
@@ -780,7 +771,7 @@ public class StackUI implements GameElement, StackComponent {
             infoStrB = "Blocked rows: " + String.format("%.0f", stackMetrics.getMetricBlockedRows());
             infoStrH = "Surrounding holes: " + String.format("%.0f", stackMetrics.getMetricSurroundedHoles());
             infoStrO = "Tetromino rotation: " + String.format("%.0f", stackManager.getTetrominoRotation());
-            infoStrD = "Dropped elements: " + String.format("%.0f", stackMetrics.getMetricDroppedElements());
+            infoStrD = "Dropped elements: " + String.format("%d", stackManager.getDroppedElements());
             infoStrV = "Average density: " + String.format("%.2f", stackMetrics.getMetricAvgDensity());
         } else {
             infoStrM = "M: Music On/Off";
