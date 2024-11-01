@@ -281,7 +281,6 @@ public class StackUI implements GameElement, StackComponent {
                         if (stackManager.getStackArea()[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                             if (stackManager.getStackArea()[i][j].getTetrominoId() == TetrominoType.ERASED.getTetrominoTypeId()) {
                                 if (stackManager.getGameState() == GameState.DELETINGROWS) {
-
                                     if (runMode != RunMode.TRAIN_AI) {
                                         if (!animationInitialized) {
                                             initializeExplosion(i);
@@ -299,13 +298,13 @@ public class StackUI implements GameElement, StackComponent {
                                             }
                                             if (allFaded) {
                                                 animationInitialized = false;
-                                                stackManager.clearRows();
                                                 stackManager.setGameState(GameState.RUNNING);
+                                                stackManager.clearRows();
                                             }
                                         }
                                     } else {
-                                        stackManager.clearRows();
                                         stackManager.setGameState(GameState.RUNNING);
+                                        stackManager.clearRows();
                                     }
                                 }
                             } else {
@@ -613,7 +612,7 @@ public class StackUI implements GameElement, StackComponent {
                 (GameConstans.STACK_H / 2 - textWidth / 2));
         if (levelTextAlpha > 0) {
             if (tickAnim) {
-                levelTextAlpha -= 2;
+                levelTextAlpha -= 4;
                 tickAnim = false;
             }
         } else {

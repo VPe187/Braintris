@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import hu.nye.vpe.nn.Activation;
 import hu.nye.vpe.nn.BatchNormParameters;
 import hu.nye.vpe.nn.WeightInitStrategy;
+import hu.nye.vpe.tetris.RunMode;
 
 /**
  * Global config class.
@@ -376,5 +377,20 @@ public class GlobalConfig {
 
     public double getPoinBumpiness() {
         return getDouble("POINT_BUMPINESS", -1);
+    }
+
+    /**
+     * Get run mode from configuration.
+     *
+     * @return RunMode value based on configuration, defaulting to TRAIN_AI if not found or invalid.
+     */
+    public RunMode getRunMode() {
+        String runModeString = getString("RUNMODE", "HUMAN");
+        try {
+            return RunMode.valueOf(runModeString);
+        } catch (IllegalArgumentException e) {
+            System.err.println("Warning: Invalid RUNMODE value: " + runModeString + ". Defaulting to TRAIN_AI.");
+            return RunMode.HUMAN;
+        }
     }
 }

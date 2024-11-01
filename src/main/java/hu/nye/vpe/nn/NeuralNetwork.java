@@ -403,6 +403,10 @@ public class NeuralNetwork implements Serializable {
     }
 
     private void updateMovingAverage(double reward) {
+        if (Double.isNaN(reward)) {
+            return;
+        }
+
         recentRewards.add(reward);
         if (recentRewards.size() > MOVING_AVERAGE_WINDOW) {
             recentRewards.remove(0);
@@ -414,7 +418,7 @@ public class NeuralNetwork implements Serializable {
         }
         movingAverage = sum / recentRewards.size();
 
-        if (movingAverage > maxMovingAverage) {
+        if (!Double.isNaN(movingAverage) && movingAverage > maxMovingAverage) {
             maxMovingAverage = movingAverage;
         }
     }

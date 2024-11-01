@@ -29,10 +29,6 @@ public class Tetris {
     private static final int ROTATION_OUTPUTS = 3;
     private static final long DROP_SPEED = 1L;
     private static final Boolean TEST_ALGORITHM_ONLY = false;
-    private static final double POINT_FULLROW = GlobalConfig.getInstance().getPointFullRow();
-    private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
-    private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
-    private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
 
     private RunMode runMode;
     private NeuralNetwork brain;
@@ -64,7 +60,7 @@ public class Tetris {
         tickAnim = new GameTimeTicker((runMode == RunMode.TRAIN_AI) ? 1 : 20);
         starField = new GameStarfield(width, height);
         tickPlay = new GameTimeTicker(speed / 10);
-        initializeComponents(runMode == RunMode.TRAIN_AI);
+        initializeComponents();
         this.gameInput = gameInput;
         if (runMode == RunMode.TRAIN_AI) {
             try {
@@ -90,7 +86,7 @@ public class Tetris {
         }
     }
 
-    private void initializeComponents(boolean learning) {
+    private void initializeComponents() {
         stackManager = new StackManager(runMode);
         stackUI = new StackUI(runMode);
         stackMetrics = new StackMetrics();
@@ -167,18 +163,17 @@ public class Tetris {
             if (stackManager.getGameState() == GameState.RUNNING) {
                 if (stackManager.getCurrentTetromino() == null) {
                     nextTetromino();
-
                     if (runMode == RunMode.TRAIN_AI) {
-                        TrainStep();
+                        trainStep();
                     }
-
                 } else {
                     stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino(), false);
                 }
             }
         }
 
-        if (tickPlay.tick() && action != null && action.length == 2 && stackManager.getCurrentTetromino() != null) {
+        if (runMode == RunMode.PLAY_AI && tickPlay.tick() && action != null && action.length == 2 &&
+                stackManager.getCurrentTetromino() != null) {
             int targetX = action[0];
             int targetRotation = action[1];
             if ((int) stackManager.getTetrominoRotation() != targetRotation) {
@@ -266,7 +261,7 @@ public class Tetris {
         }
     }
 
-    private void TrainStep() {
+    private void trainStep() {
         double reward = 0;
         if (!TEST_ALGORITHM_ONLY) {
             // 1. előző jutalom kiszámítása
@@ -346,10 +341,7 @@ public class Tetris {
         if (!gameOver) {
             double rows = stackManager.getAllFullRows() - previousFullRows;
             previousFullRows = rows;
-            reward = POINT_FULLROW * rows * stackMetrics.getMetricColumnHeightSum();
-            reward += POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
-            reward += POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
-            reward += POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
+            reward = 1 + Math.pow((rows + 1), 1.5);
             return reward;
         } else {
             previousFullRows = 0;

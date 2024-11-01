@@ -57,7 +57,7 @@ public class StackManager implements StackComponent {
     private final GameAudio audio = new GameAudio();
     private long startTime;
     private int droppedElements;
-    private int simFullRows = 0;
+    private int simFullRows;
 
     public StackManager(RunMode runMode) {
         this.runMode = runMode;
@@ -73,7 +73,7 @@ public class StackManager implements StackComponent {
         droppedElements = 0;
         gameState = GameState.RUNNING;
         startTime = System.currentTimeMillis();
-        currentSpeed = runMode == RunMode.TRAIN_AI ? LEARNING_START_SPEED : START_SPEED;
+        currentSpeed = runMode == RunMode.TRAIN_AI ? LEARNING_START_SPEED : START_SPEED * (runMode == RunMode.PLAY_AI  ? 10 : 1);
     }
 
     private void initializeStack() {
@@ -350,13 +350,13 @@ public class StackManager implements StackComponent {
      *
      * @return int fullRowNum
      */
-    protected int getFullRowsNum() {
+    protected int getFullRowsNum(Cell[][] stackArea) {
         int fullRowNum = 0;
         boolean isFull;
         for (Cell[] cells : stackArea) {
             isFull = true;
             for (Cell cell : cells) {
-                if (cell.getTetrominoId() == 0) {
+                if (cell.getTetrominoId() == EMPTY_CELL.getTetrominoId()) {
                     isFull = false;
                     break;
                 }
@@ -417,7 +417,6 @@ public class StackManager implements StackComponent {
         if (runMode != RunMode.TRAIN_AI) {
             audio.soundNextLevel();
             gameState = GameState.CHANGINGLEVEL;
-            //upSideDown = gameLevel % 2 != 1;
         }
     }
 
@@ -448,7 +447,7 @@ public class StackManager implements StackComponent {
             }
         }
         if (thereIsFullRow) {
-                gameState = GameState.DELETINGROWS;
+            gameState = GameState.DELETINGROWS;
             if (runMode != RunMode.TRAIN_AI) {
                 audio.soundClear();
             }
@@ -457,8 +456,9 @@ public class StackManager implements StackComponent {
 
     private void itemFalled(Cell[][] stackArea, Tetromino tetromino, Boolean isSimulation) {
         putTetromino(stackArea, tetromino);
-        boolean wasFullRow = getFullRowsNum() > 0;
-
+        int fullRowsNum = getFullRowsNum(stackArea);
+        simFullRows = fullRowsNum;
+        boolean wasFullRow = fullRowsNum > 0;
         if (!wasFullRow) {
             if (!isSimulation) {
                 if (runMode != RunMode.TRAIN_AI) {
@@ -536,7 +536,6 @@ public class StackManager implements StackComponent {
             }
             writeRow--;
         }
-        simFullRows = fullRows; // VPE
         updateScoreAndLevel(fullRows);
     }
 
@@ -553,7 +552,6 @@ public class StackManager implements StackComponent {
         gameScore += fullRows * ROW_SCORE;
         allFullRows += fullRows;
         noFullRows = Math.max(0, noFullRows - (fullRows * 2));
-
         if (allFullRows >= gameLevel * LEVEL_CHANGE_ROWS) {
             nextLevel();
         }
@@ -626,26 +624,12 @@ public class StackManager implements StackComponent {
                 while (!moveTetrominoDown(simStack, simTetromino, true)) {
                 }
 
-                int fullRows = 0;
-                for (int row = 0; row < ROWS; row++) {
-                    boolean isRowFull = true;
-                    for (int col = 0; col < COLS; col++) {
-                        if (stackArea[row][col].getTetrominoId() == TetrominoType.ERASED.getTetrominoTypeId()) {
-                            isRowFull = false;
-                            break;
-                        }
-                    }
-                    if (isRowFull) {
-                        fullRows++;
-                    }
-                }
-
                 double[] state = new double[FEED_DATA_SIZE + 2];
 
                 metrics.calculateGameMetrics(simStack);
                 state[0] = x;
                 state[1] = rot;
-                state[2] = POINT_FULLROW * fullRows;
+                state[2] = POINT_FULLROW * simFullRows;
                 state[3] = POINT_HOLES * metrics.getMetricColumnHoleSum();
                 state[4] = POINT_BUMPINESS * metrics.getMetricBumpiness();
                 state[5] = POINT_HEIGHTS * metrics.getMetricColumnHeightSum();
