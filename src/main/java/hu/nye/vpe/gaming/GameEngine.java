@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferStrategy;
 
 import hu.nye.vpe.nn.Visualization;
+import hu.nye.vpe.tetris.RunMode;
 import hu.nye.vpe.tetris.Tetris;
 
 /**
@@ -21,17 +22,17 @@ public class GameEngine implements Runnable {
     private Thread thread;
     private final Tetris tetris;
     private GameElement nnVisualization;
-    private boolean learning;
+    private RunMode runMode;
 
-    public GameEngine(String title, int width, int height, boolean learning) {
-        this.learning = learning;
+    public GameEngine(String title, int width, int height, RunMode runMode) {
+        this.runMode = runMode;
         this.fullWidth = width;
-        this.gameWidth = learning ? width / 2 : width;
+        this.gameWidth = runMode == RunMode.TRAIN_AI ? width / 2 : width;
         this.height = height;
         this.title = title;
         gameDisplay = new GameDisplay(title, this.fullWidth, height);
-        tetris = new Tetris(gameWidth, height, gameDisplay.getInput(), learning);
-        if (learning) {
+        tetris = new Tetris(gameWidth, height, gameDisplay.getInput(), this.runMode);
+        if (runMode == RunMode.TRAIN_AI) {
             nnVisualization = new Visualization(tetris.getBrain(), gameWidth, height);
         }
     }
@@ -67,7 +68,7 @@ public class GameEngine implements Runnable {
 
     private void update() {
         tetris.update();
-        if (learning) {
+        if (runMode == RunMode.TRAIN_AI) {
             nnVisualization.update();
         }
     }
@@ -84,7 +85,7 @@ public class GameEngine implements Runnable {
         graphics2D.fillRect(0, 0, gameWidth, height);
         tetris.render(graphics2D);
         graphics2D.translate(gameWidth, 0);
-        if (learning) {
+        if (runMode == RunMode.TRAIN_AI) {
             nnVisualization.render(graphics2D);
         }
         bs.show();

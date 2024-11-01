@@ -20,12 +20,6 @@ import hu.nye.vpe.nn.WeightInitStrategy;
 public class Tetris {
     private static final int ROWS = 24;
     private static final int COLS = 12;
-
-    private static final double POINT_FULLROW = GlobalConfig.getInstance().getPointFullRow();
-    private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
-    private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
-    private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
-
     private static final String[] LAYER_NAMES = GlobalConfig.getInstance().getLayerNames();
     private static final int[] LAYER_SIZES = GlobalConfig.getInstance().getLayerSizes();
     private static final Activation[] LAYER_ACTIVATIONS = GlobalConfig.getInstance().getLayerActivations();
@@ -35,7 +29,12 @@ public class Tetris {
     private static final int ROTATION_OUTPUTS = 3;
     private static final long DROP_SPEED = 1L;
     private static final Boolean TEST_ALGORITHM_ONLY = false;
+    private static final double POINT_FULLROW = GlobalConfig.getInstance().getPointFullRow();
+    private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
+    private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
+    private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
 
+    private RunMode runMode;
     private NeuralNetwork brain;
     private static final long speed = 1000L;
     private final long learningSpeed = 1L;
@@ -47,25 +46,27 @@ public class Tetris {
     private GameTimeTicker tickDown;
     private final GameTimeTicker tickBackground;
     private final GameTimeTicker tickControl;
+    private final GameTimeTicker tickPlay;
     private final GameTimeTicker tickAnim;
     private final GameStarfield starField;
     private static final GameAudio gameAudio = new GameAudio();
     private final GameInput gameInput;
     private boolean musicOn = true;
-    private final boolean learning;
     private double[] lastState;
     private int[] lastAction;
     private double previousFullRows = 0;
+    int[] action;
 
-    public Tetris(int width, int height, GameInput gameInput, boolean learning) {
+    public Tetris(int width, int height, GameInput gameInput, RunMode runMode) {
+        this.runMode = runMode;
         tickBackground = new GameTimeTicker(80);
-        tickControl = new GameTimeTicker((learning) ? 1 : 20);
-        tickAnim = new GameTimeTicker((learning) ? 1 : 20);
+        tickControl = new GameTimeTicker((runMode == RunMode.TRAIN_AI) ? 1 : 20);
+        tickAnim = new GameTimeTicker((runMode == RunMode.TRAIN_AI) ? 1 : 20);
         starField = new GameStarfield(width, height);
-        initializeComponents(learning);
+        tickPlay = new GameTimeTicker(speed / 10);
+        initializeComponents(runMode == RunMode.TRAIN_AI);
         this.gameInput = gameInput;
-        this.learning = learning;
-        if (this.learning) {
+        if (runMode == RunMode.TRAIN_AI) {
             try {
                 brain = NeuralNetwork.loadFromFile();
             } catch (Exception e) {
@@ -80,11 +81,18 @@ public class Tetris {
                 );
             }
         }
+        if (runMode == RunMode.PLAY_AI) {
+            try {
+                brain = NeuralNetwork.loadFromFile();
+            } catch (Exception e) {
+                System.out.println("Nem sikerült a hálózat betöltése: " + e.getMessage());
+            }
+        }
     }
 
     private void initializeComponents(boolean learning) {
-        stackManager = new StackManager(learning);
-        stackUI = new StackUI(learning);
+        stackManager = new StackManager(runMode);
+        stackUI = new StackUI(runMode);
         stackMetrics = new StackMetrics();
         stackManager.initializeStackComponents(stackUI, stackManager, stackMetrics);
         stackMetrics.initializeStackComponents(stackUI, stackManager, stackMetrics);
@@ -97,7 +105,7 @@ public class Tetris {
      */
     public void start() {
         stackManager.nextIteration();
-        if (learning) {
+        if (runMode == RunMode.TRAIN_AI) {
             stackManager.setCurrentSpeed(learningSpeed);
         } else {
             stackManager.setCurrentSpeed(speed);
@@ -105,8 +113,9 @@ public class Tetris {
         GameColorPalette.getInstance().setRandomPalette();
         starField.setColorPalette(GameColorPalette.getInstance().getCurrentPalette());
         tickDown = new GameTimeTicker(stackManager.getCurrentSpeed());
+        tickPlay.setPeriodMilliSecond(stackManager.getCurrentSpeed() / 10);
         nextTetromino = createNextTetromino();
-        if (!learning) {
+        if (runMode != RunMode.TRAIN_AI) {
             gameAudio.musicBackgroundPlay();
         }
         musicOn = true;
@@ -120,6 +129,16 @@ public class Tetris {
         Tetromino currentTetromino = nextTetromino;
         nextTetromino = createNextTetromino();
         stackManager.setTetrominos(currentTetromino, nextTetromino);
+
+        if (runMode == RunMode.PLAY_AI) {
+            StackMetrics metrics = new StackMetrics();
+            double[][] possibleStates = stackManager.simulateAllPossibleActions(
+                    stackManager.getStackArea(),
+                    stackManager.getCurrentTetromino(),
+                    metrics
+            );
+            action = brain.selectAction(possibleStates);
+        }
     }
 
     private Tetromino createNextTetromino() {
@@ -136,11 +155,11 @@ public class Tetris {
      * Update.
      */
     public void update() {
-        if (tickBackground.tick() && !learning) {
+        if (tickBackground.tick() && runMode != RunMode.TRAIN_AI) {
             starField.update();
         }
-        if (tickControl.tick()) {
-            if (!learning) {
+        if (runMode == RunMode.HUMAN) {
+            if (tickControl.tick()) {
                 handleInput();
             }
         }
@@ -149,73 +168,36 @@ public class Tetris {
                 if (stackManager.getCurrentTetromino() == null) {
                     nextTetromino();
 
-                    if (learning) {
-                        double reward = 0;
-                        if (!TEST_ALGORITHM_ONLY) {
-                            // 1. előző jutalom kiszámítása
-                            if (lastState != null && lastAction != null) {
-                                stackMetrics.calculateGameMetrics(stackManager.getStackArea());
-                                reward = calculateReward(false);
-                            }
-                        }
-
-                        // 2. Új állapotok kiszámítása
-                        StackMetrics metrics = new StackMetrics();
-                        double[][] possibleStates = stackManager.simulateAllPossibleActions(
-                                stackManager.getStackArea(),
-                                stackManager.getCurrentTetromino(),
-                                metrics
-                        );
-
-                        if (!TEST_ALGORITHM_ONLY) {
-                            // 3. Tanuljunk az előző akcióból (ha volt)
-                            if (lastState != null && lastAction != null) {
-                                brain.learn(
-                                        lastState,
-                                        lastAction,
-                                        reward,
-                                        possibleStates.length > 0 ? possibleStates[0] : null,
-                                        false,
-                                        possibleStates
-                                );
-                            }
-                        }
-
-                        // 4. Válasszuk ki az új akciót
-                        int[] action;
-                        if (possibleStates.length > 0) {
-                            if (!TEST_ALGORITHM_ONLY) {
-                                action = brain.selectAction(possibleStates);
-                            } else {
-                                action = selectBestState(possibleStates);
-                            }
-                            int targetX = action[0];
-                            int rotationCount = action[1];
-
-                            int newStateIndex = targetX * ROTATION_OUTPUTS + rotationCount;
-                            if (newStateIndex < possibleStates.length) {
-                                // 5. Az új állapot és akció mentése
-                                lastState = possibleStates[newStateIndex];
-                                lastAction = action;
-
-                                // 6. Akció végrehajtása
-                                stackManager.moveAndRotateTetrominoTo(
-                                        stackManager.getStackArea(),
-                                        stackManager.getCurrentTetromino(),
-                                        targetX,
-                                        rotationCount
-                                );
-                                stackMetrics.calculateGameMetrics(stackManager.getStackArea());
-                            }
-                        }
+                    if (runMode == RunMode.TRAIN_AI) {
+                        TrainStep();
                     }
+
                 } else {
                     stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino(), false);
                 }
             }
         }
+
+        if (tickPlay.tick() && action != null && action.length == 2 && stackManager.getCurrentTetromino() != null) {
+            int targetX = action[0];
+            int targetRotation = action[1];
+            if ((int) stackManager.getTetrominoRotation() != targetRotation) {
+                stackManager.rotateTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
+            }
+            if (stackManager.getCurrentTetromino().getStackCol() != targetX) {
+                int moveDirection = Integer.compare(targetX, stackManager.getCurrentTetromino().getStackCol());
+                if (moveDirection > 0) {
+                    stackManager.moveTetrominoRight(stackManager.getStackArea(), stackManager.getCurrentTetromino());
+                }
+                if (moveDirection < 0) {
+                    stackManager.moveTetrominoLeft(stackManager.getStackArea(), stackManager.getCurrentTetromino());
+                }
+            }
+            stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino(), false);
+        }
+
         if (stackManager.getGameState() == GameState.GAMEOVER) {
-            if (learning) {
+            if (runMode == RunMode.TRAIN_AI) {
                 if (!TEST_ALGORITHM_ONLY) {
                     brain.learn(
                             lastState,
@@ -225,17 +207,18 @@ public class Tetris {
                             true,
                             null
                     );
-                }
-                if (brain.getEpisodeCount() % 50 == 0) {
-                    try {
-                        brain.saveToFile();
-                    } catch (Exception e) {
-                        System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());
+                    if (brain.getEpisodeCount() % 50 == 0) {
+                        try {
+                            brain.saveToFile();
+                        } catch (Exception e) {
+                            System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());
+                        }
                     }
+                    lastState = null;
+                    lastAction = null;
+                    start();
                 }
-                lastState = null;
-                lastAction = null;
-                start();
+
             }
         }
     }
@@ -283,13 +266,74 @@ public class Tetris {
         }
     }
 
+    private void TrainStep() {
+        double reward = 0;
+        if (!TEST_ALGORITHM_ONLY) {
+            // 1. előző jutalom kiszámítása
+            if (lastState != null && lastAction != null) {
+                stackMetrics.calculateGameMetrics(stackManager.getStackArea());
+                reward = calculateReward(false);
+            }
+        }
+
+        // 2. Új állapotok kiszámítása
+        StackMetrics metrics = new StackMetrics();
+        double[][] possibleStates = stackManager.simulateAllPossibleActions(
+                stackManager.getStackArea(),
+                stackManager.getCurrentTetromino(),
+                metrics
+        );
+
+        if (!TEST_ALGORITHM_ONLY) {
+            // 3. Tanuljunk az előző akcióból (ha volt)
+            if (lastState != null && lastAction != null) {
+                brain.learn(
+                        lastState,
+                        lastAction,
+                        reward,
+                        possibleStates.length > 0 ? possibleStates[0] : null,
+                        false,
+                        possibleStates
+                );
+            }
+        }
+
+        // 4. Válasszuk ki az új akciót
+        int[] action;
+        if (possibleStates.length > 0) {
+            if (!TEST_ALGORITHM_ONLY) {
+                action = brain.selectAction(possibleStates);
+            } else {
+                action = selectBestState(possibleStates);
+            }
+            int targetX = action[0];
+            int targetRotation = action[1];
+
+            int newStateIndex = targetX * ROTATION_OUTPUTS + targetRotation;
+            if (newStateIndex < possibleStates.length) {
+                // 5. Az új állapot és akció mentése
+                lastState = possibleStates[newStateIndex];
+                lastAction = action;
+
+                // 6. Akció végrehajtása
+                stackManager.moveAndRotateTetrominoTo(
+                        stackManager.getStackArea(),
+                        stackManager.getCurrentTetromino(),
+                        targetX,
+                        targetRotation
+                );
+                stackMetrics.calculateGameMetrics(stackManager.getStackArea());
+            }
+        }
+    }
+
     /**
      * Render.
      *
      * @param g2d Graphics2D
      */
     public void render(Graphics2D g2d) {
-        if (!learning) {
+        if (runMode != RunMode.TRAIN_AI) {
             starField.render(g2d);
         }
         stackUI.setTickAnim(tickAnim.tick());
@@ -302,7 +346,7 @@ public class Tetris {
         if (!gameOver) {
             double rows = stackManager.getAllFullRows() - previousFullRows;
             previousFullRows = rows;
-            reward = POINT_FULLROW * rows;
+            reward = POINT_FULLROW * rows * stackMetrics.getMetricColumnHeightSum();
             reward += POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
             reward += POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
             reward += POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
@@ -319,7 +363,7 @@ public class Tetris {
      * @return neural network
      */
     public NeuralNetwork getBrain() {
-        if (!learning) {
+        if (runMode != RunMode.TRAIN_AI) {
             throw new IllegalStateException("Neural network is not available when learning is disabled.");
         }
         return brain;

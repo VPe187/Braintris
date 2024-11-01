@@ -23,7 +23,6 @@ public class StackUI implements GameElement, StackComponent {
     private boolean upSideDown;
     private boolean tickAnim;
     private int levelTextAlpha = 200;
-    private final boolean learning;
 
     private GamePanel nextPanel;
     private GamePanel penaltyPanel;
@@ -44,10 +43,11 @@ public class StackUI implements GameElement, StackComponent {
     private static final int PARTICLE_COUNT = 8;
     private static final float ALPHA_DECREASE_RATE = 15f;
     private static final float ROTATION_SPEED = 15.0f;
+    private RunMode runMode;
 
 
-    public StackUI(boolean learning) {
-        this.learning = learning;
+    public StackUI(RunMode runMode) {
+        this.runMode = runMode;
         initGameElement();
         initExplosionArrays();
     }
@@ -130,7 +130,7 @@ public class StackUI implements GameElement, StackComponent {
     private void initInfoPanel() {
         int panelX = GameConstans.STACK_W + 4 * GameConstans.BLOCK_SIZE;
         int infoPanelOffsetY = GameConstans.BLOCK_SIZE * 16;
-        int infoPanelHeight = ((learning) ? 7 : 3) * GameConstans.BLOCK_SIZE;
+        int infoPanelHeight = ((runMode == RunMode.TRAIN_AI) ? 7 : 3) * GameConstans.BLOCK_SIZE;
         int panelWidth = 6 * GameConstans.BLOCK_SIZE;
         int panelBorderWidth = 5;
         Color panelColor = new Color(30, 30, 30, 100);
@@ -167,7 +167,7 @@ public class StackUI implements GameElement, StackComponent {
         renderPenaltyPanel(g2D);
         renderLevelPanel(g2D);
         renderInfoPanel(g2D);
-        if (!learning) {
+        if (runMode != RunMode.TRAIN_AI) {
             renderStatisticPanel(g2D);
         }
 
@@ -281,29 +281,31 @@ public class StackUI implements GameElement, StackComponent {
                         if (stackManager.getStackArea()[i][j].getTetrominoId() != TetrominoType.EMPTY.getTetrominoTypeId()) {
                             if (stackManager.getStackArea()[i][j].getTetrominoId() == TetrominoType.ERASED.getTetrominoTypeId()) {
                                 if (stackManager.getGameState() == GameState.DELETINGROWS) {
-                                    if (!animationInitialized) {
-                                        initializeExplosion(i);
-                                    }
 
-                                    renderExplosion(g2D, i, j);
-
-                                    if (tickAnim) {
-                                        updateExplosionPhysics();
-                                        tickAnim = false;
-
-                                        boolean allFaded = true;
-                                        for (float alpha : blockAlpha) {
-                                            if (alpha > 0) {
-                                                allFaded = false;
-                                                break;
+                                    if (runMode != RunMode.TRAIN_AI) {
+                                        if (!animationInitialized) {
+                                            initializeExplosion(i);
+                                        }
+                                        renderExplosion(g2D, i, j);
+                                        if (tickAnim) {
+                                            updateExplosionPhysics();
+                                            tickAnim = false;
+                                            boolean allFaded = true;
+                                            for (float alpha : blockAlpha) {
+                                                if (alpha > 0) {
+                                                    allFaded = false;
+                                                    break;
+                                                }
+                                            }
+                                            if (allFaded) {
+                                                animationInitialized = false;
+                                                stackManager.clearRows();
+                                                stackManager.setGameState(GameState.RUNNING);
                                             }
                                         }
-
-                                        if (allFaded) {
-                                            animationInitialized = false;
-                                            stackManager.setGameState(GameState.RUNNING);
-                                            stackManager.clearRows();
-                                        }
+                                    } else {
+                                        stackManager.clearRows();
+                                        stackManager.setGameState(GameState.RUNNING);
                                     }
                                 }
                             } else {
@@ -700,10 +702,10 @@ public class StackUI implements GameElement, StackComponent {
         String infoStrO;
         String infoStrD;
         String infoStrV;
-        if (learning) {
+        if (runMode == RunMode.TRAIN_AI) {
             stackMetrics.calculateGameMetrics(stackManager.getStackArea());
             infoStrM = "Height: " + stackMetrics.getMetricMaxHeight();
-            infoStrP = "Holes: " + stackMetrics.getMetricNumberOfHoles();
+            infoStrP = "Holes: " + stackMetrics.getMetricColumnHoleSum();
             infoStrC = "Bumpiness: " + String.format("%.0f", stackMetrics.getMetricBumpiness());
             infoStrR = "Iteration: " + stackManager.getIteration();
             infoStrA = "Height (avg): " + String.format("%.2f", stackMetrics.getMetricAvgColumnHeight());
@@ -730,18 +732,19 @@ public class StackUI implements GameElement, StackComponent {
         g2D.setFont(new Font(GameConstans.FONT_NAME, Font.PLAIN, stringHeight));
         g2D.setColor(Color.GRAY);
         int infoX;
-        if (learning) {
+        if (runMode == RunMode.TRAIN_AI) {
             infoX = infoPanel.getPanelX() + GameConstans.BLOCK_SIZE - 14;
         } else {
             infoX = infoPanel.getPanelX() + GameConstans.BLOCK_SIZE;
         }
         int infoY = infoPanel.getPanelY() + GameConstans.BLOCK_SIZE + GameConstans.BLOCK_SIZE / 2;
         int rowOffset = (GameConstans.BLOCK_SIZE / 2) + 2;
-        g2D.drawString(infoStrM, infoX, infoY + stringHeight - 5);
+        g2D.drawString(infoStrR, infoX, infoY + stringHeight - 5);
         g2D.drawString(infoStrP, infoX, infoY + rowOffset + stringHeight - 5);
         g2D.drawString(infoStrC, infoX, infoY + rowOffset * 2 + stringHeight - 5);
-        g2D.drawString(infoStrR, infoX, infoY + rowOffset * 3 + stringHeight - 5);
-        if (learning) {
+        g2D.drawString(infoStrM, infoX, infoY + rowOffset * 3 + stringHeight - 5);
+
+        if (runMode == RunMode.TRAIN_AI) {
             g2D.drawString(infoStrA, infoX, infoY + rowOffset * 4 + stringHeight - 5);
             g2D.drawString(infoStrN, infoX, infoY + rowOffset * 5 + stringHeight - 5);
             g2D.drawString(infoStrB, infoX, infoY + rowOffset * 6 + stringHeight - 5);

@@ -43,7 +43,7 @@ public class StackManager implements StackComponent {
     private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
 
     private final Cell[][] stackArea = new Cell[ROWS][COLS];
-    private final boolean learning;
+    private final RunMode runMode;
     private Tetromino currentTetromino;
     private Tetromino nextTetromino;
     private GameState gameState;
@@ -59,8 +59,8 @@ public class StackManager implements StackComponent {
     private int droppedElements;
     private int simFullRows = 0;
 
-    public StackManager(boolean learning) {
-        this.learning = learning;
+    public StackManager(RunMode runMode) {
+        this.runMode = runMode;
         iteration = 0;
     }
 
@@ -73,7 +73,7 @@ public class StackManager implements StackComponent {
         droppedElements = 0;
         gameState = GameState.RUNNING;
         startTime = System.currentTimeMillis();
-        currentSpeed = learning ? LEARNING_START_SPEED : START_SPEED;
+        currentSpeed = runMode == RunMode.TRAIN_AI ? LEARNING_START_SPEED : START_SPEED;
     }
 
     private void initializeStack() {
@@ -395,11 +395,11 @@ public class StackManager implements StackComponent {
 
     protected void checkPenalty() {
         if (noFullRows >= PENALTY_NO_FULL_ROW) {
-            if (!learning) {
+            if (runMode != RunMode.TRAIN_AI) {
                 audio.soundPenalty();
             }
             if (gameState != GameState.GAMEOVER) {
-                if (!learning) {
+                if (runMode != RunMode.TRAIN_AI) {
                     generatePenaltyRows(1); // Tanításhoz kikapcsolva
                 }
                 noFullRows = 0;
@@ -410,11 +410,11 @@ public class StackManager implements StackComponent {
     protected void nextLevel() {
         allFullRows = 0;
         if (currentSpeed >= SPEED_ACCELERATION) {
-            currentSpeed -= SPEED_ACCELERATION;
+            currentSpeed -= SPEED_ACCELERATION * (runMode == RunMode.PLAY_AI ? 100 : 1);
         }
         gameLevel++;
         noFullRows = 0;
-        if (!learning) {
+        if (runMode != RunMode.TRAIN_AI) {
             audio.soundNextLevel();
             gameState = GameState.CHANGINGLEVEL;
             //upSideDown = gameLevel % 2 != 1;
@@ -448,8 +448,8 @@ public class StackManager implements StackComponent {
             }
         }
         if (thereIsFullRow) {
-            gameState = GameState.DELETINGROWS;
-            if (!learning) {
+                gameState = GameState.DELETINGROWS;
+            if (runMode != RunMode.TRAIN_AI) {
                 audio.soundClear();
             }
         }
@@ -458,18 +458,21 @@ public class StackManager implements StackComponent {
     private void itemFalled(Cell[][] stackArea, Tetromino tetromino, Boolean isSimulation) {
         putTetromino(stackArea, tetromino);
         boolean wasFullRow = getFullRowsNum() > 0;
+
         if (!wasFullRow) {
-            if (!learning) {
-                audio.soundDown();
-            }
-            gameScore += tetromino.getScore() + (gameLevel * 10);
-            noFullRows++;
-            checkPenalty();
-            if (tetromino.getStackRow() <= ROW_OFFSET) {
-                gameState = GameState.GAMEOVER;
-                if (!learning) {
-                    audio.soundLose();
-                    audio.musicBackgroundStop();
+            if (!isSimulation) {
+                if (runMode != RunMode.TRAIN_AI) {
+                    audio.soundDown();
+                }
+                gameScore += tetromino.getScore() + (gameLevel * 10);
+                noFullRows++;
+                checkPenalty();
+                if (tetromino.getStackRow() <= ROW_OFFSET) {
+                    gameState = GameState.GAMEOVER;
+                    if (runMode != RunMode.TRAIN_AI) {
+                        audio.soundLose();
+                        audio.musicBackgroundStop();
+                    }
                 }
             }
         } else {
@@ -594,9 +597,8 @@ public class StackManager implements StackComponent {
      *
      * @param tetromino Investigated tetromino.
      *
-     *
      * @param metrics Metric object.
-
+     *
      * @return All possible position with score.
      */
     public double[][] simulateAllPossibleActions(Cell[][] stackArea, Tetromino tetromino, StackMetrics metrics) {
