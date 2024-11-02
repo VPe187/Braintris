@@ -1,6 +1,5 @@
 package hu.nye.vpe.nn;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,7 +8,7 @@ import hu.nye.vpe.GlobalConfig;
 /**
  * Layer class.
  */
-public class Layer implements Serializable {
+public class Layer {
     private static final double BETA1_MOMENTUM = GlobalConfig.getInstance().getBeta1Momentum();
     private static final double BETA2_RMSPROP = GlobalConfig.getInstance().getBeta2RmsProp();
     private static final double ADAM_MOMENTUM = GlobalConfig.getInstance().getAdamMomentum();
@@ -311,6 +310,10 @@ public class Layer implements Serializable {
 
     public List<Neuron> getNeurons() {
         return neurons;
+    }
+
+    public Activation getActivation() {
+        return activation;
     }
 
     /**

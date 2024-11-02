@@ -1,19 +1,15 @@
 package hu.nye.vpe.nn;
 
-import java.io.Serializable;
-import java.util.Arrays;
-
-
 /**
  * Neuron class.
  */
-public class Neuron implements Serializable {
+public class Neuron {
     private double[] weights;
     private double bias;
     private final Activation activation;
     private final WeightInitStrategy initStrategy;
     private final GradientClipper gradientClipper;
-    private final double lambdaL2;
+    private double lambdaL2;
     private double[] weightGradients; // New field
     private double biasGradient;
 
@@ -114,6 +110,14 @@ public class Neuron implements Serializable {
 
     public double getBias() {
         return bias;
+    }
+
+    public double getL2() {
+        return lambdaL2;
+    }
+
+    public void setL2(double lambdaL2) {
+        this.lambdaL2 = lambdaL2;
     }
 
     public void setBias(double bias) {

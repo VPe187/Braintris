@@ -1,11 +1,6 @@
 package hu.nye.vpe.nn;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -15,8 +10,7 @@ import hu.nye.vpe.GlobalConfig;
 /**
  * Neural network class.
  */
-public class NeuralNetwork implements Serializable {
-    private static final String FILENAME = GlobalConfig.getInstance().getBrainFilename();
+public class NeuralNetwork {
     private static final double CLIP_MIN = GlobalConfig.getInstance().getClipMin();
     private static final double CLIP_MAX = GlobalConfig.getInstance().getClipMax();
     private static final double CLIP_NORM = GlobalConfig.getInstance().getClipNorm();
@@ -72,8 +66,16 @@ public class NeuralNetwork implements Serializable {
     private final double[] historicalLayerSums;
     private final long[] layerActivationCounts;
 
+    private final NetworkPersistence persistence;
+
     public NeuralNetwork(String[] names, int[] layerSizes, Activation[] activations, WeightInitStrategy[] initStrategies,
                          BatchNormParameters[] batchNormParameters, double[] l2) {
+
+        this.persistence = new NetworkPersistence(
+                CLIP_MIN, CLIP_MAX, CLIP_NORM, GRADIENT_SCALE,
+                INITIAL_LEARNING_RATE, INITIAL_DISCOUNT_FACTOR, INITIAL_EPSILON
+        );
+
         if (layerSizes.length != activations.length + 1 ||
                 layerSizes.length != initStrategies.length + 1 ||
                 layerSizes.length != batchNormParameters.length + 1 ||
@@ -125,6 +127,28 @@ public class NeuralNetwork implements Serializable {
             historicalLayerSums[i] = 0.0;
             layerActivationCounts[i] = 0;
         }
+    }
+
+    public void saveNetworkStructure(String filename) throws IOException {
+        persistence.saveNetworkStructure(this, filename);
+    }
+
+    public void saveTrainingState(String filename) throws IOException {
+        persistence.saveTrainingState(this, filename);
+    }
+
+    public void loadNetworkStructure(String filename) throws IOException {
+        persistence.loadNetworkStructure(this, filename);
+    }
+
+    /**
+     * Load training state from JSON file.
+     *
+     * @param filename file name to load from
+     * @throws IOException if file cannot be read
+     */
+    public void loadTrainingState(String filename) throws IOException {
+        persistence.loadTrainingState(this, filename);
     }
 
     /**
@@ -578,32 +602,6 @@ public class NeuralNetwork implements Serializable {
     }
 
     /**
-     * Save class or brain data to file.
-     *
-     * @throws IOException file error
-     */
-    public void saveToFile() throws IOException {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILENAME))) {
-            oos.writeObject(this);
-        }
-    }
-
-    /**
-     * Load class or brain from file.
-     *
-     * @return class or brain
-     *
-     * @throws IOException file error
-     *
-     * @throws ClassNotFoundException class compatibility error
-     */
-    public static NeuralNetwork loadFromFile() throws IOException, ClassNotFoundException {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILENAME))) {
-            return (NeuralNetwork) ois.readObject();
-        }
-    }
-
-    /**
      * Get all weights for visualization.
      *
      * @return weights
@@ -756,5 +754,86 @@ public class NeuralNetwork implements Serializable {
             return Double.NEGATIVE_INFINITY;
         }
         return recentRewards.get(recentRewards.size() - 1);
+    }
+
+    public void setLearningRate(double learningRate) {
+        this.learningRate = learningRate;
+    }
+
+    public List<Double> getRecentRewards() {
+        return new ArrayList<>(recentRewards);
+    }
+
+    public double[] getHistoricalLayerMins() {
+        return historicalLayerMins.clone();
+    }
+
+    public double[] getHistoricalLayerMaxs() {
+        return historicalLayerMaxs.clone();
+    }
+
+    public double[] getHistoricalLayerSums() {
+        return historicalLayerSums.clone();
+    }
+
+    public long[] getLayerActivationCounts() {
+        return layerActivationCounts.clone();
+    }
+
+    public ExperienceReplay getExperienceReplay() {
+        return experienceReplay;
+    }
+
+    public void setDiscountFactor(double discountFactor) {
+        this.discountFactor = discountFactor;
+    }
+
+    public void setEpsilon(double epsilon) {
+        this.epsilon = epsilon;
+    }
+
+    public void setEpisodeCount(int episodeCount) {
+        this.episodeCount = episodeCount;
+    }
+
+    public void setBestReward(double bestReward) {
+        this.bestReward = bestReward;
+    }
+
+    public void setLastReward(double lastReward) {
+        this.lastReward = lastReward;
+    }
+
+    public void setMovingAverage(double movingAverage) {
+        this.movingAverage = movingAverage;
+    }
+
+    public void setMaxMovingAverage(double maxMovingAverage) {
+        this.maxMovingAverage = maxMovingAverage;
+    }
+
+    public void setRecentRewards(List<Double> recentRewards) {
+        this.recentRewards.clear();
+        this.recentRewards.addAll(recentRewards);
+    }
+
+    public void setRMS(double rms) {
+        this.rms = rms;
+    }
+
+    public void setMaxRMS(double maxRms) {
+        this.maxRms = maxRms;
+    }
+
+    public void setMaxQ(double maxQ) {
+        this.maxQ = maxQ;
+    }
+
+    public void setNextQ(double nextQ) {
+        this.nextQ = nextQ;
+    }
+
+    public void setLayerActivationCounts(long[] counts) {
+        System.arraycopy(counts, 0, this.layerActivationCounts, 0, Math.min(counts.length, this.layerActivationCounts.length));
     }
 }

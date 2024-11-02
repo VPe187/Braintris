@@ -48,6 +48,22 @@ public class ExperienceReplay implements Serializable {
         return batch;
     }
 
+    /**
+     * Get all experiences from memory.
+     *
+     * @return List of all experiences
+     */
+    public List<Experience> getExperiences() {
+        return new ArrayList<>(memory);
+    }
+
+    /**
+     * Clear all experiences from memory.
+     */
+    public void clear() {
+        memory.clear();
+    }
+
     public int size() {
         return memory.size();
     }

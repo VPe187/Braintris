@@ -634,6 +634,15 @@ public class StackManager implements StackComponent {
                 state[4] = POINT_BUMPINESS * metrics.getMetricBumpiness();
                 state[5] = POINT_HEIGHTS * metrics.getMetricColumnHeightSum();
 
+                state[6] = -0.25 * metrics.getMetricSurroundedHoles();
+                state[7] = -0.15 * metrics.getMetricMaxHeight();
+                state[8] = -0.20 * metrics.getMetricAvgDensity();
+                state[9] = -0.15 * metrics.getMetricBlockedRows();
+                state[10] = 0.10 * metrics.getMetricNearlyFullRows();
+                state[11] = 0.10 * metrics.getMetricAccessibleEmptyCells();
+
+
+
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
                         InputNormalizerMinmax normalizer = new InputNormalizerMinmax(FEED_DATA_SIZE + 2);

@@ -28,6 +28,10 @@ public class Tetris {
     private static final double[] L2_REGULARIZATION = GlobalConfig.getInstance().getL2Regularization();
     private static final int ROTATION_OUTPUTS = 3;
     private static final long DROP_SPEED = 1L;
+    private static final double POINT_FULLROW = GlobalConfig.getInstance().getPointFullRow();
+    private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
+    private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
+    private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
     private static final Boolean TEST_ALGORITHM_ONLY = false;
 
     private RunMode runMode;
@@ -64,7 +68,17 @@ public class Tetris {
         this.gameInput = gameInput;
         if (runMode == RunMode.TRAIN_AI) {
             try {
-                brain = NeuralNetwork.loadFromFile();
+                brain = new NeuralNetwork(
+                        LAYER_NAMES,
+                        LAYER_SIZES,
+                        LAYER_ACTIVATIONS,
+                        WEIGHT_INIT_STRATEGIES,
+                        BATCH_NORMS,
+                        L2_REGULARIZATION
+                );
+                brain.loadNetworkStructure("network.json");
+                brain.loadTrainingState("training.json");
+                System.out.println("Neural Network loaded successfully");
             } catch (Exception e) {
                 System.out.println("Creating new Neural Network");
                 brain = new NeuralNetwork(
@@ -79,7 +93,17 @@ public class Tetris {
         }
         if (runMode == RunMode.PLAY_AI) {
             try {
-                brain = NeuralNetwork.loadFromFile();
+                brain = new NeuralNetwork(
+                        LAYER_NAMES,
+                        LAYER_SIZES,
+                        LAYER_ACTIVATIONS,
+                        WEIGHT_INIT_STRATEGIES,
+                        BATCH_NORMS,
+                        L2_REGULARIZATION
+                );
+                brain.loadNetworkStructure("network.json");
+                brain.loadTrainingState("training.json");
+                System.out.println("Neural Network loaded successfully");
             } catch (Exception e) {
                 System.out.println("Nem sikerült a hálózat betöltése: " + e.getMessage());
             }
@@ -202,12 +226,14 @@ public class Tetris {
                             true,
                             null
                     );
-                    if (brain.getEpisodeCount() % 50 == 0) {
-                        try {
-                            brain.saveToFile();
-                        } catch (Exception e) {
-                            System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());
+
+                    try {
+                        if (brain.getEpisodeCount() % 100 == 0) {
+                            brain.saveNetworkStructure("network.json");
+                            brain.saveTrainingState("training.json");
                         }
+                    } catch (Exception e) {
+                        System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());
                     }
                     lastState = null;
                     lastAction = null;
@@ -341,7 +367,7 @@ public class Tetris {
         if (!gameOver) {
             double rows = stackManager.getAllFullRows() - previousFullRows;
             previousFullRows = rows;
-            reward = 1 + Math.pow((rows + 1), 1.5);
+            reward = Math.pow((rows + 1), 1.5);
             return reward;
         } else {
             previousFullRows = 0;
