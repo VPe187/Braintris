@@ -16,7 +16,7 @@ import hu.nye.vpe.tetris.RunMode;
  * Global config class.
  */
 public class GlobalConfig {
-    private static final String CONFIG_FILE = "config.properties";
+    private static final String CONFIG_FILE = "brain_config.cfg";
     private static GlobalConfig instance;
     private Properties properties;
 

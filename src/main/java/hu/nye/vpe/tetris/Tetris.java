@@ -28,10 +28,6 @@ public class Tetris {
     private static final double[] L2_REGULARIZATION = GlobalConfig.getInstance().getL2Regularization();
     private static final int ROTATION_OUTPUTS = 3;
     private static final long DROP_SPEED = 1L;
-    private static final double POINT_FULLROW = GlobalConfig.getInstance().getPointFullRow();
-    private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
-    private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
-    private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
     private static final Boolean TEST_ALGORITHM_ONLY = false;
 
     private RunMode runMode;
@@ -76,8 +72,8 @@ public class Tetris {
                         BATCH_NORMS,
                         L2_REGULARIZATION
                 );
-                brain.loadNetworkStructure("network.json");
-                brain.loadTrainingState("training.json");
+                brain.loadNetworkStructure("brain_network.json");
+                brain.loadTrainingState("brain_training.json");
                 System.out.println("Neural Network loaded successfully");
             } catch (Exception e) {
                 System.out.println("Creating new Neural Network");
@@ -101,8 +97,7 @@ public class Tetris {
                         BATCH_NORMS,
                         L2_REGULARIZATION
                 );
-                brain.loadNetworkStructure("network.json");
-                brain.loadTrainingState("training.json");
+                brain.loadNetworkStructure("brain_network.json");
                 System.out.println("Neural Network loaded successfully");
             } catch (Exception e) {
                 System.out.println("Nem sikerült a hálózat betöltése: " + e.getMessage());
@@ -229,8 +224,8 @@ public class Tetris {
 
                     try {
                         if (brain.getEpisodeCount() % 100 == 0) {
-                            brain.saveNetworkStructure("network.json");
-                            brain.saveTrainingState("training.json");
+                            brain.saveNetworkStructure("brain_network.json");
+                            brain.saveTrainingState("brain_training.json");
                         }
                     } catch (Exception e) {
                         System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());

@@ -37,3 +37,5 @@ build/
 
 /out/
 *.class
+
+brain_training.json
