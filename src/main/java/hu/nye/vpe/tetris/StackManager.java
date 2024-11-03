@@ -53,6 +53,7 @@ public class StackManager implements StackComponent {
     private int tetrominoRotation;
     private int noFullRows;
     private int allFullRows;
+    private int gameAllRows;
     private int gameScore;
     private int gameLevel = 0;
     private long currentSpeed;
@@ -72,6 +73,7 @@ public class StackManager implements StackComponent {
         gameLevel = 0;
         noFullRows = 0;
         allFullRows = 0;
+        gameAllRows = 0;
         droppedElements = 0;
         gameState = GameState.RUNNING;
         startTime = System.currentTimeMillis();
@@ -410,7 +412,7 @@ public class StackManager implements StackComponent {
     }
 
     protected void nextLevel() {
-        allFullRows = 0;
+        allFullRows = 0; // Szint váltásnál lenullázódik a sorok száma, ez az AI-nek baj lehet
         if (currentSpeed >= SPEED_ACCELERATION) {
             currentSpeed -= SPEED_ACCELERATION * (runMode == RunMode.PLAY_AI ? 100 : 1);
         }
@@ -460,6 +462,7 @@ public class StackManager implements StackComponent {
         putTetromino(stackArea, tetromino);
         int fullRowsNum = getFullRowsNum(stackArea);
         simFullRows = fullRowsNum;
+        gameAllRows += fullRowsNum;
         boolean wasFullRow = fullRowsNum > 0;
         if (!wasFullRow) {
             if (!isSimulation) {
@@ -636,8 +639,8 @@ public class StackManager implements StackComponent {
                 state[4] = POINT_BUMPINESS * metrics.getMetricBumpiness();
                 state[5] = POINT_HEIGHTS * metrics.getMetricColumnHeightSum();
 
-                state[6] = POINT_AVG_DENSITY * metrics.getMetricAvgDensity();
-                state[7] = POINT_BLOCKED_ROWS * metrics.getMetricBlockedRows();
+                //state[6] = POINT_AVG_DENSITY * metrics.getMetricAvgDensity();
+                //state[7] = POINT_BLOCKED_ROWS * metrics.getMetricBlockedRows();
 
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
@@ -727,6 +730,10 @@ public class StackManager implements StackComponent {
 
     public int getDroppedElements() {
         return droppedElements;
+    }
+
+    public int getGameAllRows() {
+        return gameAllRows;
     }
 
     public void setGameState(GameState gameState) {

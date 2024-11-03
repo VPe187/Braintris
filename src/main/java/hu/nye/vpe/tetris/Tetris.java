@@ -1,6 +1,7 @@
 package hu.nye.vpe.tetris;
 
 import java.awt.Graphics2D;
+import java.util.Arrays;
 
 import hu.nye.vpe.GlobalConfig;
 import hu.nye.vpe.gaming.GameAudio;
@@ -11,6 +12,7 @@ import hu.nye.vpe.gaming.GameState;
 import hu.nye.vpe.gaming.GameTimeTicker;
 import hu.nye.vpe.nn.Activation;
 import hu.nye.vpe.nn.BatchNormParameters;
+import hu.nye.vpe.nn.Layer;
 import hu.nye.vpe.nn.NeuralNetwork;
 import hu.nye.vpe.nn.WeightInitStrategy;
 
@@ -105,9 +107,11 @@ public class Tetris {
                         L2_REGULARIZATION
                 );
                 brain.loadNetworkStructure("brain_network.json");
+                //brain.loadTrainingState("brain_training.json");
                 System.out.println("Neural Network loaded successfully");
             } catch (Exception e) {
                 System.out.println("Nem sikerült a hálózat betöltése: " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
@@ -230,10 +234,8 @@ public class Tetris {
                     );
 
                     try {
-                        if (brain.getEpisodeCount() % 50 == 0) {
+                        if (brain.getEpisodeCount() % 100 == 0) {
                             brain.saveNetworkStructure("brain_network.json");
-                        }
-                        if (brain.getEpisodeCount() % 500 == 0) {
                             brain.saveTrainingState("brain_training.json");
                         }
                     } catch (Exception e) {
@@ -241,9 +243,8 @@ public class Tetris {
                     }
                     lastState = null;
                     lastAction = null;
-                    start();
                 }
-
+                start();
             }
         }
     }
@@ -369,17 +370,20 @@ public class Tetris {
         double reward;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
         if (!gameOver) {
-            double rows = stackManager.getAllFullRows() - previousFullRows;
+            double rows = stackManager.getGameAllRows() - previousFullRows;
             previousFullRows = rows;
-            reward = rows *  ROWS;
+            reward = POINT_FULLROW * rows *  ROWS;
             reward += POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
             reward += POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
             reward += POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
-
             return reward;
         } else {
             previousFullRows = 0;
-            return 0.0;
+            reward = POINT_FULLROW * stackManager.getGameAllRows() *  ROWS;
+            reward += POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
+            reward += POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
+            reward += POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
+            return reward;
         }
     }
 

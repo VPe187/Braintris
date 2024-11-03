@@ -337,6 +337,12 @@ public class Visualization implements GameElement {
     private void drawRightColumn(Graphics2D g2d, FontMetrics metrics) {
         int rightColumnX = width - STAT_X - RIGHT_COLUMN_OFFSET;
 
+        if (network.getMovingAverage() != 0) {
+            double stabilityRatio = network.getRMS() / Math.abs(network.getMovingAverage());
+            String stability = String.format("Stability Ratio: %.4f", stabilityRatio);
+            g2d.drawString(stability, rightColumnX - metrics.stringWidth(stability), height - 180);
+        }
+
         String episodes = String.format("Episodes: %d", network.getEpisodeCount());
         g2d.drawString(episodes, rightColumnX - metrics.stringWidth(episodes), height - 160);
 

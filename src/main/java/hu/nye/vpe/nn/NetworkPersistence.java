@@ -54,7 +54,7 @@ public class NetworkPersistence {
         List<Map<String, Object>> structureData = new ArrayList<>(layers.size());
 
         for (Layer layer : layers) {
-            Map<String, Object> layerData = new HashMap<>(4);
+            Map<String, Object> layerData = new HashMap<>();
             List<Neuron> neurons = layer.getNeurons();
             List<Map<String, Object>> neuronDataList = new ArrayList<>(neurons.size());
 
@@ -249,23 +249,17 @@ public class NetworkPersistence {
 
     private void loadStructureData(NeuralNetwork network, List<Map<String, Object>> structureData) {
         try {
-            // Töröljük a meglévő rétegeket
             network.getLayers().clear();
 
-            // Minden réteg betöltése
             for (Map<String, Object> layerData : structureData) {
-                // Alap réteg adatok kinyerése
                 String name = (String) layerData.get("name");
                 Activation activation = Activation.valueOf((String) layerData.get("activation"));
                 List<Map<String, Object>> neuronDataList = (List<Map<String, Object>>) layerData.get("neurons");
-
-                // Input és output méretek meghatározása az első neuron alapján
                 Map<String, Object> firstNeuronData = neuronDataList.get(0);
                 List<Double> firstWeights = (List<Double>) firstNeuronData.get("weights");
                 int inputSize = firstWeights.size();
                 int outputSize = neuronDataList.size();
 
-                // Layer konfiguráció létrehozása
                 GradientClipper gradientClipper = new GradientClipper(
                         clipMin,
                         clipMax,
@@ -273,13 +267,10 @@ public class NetworkPersistence {
                         gradientScale
                 );
 
-                // Alapértelmezett paraméterek létrehozása
-                // Ezeket is érdemes lehet menteni/betölteni ha szükséges
                 WeightInitStrategy initStrategy = WeightInitStrategy.XAVIER;
                 BatchNormParameters batchNormParams = new BatchNormParameters(false, 1.0, 0.0);
                 double l2 = 0.0;
 
-                // Új réteg létrehozása
                 Layer layer = new Layer(
                         name,
                         inputSize,
@@ -292,28 +283,19 @@ public class NetworkPersistence {
                         network.getLearningRate()
                 );
 
-                // Neuronok betöltése
                 List<Neuron> neurons = layer.getNeurons();
                 for (int i = 0; i < neuronDataList.size(); i++) {
                     Map<String, Object> neuronData = neuronDataList.get(i);
 
-                    // Súlyok betöltése
                     double[] weights = convertToDoubleArray((List<Number>) neuronData.get("weights"));
-
-                    // Bias betöltése
                     double bias = ((Number) neuronData.get("bias")).doubleValue();
 
-                    // Súlyok és bias beállítása a neuronban
                     Neuron neuron = neurons.get(i);
                     neuron.setWeights(weights);
                     neuron.setBias(bias);
                 }
-
-                // Réteg hozzáadása a hálózathoz
                 network.getLayers().add(layer);
             }
-
-            // Esetleges validációk elvégzése
             validateNetworkStructure(network);
 
         } catch (Exception e) {

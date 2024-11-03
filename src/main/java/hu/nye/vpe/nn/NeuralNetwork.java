@@ -283,13 +283,12 @@ public class NeuralNetwork {
             updateDiscountFactor();
             updateLearningRate();
             this.episodeCount++;
-        } else {
             if (reward > this.bestReward) {
                 this.bestReward = reward;
             }
-            updateMovingAverage(reward);
-            lastReward = reward;
         }
+        updateMovingAverage(reward);
+        lastReward = reward;
     }
 
     private void learnWithExperinece(double[] state, int[] action, double reward, double[] nextState, boolean gameOver,
@@ -318,18 +317,20 @@ public class NeuralNetwork {
 
         nextQ = maxNextQ;
 
-        double[] stateMetrics = copyToFeedDataSize(state);
-        double[] currentOutput = forward(stateMetrics, false);
+
+        //double[] currentOutput = forward(stateMetrics, false);
 
         double targetQ;
         if (gameOver) {
             targetQ = reward;
         } else {
-            targetQ = currentOutput[0] + learningRate * (reward + discountFactor * maxNextQ - currentOutput[0]);
+            //targetQ = currentOutput[0] + learningRate * (reward + discountFactor * maxNextQ - currentOutput[0]);
+            targetQ = reward + discountFactor * maxNextQ;
             targetQ = Math.min(MAX_Q, Math.max(MIN_Q, targetQ));
         }
 
         maxQ = Math.max(targetQ, maxQ);
+        double[] stateMetrics = copyToFeedDataSize(state);
 
         inputBatch.add(stateMetrics);
         targetBatch.add(new double[]{targetQ});
@@ -396,21 +397,23 @@ public class NeuralNetwork {
                 maxNextQ = 0.0;
             }
 
-            double[] stateMetrics = copyToFeedDataSize(exp.state);
-            double[] currentOutput = forward(stateMetrics, false);
-            currentOutput[0] = Math.min(MAX_Q, Math.max(MIN_Q, currentOutput[0]));
 
+            //double[] currentOutput = forward(stateMetrics, false);
+            //currentOutput[0] = Math.min(MAX_Q, Math.max(MIN_Q, currentOutput[0]));
             nextQ = maxNextQ;
             double targetQ;
             if (exp.done) {
                 targetQ = exp.reward;
             } else {
-                targetQ = currentOutput[0] + learningRate * (exp.reward + discountFactor * maxNextQ - currentOutput[0]);
+                targetQ = exp.reward + discountFactor * maxNextQ;
+                //targetQ = learningRate * (exp.reward + discountFactor * maxNextQ - currentOutput[0]);
+                //targetQ = currentOutput[0] + learningRate * (exp.reward + discountFactor * maxNextQ - currentOutput[0]);
                 targetQ = Math.min(MAX_Q, Math.max(MIN_Q, targetQ));
             }
 
             maxQ = Math.max(targetQ, maxQ);
 
+            double[] stateMetrics = copyToFeedDataSize(exp.state);
 
             inputBatch.add(stateMetrics);
             targetBatch.add(new double[]{targetQ});
