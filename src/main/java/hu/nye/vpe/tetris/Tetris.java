@@ -30,6 +30,13 @@ public class Tetris {
     private static final long DROP_SPEED = 1L;
     private static final Boolean TEST_ALGORITHM_ONLY = false;
 
+    private static final double POINT_FULLROW = GlobalConfig.getInstance().getPointFullRow();
+    private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
+    private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
+    private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
+    private static final double POINT_AVG_DENSITY = GlobalConfig.getInstance().getPoinAvgDensity();
+    private static final double POINT_BLOCKED_ROWS = GlobalConfig.getInstance().getPoinBlockedRows();
+
     private RunMode runMode;
     private NeuralNetwork brain;
     private static final long speed = 1000L;
@@ -223,8 +230,10 @@ public class Tetris {
                     );
 
                     try {
-                        if (brain.getEpisodeCount() % 100 == 0) {
+                        if (brain.getEpisodeCount() % 50 == 0) {
                             brain.saveNetworkStructure("brain_network.json");
+                        }
+                        if (brain.getEpisodeCount() % 500 == 0) {
                             brain.saveTrainingState("brain_training.json");
                         }
                     } catch (Exception e) {
@@ -362,7 +371,11 @@ public class Tetris {
         if (!gameOver) {
             double rows = stackManager.getAllFullRows() - previousFullRows;
             previousFullRows = rows;
-            reward = Math.pow((rows + 1), 1.5);
+            reward = rows *  ROWS;
+            reward += POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
+            reward += POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
+            reward += POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
+
             return reward;
         } else {
             previousFullRows = 0;

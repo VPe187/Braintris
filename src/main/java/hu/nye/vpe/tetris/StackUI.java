@@ -710,7 +710,7 @@ public class StackUI implements GameElement, StackComponent {
             infoStrA = "Height (avg): " + String.format("%.2f", stackMetrics.getMetricAvgColumnHeight());
             infoStrN = "Nearly full rows: " + String.format("%.0f", stackMetrics.getMetricNearlyFullRows());
             infoStrB = "Blocked rows: " + String.format("%.0f", stackMetrics.getMetricBlockedRows());
-            infoStrH = "Surrounding holes: " + String.format("%.0f", stackMetrics.getMetricSurroundedHoles());
+            infoStrH = "Surrounded holes: " + String.format("%.0f", stackMetrics.getMetricSurroundedHoles());
             infoStrO = "Tetromino rotation: " + String.format("%.0f", stackManager.getTetrominoRotation());
             infoStrD = "Dropped elements: " + String.format("%d", stackManager.getDroppedElements());
             infoStrV = "Average density: " + String.format("%.2f", stackMetrics.getMetricAvgDensity());

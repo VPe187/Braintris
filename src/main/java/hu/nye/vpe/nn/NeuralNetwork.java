@@ -239,7 +239,8 @@ public class NeuralNetwork {
             // Q-értékek számítása a metrikából
             for (int i = 0; i < possibleActions.length; i++) {
                 double[] metrics = copyToFeedDataSize(possibleActions[i]);
-                qvalues[i] = forward(metrics, false)[0];
+                //qvalues[i] = forward(metrics, false)[0];
+                qvalues[i] = Math.min(MAX_Q, Math.max(MIN_Q, forward(metrics, false)[0]));
                 maxQ = Math.max(maxQ, qvalues[i]);
             }
 
@@ -306,7 +307,8 @@ public class NeuralNetwork {
         if (!gameOver && nextPossibleStates != null) {
             for (double[] possibleState : nextPossibleStates) {
                 double[] metrics = copyToFeedDataSize(possibleState);
-                double stateQ = forward(metrics, false)[0];
+                //double stateQ = forward(metrics, false)[0];
+                double stateQ = Math.min(MAX_Q, Math.max(MIN_Q, forward(metrics, false)[0]));
                 maxNextQ = (Math.max(maxNextQ, stateQ));
             }
         }
@@ -323,8 +325,8 @@ public class NeuralNetwork {
         if (gameOver) {
             targetQ = reward;
         } else {
-            //targetQ = reward + discountFactor * maxNextQ * learningRate;
             targetQ = currentOutput[0] + learningRate * (reward + discountFactor * maxNextQ - currentOutput[0]);
+            targetQ = Math.min(MAX_Q, Math.max(MIN_Q, targetQ));
         }
 
         maxQ = Math.max(targetQ, maxQ);
@@ -384,7 +386,8 @@ public class NeuralNetwork {
                 for (double[] possibleState : exp.nextPossibleStates) {
                     if (possibleState != null) {
                         double[] metrics = copyToFeedDataSize(possibleState);
-                        double stateQ = forward(metrics, false)[0];
+                        //double stateQ = forward(metrics, false)[0];
+                        double stateQ = Math.min(MAX_Q, Math.max(MIN_Q, forward(metrics, false)[0]));
                         maxNextQ = Math.max(maxNextQ, stateQ);
                     }
                 }
@@ -395,14 +398,15 @@ public class NeuralNetwork {
 
             double[] stateMetrics = copyToFeedDataSize(exp.state);
             double[] currentOutput = forward(stateMetrics, false);
+            currentOutput[0] = Math.min(MAX_Q, Math.max(MIN_Q, currentOutput[0]));
 
             nextQ = maxNextQ;
             double targetQ;
             if (exp.done) {
                 targetQ = exp.reward;
             } else {
-                //targetQ = exp.reward + discountFactor * maxNextQ * learningRate;
                 targetQ = currentOutput[0] + learningRate * (exp.reward + discountFactor * maxNextQ - currentOutput[0]);
+                targetQ = Math.min(MAX_Q, Math.max(MIN_Q, targetQ));
             }
 
             maxQ = Math.max(targetQ, maxQ);

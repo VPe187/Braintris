@@ -1,5 +1,87 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <checkstyle version="9.0.1">
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameAudio.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameColorPalette.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameConstans.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameDisplay.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameElement.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameEngine.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameInput.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GamePanel.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameStarfield.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameState.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\gaming\GameTimeTicker.java">
+</file>
 <file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\GlobalConfig.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\Launcher.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\Activation.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\AdamOptimizer.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\BatchNormalizer.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\BatchNormParameters.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\Experience.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\ExperienceReplay.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\GradientClipper.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\InputNormalizerMinmax.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\InputNormalizerZScore.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\Layer.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\LayerGradients.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\NetworkPersistence.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\NeuralNetwork.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\Neuron.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\Visualization.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\WeightInitializer.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\nn\WeightInitStrategy.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\BonusType.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\Cell.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\RunMode.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\StackComponent.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\StackManager.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\StackMetrics.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\StackUI.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\Tetris.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\Tetromino.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\TetrominoFactory.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\TetrominoPool.java">
+</file>
+<file name="D:\Development\Java\Braintris\src\main\java\hu\nye\vpe\tetris\TetrominoType.java">
 </file>
 </checkstyle>

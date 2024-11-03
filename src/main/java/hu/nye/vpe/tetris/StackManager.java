@@ -41,6 +41,8 @@ public class StackManager implements StackComponent {
     private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
     private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
     private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
+    private static final double POINT_AVG_DENSITY = GlobalConfig.getInstance().getPoinAvgDensity();
+    private static final double POINT_BLOCKED_ROWS = GlobalConfig.getInstance().getPoinBlockedRows();
 
     private final Cell[][] stackArea = new Cell[ROWS][COLS];
     private final RunMode runMode;
@@ -634,14 +636,8 @@ public class StackManager implements StackComponent {
                 state[4] = POINT_BUMPINESS * metrics.getMetricBumpiness();
                 state[5] = POINT_HEIGHTS * metrics.getMetricColumnHeightSum();
 
-                state[6] = -0.25 * metrics.getMetricSurroundedHoles();
-                state[7] = -0.15 * metrics.getMetricMaxHeight();
-                state[8] = -0.20 * metrics.getMetricAvgDensity();
-                state[9] = -0.15 * metrics.getMetricBlockedRows();
-                state[10] = 0.10 * metrics.getMetricNearlyFullRows();
-                state[11] = 0.10 * metrics.getMetricAccessibleEmptyCells();
-
-
+                state[6] = POINT_AVG_DENSITY * metrics.getMetricAvgDensity();
+                state[7] = POINT_BLOCKED_ROWS * metrics.getMetricBlockedRows();
 
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {

@@ -379,6 +379,14 @@ public class GlobalConfig {
         return getDouble("POINT_BUMPINESS", -1);
     }
 
+    public double getPoinAvgDensity() {
+        return getDouble("POINT_AVG_DENSITY", -1);
+    }
+
+    public double getPoinBlockedRows() {
+        return getDouble("POINT_BLOCKED_ROWS", -1);
+    }
+
     /**
      * Get run mode from configuration.
      *
