@@ -362,8 +362,11 @@ public class Visualization implements GameElement {
         g2d.drawString(movingAverage, rightColumnX - metrics.stringWidth(movingAverage), height - 140);
         g2d.setColor(FONT_COLOR);
 
-        String bestReward = String.format("Best episode reward: %.0f", network.getBestReward());
-        g2d.drawString(bestReward, rightColumnX - metrics.stringWidth(bestReward), height - 120);
+        //String bestReward = String.format("Best episode reward: %.0f", network.getBestReward());
+        //g2d.drawString(bestReward, rightColumnX - metrics.stringWidth(bestReward), height - 120);
+
+        String qlearning = String.format("Q learning rate: %.4f", network.getQlearningRate());
+        g2d.drawString(qlearning, rightColumnX - metrics.stringWidth(qlearning), height - 120);
 
         String reward = String.format("Step reward: %.4f",  network.getLastReward());
         g2d.drawString(reward, rightColumnX - metrics.stringWidth(reward), height - 100);

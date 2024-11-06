@@ -16,9 +16,10 @@ public class AdamOptimizer implements Serializable {
     private double[][] vmean; // Második mozgóátlag a súlyokhoz
     private double[] mbias; // Első mozgóátlag a bias-hoz
     private double[] vbias; // Második mozgóátlag a bias-hoz
-    private int iter; // Iteráció számláló
+    private final double lambdaL2;
+    private int iter;
 
-    public AdamOptimizer(int outputSize, int inputSize, double learningRate, double beta1, double beta2, double epsilon) {
+    public AdamOptimizer(int outputSize, int inputSize, double learningRate, double beta1, double beta2, double epsilon, double lambdaL2) {
         this.learningRate = learningRate;
         this.beta1 = beta1;
         this.beta2 = beta2;
@@ -27,6 +28,7 @@ public class AdamOptimizer implements Serializable {
         this.vmean = new double[outputSize][inputSize];
         this.mbias = new double[outputSize];
         this.vbias = new double[outputSize];
+        this.lambdaL2 = lambdaL2;
         this.iter = 0;
     }
 
@@ -74,8 +76,9 @@ public class AdamOptimizer implements Serializable {
             }
 
             // Bias update számítása
-            mbias[i] = beta1 * mbias[i] + (1 - beta1) * biasGradients[i];
-            vbias[i] = beta2 * vbias[i] + (1 - beta2) * (biasGradients[i] * biasGradients[i]);
+            double clippedBiasGradient = clipper.clip(biasGradients[i]);
+            mbias[i] = beta1 * mbias[i] + (1 - beta1) * clippedBiasGradient;
+            vbias[i] = beta2 * vbias[i] + (1 - beta2) * (clippedBiasGradient * clippedBiasGradient);
 
             double mhatBias = mbias[i] * beta1Correction;
             double vhatBias = vbias[i] * beta2Correction;
@@ -87,10 +90,65 @@ public class AdamOptimizer implements Serializable {
                 vhatBias = epsilon;
             }
 
-            //double biasUpdate = clipper.clip(learningRate * mhatBias / (Math.sqrt(vhatBias) + epsilon));
-            double biasUpdate = clipper.clip(learningRate * mhatBias / (Math.sqrt(Math.max(vhatBias, epsilon)) + epsilon));
-
+            double biasUpdate = clipper.clip(learningRate * mhatBias / (Math.sqrt(Math.max(vhatBias, epsilon)) + epsilon)) -
+                    lambdaL2 * neuron.getBias();
             neuron.updateWeightsWithAdam(weightUpdates, biasUpdate);
         }
+    }
+
+    public double getLearningRate() {
+        return learningRate;
+    }
+
+    public double getBeta1() {
+        return beta1;
+    }
+
+    public double getBeta2() {
+        return beta2;
+    }
+
+    public double getEpsilon() {
+        return epsilon;
+    }
+
+    public double[][] getMmean() {
+        return mmean;
+    }
+
+    public double[][] getVmean() {
+        return vmean;
+    }
+
+    public double[] getMbias() {
+        return mbias;
+    }
+
+    public double[] getVbias() {
+        return vbias;
+    }
+
+    public int getIter() {
+        return iter;
+    }
+
+    public void setMmean(double[][] mmean) {
+        this.mmean = mmean;
+    }
+
+    public void setVmean(double[][] vmean) {
+        this.vmean = vmean;
+    }
+
+    public void setMbias(double[] mbias) {
+        this.mbias = mbias;
+    }
+
+    public void setVbias(double[] vbias) {
+        this.vbias = vbias;
+    }
+
+    public void setIter(int iter) {
+        this.iter = iter;
     }
 }

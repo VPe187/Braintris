@@ -252,6 +252,15 @@ public class GlobalConfig {
     }
 
     /**
+     * Get lambda 2 regularizations.
+     *
+     * @return regularizations
+     */
+    public double getBiasL2Regularization() {
+        return getDouble("BIAS_L2_LAMBDA", 0.0001);
+    }
+
+    /**
      * Get clipping min.
      *
      * @return clipping min.
@@ -287,6 +296,18 @@ public class GlobalConfig {
 
     public double getMinLearningRate() {
         return getDouble("MIN_LEARNING_RATE", 0.0001);
+    }
+
+    public double getInitialQLearningRate() {
+        return getDouble("INITIAL_Q_LEARNING_RATE", 0.1);
+    }
+
+    public double getQLearningRateDecay() {
+        return getDouble("Q_LEARNING_RATE_DECAY", 0.99);
+    }
+
+    public double getMinQLearningRate() {
+        return getDouble("MIN_Q_LEARNING_RATE", 0.001);
     }
 
     public double getInitialDiscountFactor() {
@@ -325,11 +346,9 @@ public class GlobalConfig {
         return getInt("MOVING_AVERAGE_WINDOW", 1000);
     }
 
-
     public boolean getUseExperience() {
         return getBoolean("USE_EXPERIENCE", false);
     }
-
 
     public int getExperiebceReplayCapacity() {
         return getInt("EXPERIENCE_REPLAY_CAPACITY", 1000);

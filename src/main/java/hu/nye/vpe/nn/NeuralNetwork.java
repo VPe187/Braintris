@@ -16,6 +16,9 @@ public class NeuralNetwork {
     private static final double CLIP_NORM = GlobalConfig.getInstance().getClipNorm();
     private static final double GRADIENT_SCALE = GlobalConfig.getInstance().getGradientScale();
     private static final double INITIAL_LEARNING_RATE = GlobalConfig.getInstance().getInitialLearningRate();
+    private static final double INITIAL_Q_LEARNING_RATE = GlobalConfig.getInstance().getInitialQLearningRate();
+    private static final double Q_LEARNING_RATE_DECAY = GlobalConfig.getInstance().getQLearningRateDecay();
+    private static final double MIN_Q_LEARNING_RATE = GlobalConfig.getInstance().getMinQLearningRate();
     private static final double LEARNING_RATE_DECAY = GlobalConfig.getInstance().getLearningRateDecay();
     private static final double MIN_LEARNING_RATE = GlobalConfig.getInstance().getMinLearningRate();
     private static final double INITIAL_DISCOUNT_FACTOR = GlobalConfig.getInstance().getInitialDiscountFactor();
@@ -37,6 +40,7 @@ public class NeuralNetwork {
 
     private final List<Layer> layers;
     private double learningRate;
+    private double qlearningRate;
     private double discountFactor;
     private double epsilon;
     private int episodeCount;
@@ -60,6 +64,7 @@ public class NeuralNetwork {
     private double averageWeightChange;
     private double[][][] weightChanges;
     private double[][][] previousWeights;
+    int learnCounter = 0;
 
     private final double[] historicalLayerMins;
     private final double[] historicalLayerMaxs;
@@ -87,6 +92,7 @@ public class NeuralNetwork {
         GradientClipper gradientClipper = new GradientClipper(CLIP_MIN, CLIP_MAX, CLIP_NORM, GRADIENT_SCALE);
         this.layers = new ArrayList<>();
         this.learningRate = INITIAL_LEARNING_RATE;
+        this.qlearningRate = INITIAL_Q_LEARNING_RATE;
 
         for (int i = 0; i < layerSizes.length - 1; i++) {
             int inputSize = layerSizes[i];
@@ -274,6 +280,9 @@ public class NeuralNetwork {
      */
     public void learn(double[] state, int[] action, double reward, double[] nextState, boolean gameOver, double[][] nextPossibleStates) {
         if (USE_EXPERIENCE) {
+            if (learnCounter % 1000 == 0) {
+                experienceReplay.normalizePriorities(0.1, 1.0);
+            }
             learnWithExperinece(state, action, reward, nextState, gameOver, nextPossibleStates);
         } else {
             learnWithoutExperience(state, reward, gameOver, nextPossibleStates);
@@ -282,6 +291,7 @@ public class NeuralNetwork {
             updateEpsilon();
             updateDiscountFactor();
             updateLearningRate();
+            updateQLearningRate();
             this.episodeCount++;
             if (reward > this.bestReward) {
                 this.bestReward = reward;
@@ -302,36 +312,14 @@ public class NeuralNetwork {
     }
 
     private void learnWithoutExperience(double[] state, double reward, boolean gameOver, double[][] nextPossibleStates) {
-        double maxNextQ = Double.NEGATIVE_INFINITY;
-        if (!gameOver && nextPossibleStates != null) {
-            for (double[] possibleState : nextPossibleStates) {
-                double[] metrics = copyToFeedDataSize(possibleState);
-                //double stateQ = forward(metrics, false)[0];
-                double stateQ = Math.min(MAX_Q, Math.max(MIN_Q, forward(metrics, false)[0]));
-                maxNextQ = (Math.max(maxNextQ, stateQ));
-            }
-        }
-        if (Double.isNaN(maxNextQ) || Double.isInfinite(maxNextQ)) {
-            maxNextQ = 0.0;
-        }
+        double maxNextQ = calculateMaxNextQ(nextPossibleStates, gameOver);
+        double currentQ = forward(copyToFeedDataSize(state), false)[0];
+        currentQ = Math.min(MAX_Q, Math.max(MIN_Q, currentQ));
 
-        nextQ = maxNextQ;
-
-
-        //double[] currentOutput = forward(stateMetrics, false);
-
-        double targetQ;
-        if (gameOver) {
-            targetQ = reward;
-        } else {
-            //targetQ = currentOutput[0] + learningRate * (reward + discountFactor * maxNextQ - currentOutput[0]);
-            targetQ = reward + discountFactor * maxNextQ;
-            targetQ = Math.min(MAX_Q, Math.max(MIN_Q, targetQ));
-        }
-
+        double targetQ = calculateTargetQ(reward, maxNextQ, currentQ, gameOver);
         maxQ = Math.max(targetQ, maxQ);
+        nextQ = maxNextQ;
         double[] stateMetrics = copyToFeedDataSize(state);
-
         inputBatch.add(stateMetrics);
         targetBatch.add(new double[]{targetQ});
 
@@ -346,82 +334,86 @@ public class NeuralNetwork {
         }
     }
 
-    private double[] getCurrentNextState(double[][] possibleStates) {
-        if (possibleStates == null || possibleStates.length == 0) {
-            return null;
-        }
-
-        if (random.nextDouble() < epsilon) {
-            // Random választás
-            int randIndex = random.nextInt(possibleStates.length);
-            return possibleStates[randIndex];
-        } else {
-            // Legjobb Q érték választása
-            double bestQ = Double.NEGATIVE_INFINITY;
-            double[] bestState = null;
-
-            for (double[] possibleState : possibleStates) {
-                double q = forward(possibleState, false)[0];
-                if (q > bestQ) {
-                    bestQ = q;
-                    bestState = possibleState;
-                }
-            }
-            return bestState;
-        }
-    }
-
     private void processBatchWithExperience(List<Experience> batch) {
         inputBatch.clear();
         targetBatch.clear();
-
         for (Experience exp : batch) {
             if (exp == null || exp.state == null || exp.action == null ||
                     exp.action[0] < 0 || exp.action[0] >= X_COORD_OUTPUTS ||
                     exp.action[1] < 0 || exp.action[1] >= ROTATION_OUTPUTS) {
                 continue;
             }
-
-            double maxNextQ = Double.NEGATIVE_INFINITY;
-            if (!exp.done && exp.nextPossibleStates != null) {
-                for (double[] possibleState : exp.nextPossibleStates) {
-                    if (possibleState != null) {
-                        double[] metrics = copyToFeedDataSize(possibleState);
-                        //double stateQ = forward(metrics, false)[0];
-                        double stateQ = Math.min(MAX_Q, Math.max(MIN_Q, forward(metrics, false)[0]));
-                        maxNextQ = Math.max(maxNextQ, stateQ);
-                    }
-                }
-            }
-            if (Double.isNaN(maxNextQ) || Double.isInfinite(maxNextQ)) {
-                maxNextQ = 0.0;
-            }
-
-
-            //double[] currentOutput = forward(stateMetrics, false);
-            //currentOutput[0] = Math.min(MAX_Q, Math.max(MIN_Q, currentOutput[0]));
-            nextQ = maxNextQ;
-            double targetQ;
-            if (exp.done) {
-                targetQ = exp.reward;
-            } else {
-                targetQ = exp.reward + discountFactor * maxNextQ;
-                //targetQ = learningRate * (exp.reward + discountFactor * maxNextQ - currentOutput[0]);
-                //targetQ = currentOutput[0] + learningRate * (exp.reward + discountFactor * maxNextQ - currentOutput[0]);
-                targetQ = Math.min(MAX_Q, Math.max(MIN_Q, targetQ));
-            }
-
-            maxQ = Math.max(targetQ, maxQ);
-
             double[] stateMetrics = copyToFeedDataSize(exp.state);
-
+            double currentQ = forward(stateMetrics, false)[0];
+            currentQ = Math.min(MAX_Q, Math.max(MIN_Q, currentQ));
+            double maxNextQ = calculateMaxNextQ(exp.nextPossibleStates, exp.done);
+            double targetQ = calculateTargetQ(exp.reward, maxNextQ, currentQ, exp.done);
+            updateExperiencePriority(targetQ, currentQ, exp);
+            nextQ = maxNextQ - currentQ;
             inputBatch.add(stateMetrics);
             targetBatch.add(new double[]{targetQ});
         }
-
         if (inputBatch.size() >= MINIMUM_BATCH_SIZE) {
             processBatchWithoutExperience();
         }
+    }
+
+    /**
+     * Calculate the target Q-value.
+     *
+     * @param reward Reward received
+     * @param maxNextQ Maximum Q-value for the next states
+     * @param currentQ Current Q-value for the state-action pair
+     * @param done Flag indicating if the episode is done
+     * @return targetQ Calculated target Q-value
+     */
+    private double calculateTargetQ(double reward, double maxNextQ, double currentQ, boolean done) {
+        double targetQ;
+        if (done) {
+            targetQ = reward;
+        } else {
+            targetQ = currentQ + qlearningRate * (reward + discountFactor * maxNextQ - currentQ);
+        }
+        if (Double.isNaN(targetQ) || Double.isInfinite(targetQ)) {
+            targetQ = 0.0;
+        }
+        return Math.min(MAX_Q, Math.max(MIN_Q, targetQ));
+    }
+
+    /**
+     * Calculate the TD-error and update priority for an experience.
+     *
+     * @param targetQ Target Q-value
+     * @param currentQ Current Q-value
+     * @param experience Experience instance
+     */
+    private void updateExperiencePriority(double targetQ, double currentQ, Experience experience) {
+        double tdError = Math.abs(targetQ - currentQ);
+        experience.setPriority(tdError);
+    }
+
+    /**
+     * Calculate the maximum Q-value for the next possible states.
+     *
+     * @param possibleStates Array of possible next states
+     * @param isGameOver Flag indicating if the game is over
+     * @return maxNextQ The maximum Q-value for the next states
+     */
+    private double calculateMaxNextQ(double[][] possibleStates, boolean isGameOver) {
+        double maxNextQ = Double.NEGATIVE_INFINITY;
+        if (!isGameOver && possibleStates != null) {
+            for (double[] possibleState : possibleStates) {
+                if (possibleState != null) {
+                    double[] metrics = copyToFeedDataSize(possibleState);
+                    double stateQ = Math.min(MAX_Q, Math.max(MIN_Q, forward(metrics, false)[0]));
+                    maxNextQ = Math.max(maxNextQ, stateQ);
+                }
+            }
+        }
+        if (Double.isNaN(maxNextQ) || Double.isInfinite(maxNextQ)) {
+            maxNextQ = 0.0;
+        }
+        return maxNextQ;
     }
 
     private void processBatchWithoutExperience() {
@@ -463,6 +455,10 @@ public class NeuralNetwork {
         for (Layer layer : layers) {
             layer.setLearningRate(learningRate);
         }
+    }
+
+    private void updateQLearningRate() {
+        qlearningRate = Math.max(MIN_Q_LEARNING_RATE, qlearningRate * Q_LEARNING_RATE_DECAY);
     }
 
     private void updateDiscountFactor() {
@@ -789,6 +785,10 @@ public class NeuralNetwork {
 
     public ExperienceReplay getExperienceReplay() {
         return experienceReplay;
+    }
+
+    public double getQlearningRate() {
+        return qlearningRate;
     }
 
     public void setDiscountFactor(double discountFactor) {

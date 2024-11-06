@@ -61,6 +61,7 @@ public class StackManager implements StackComponent {
     private long startTime;
     private int droppedElements;
     private int simFullRows;
+    private int lastFullRows;
 
     public StackManager(RunMode runMode) {
         this.runMode = runMode;
@@ -369,6 +370,7 @@ public class StackManager implements StackComponent {
                 fullRowNum++;
             }
         }
+        lastFullRows = fullRowNum;
         return fullRowNum;
     }
 
@@ -639,8 +641,8 @@ public class StackManager implements StackComponent {
                 state[4] = POINT_BUMPINESS * metrics.getMetricBumpiness();
                 state[5] = POINT_HEIGHTS * metrics.getMetricColumnHeightSum();
 
-                //state[6] = POINT_AVG_DENSITY * metrics.getMetricAvgDensity();
-                //state[7] = POINT_BLOCKED_ROWS * metrics.getMetricBlockedRows();
+                //state[6] = getCurrentTetromino().getId();
+                //state[7] = getNextTetromino().getId();
 
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
@@ -734,6 +736,14 @@ public class StackManager implements StackComponent {
 
     public int getGameAllRows() {
         return gameAllRows;
+    }
+
+    public int getLastFullRows() {
+        return lastFullRows;
+    }
+
+    public RunMode getRunMode() {
+        return runMode;
     }
 
     public void setGameState(GameState gameState) {

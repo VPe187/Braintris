@@ -170,6 +170,24 @@ public class NetworkPersistence {
         if (network.getExperienceReplay() != null) {
             stateData.put("experiences", network.getExperienceReplay().getExperiences());
         }
+
+        List<Map<String, Object>> layerOptimizerStates = new ArrayList<>();
+        for (Layer layer : network.getLayers()) {
+            AdamOptimizer optimizer = layer.getOptimizer();
+            Map<String, Object> optimizerState = new HashMap<>();
+
+            optimizerState.put("mmean", optimizer.getMmean());
+            optimizerState.put("vmean", optimizer.getVmean());
+            optimizerState.put("mbias", optimizer.getMbias());
+            optimizerState.put("vbias", optimizer.getVbias());
+            optimizerState.put("iter", optimizer.getIter());
+            optimizerState.put("beta1", optimizer.getBeta1());
+            optimizerState.put("beta2", optimizer.getBeta2());
+            optimizerState.put("epsilon", optimizer.getEpsilon());
+            optimizerState.put("learningRate", optimizer.getLearningRate());
+
+            layerOptimizerStates.add(optimizerState);
+        }
     }
 
     private void unpackTrainingState(NeuralNetwork network, Map<String, Object> stateData) {
@@ -244,6 +262,37 @@ public class NetworkPersistence {
         // Update learning rate for all layers
         for (Layer layer : network.getLayers()) {
             layer.setLearningRate(network.getLearningRate());
+        }
+
+        List<Map<String, Object>> layerOptimizerStates =
+                (List<Map<String, Object>>) stateData.get("adamOptimizerStates");
+        if (layerOptimizerStates != null) {
+            List<Layer> layers = network.getLayers();
+            for (int i = 0; i < layers.size() && i < layerOptimizerStates.size(); i++) {
+                Map<String, Object> optimizerState = layerOptimizerStates.get(i);
+                AdamOptimizer optimizer = layers.get(i).getOptimizer();
+
+                // Momentum és velocity mátrixok betöltése
+                List<List<Number>> mmeanData = (List<List<Number>>) optimizerState.get("mmean");
+                List<List<Number>> vmeanData = (List<List<Number>>) optimizerState.get("vmean");
+                List<Number> mbiasData = (List<Number>) optimizerState.get("mbias");
+                List<Number> vbiasData = (List<Number>) optimizerState.get("vbias");
+
+                // 2D tömb konvertálása mmean és vmean számára
+                double[][] mmean = convert2DArrayFromList(mmeanData);
+                double[][] vmean = convert2DArrayFromList(vmeanData);
+
+                // 1D tömb konvertálása mbias és vbias számára
+                double[] mbias = convert1DArrayFromList(mbiasData);
+                double[] vbias = convert1DArrayFromList(vbiasData);
+
+                // Az új setter metódusokkal beállítjuk az állapotokat
+                optimizer.setMmean(mmean);
+                optimizer.setVmean(vmean);
+                optimizer.setMbias(mbias);
+                optimizer.setVbias(vbias);
+                optimizer.setIter(((Number) optimizerState.get("iter")).intValue());
+            }
         }
     }
 
@@ -472,6 +521,33 @@ public class NetworkPersistence {
                 );
             }
         }
+    }
+
+    private double[] convert1DArrayFromList(List<Number> list) {
+        if (list == null) {
+            return null;
+        }
+
+        double[] result = new double[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            result[i] = list.get(i).doubleValue();
+        }
+        return result;
+    }
+
+    private double[][] convert2DArrayFromList(List<List<Number>> list) {
+        if (list == null) {
+            return null;
+        }
+
+        double[][] result = new double[list.size()][];
+        for (int i = 0; i < list.size(); i++) {
+            result[i] = new double[list.get(i).size()];
+            for (int j = 0; j < list.get(i).size(); j++) {
+                result[i][j] = list.get(i).get(j).doubleValue();
+            }
+        }
+        return result;
     }
 
 }

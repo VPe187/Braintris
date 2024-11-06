@@ -12,6 +12,7 @@ public class Experience implements Serializable {
     public final double[] nextState;
     public final double[][] nextPossibleStates;
     public final boolean done;
+    public double priority;
 
     public Experience(double[] state, int[] action, double reward, double[] nextState, double[][] nextPossibleStates,
                       boolean done) {
@@ -21,5 +22,10 @@ public class Experience implements Serializable {
         this.nextState = nextState;
         this.nextPossibleStates = nextPossibleStates;
         this.done = done;
+        this.priority = 1.0;
+    }
+
+    public void setPriority(double priority) {
+        this.priority = priority;
     }
 }

@@ -28,6 +28,7 @@ public class ExperienceReplay implements Serializable {
         if (memory.size() >= capacity) {
             memory.remove(0);
         }
+        experience.priority = 1.0;
         memory.add(experience);
     }
 
@@ -41,11 +42,49 @@ public class ExperienceReplay implements Serializable {
     public List<Experience> sample(int batchSize) {
         batchSize = Math.min(batchSize, memory.size());
         List<Experience> batch = new ArrayList<>(batchSize);
+
+        double totalPriority = memory.stream().mapToDouble(e -> e.priority).sum();
+
         for (int i = 0; i < batchSize; i++) {
-            int index = random.nextInt(memory.size());
-            batch.add(memory.get(index));
+            double rand = random.nextDouble() * totalPriority;
+            double cumulativePriority = 0.0;
+            for (Experience experience : memory) {
+                cumulativePriority += experience.priority;
+                if (cumulativePriority >= rand) {
+                    batch.add(experience);
+                    break;
+                }
+            }
+
         }
+        //int index = random.nextInt(memory.size());
+        //batch.add(memory.get(index));
         return batch;
+    }
+
+    /**
+     * Normalize priorities to be within a specified range.
+     *
+     * @param minPriority minimum normalized priority
+     * @param maxPriority maximum normalized priority
+     */
+    public void normalizePriorities(double minPriority, double maxPriority) {
+        double minCurrentPriority = memory.stream().mapToDouble(e -> e.priority).min().orElse(1.0);
+        double maxCurrentPriority = memory.stream().mapToDouble(e -> e.priority).max().orElse(1.0);
+
+        if (maxCurrentPriority > minCurrentPriority) {
+            for (Experience experience : memory) {
+                experience.priority = minPriority +
+                        (experience.priority - minCurrentPriority) *
+                                (maxPriority - minPriority) /
+                                (maxCurrentPriority - minCurrentPriority);
+            }
+        } else {
+            // If all priorities are the same, set them to the minPriority
+            for (Experience experience : memory) {
+                experience.priority = minPriority;
+            }
+        }
     }
 
     /**

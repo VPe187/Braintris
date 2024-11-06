@@ -12,6 +12,7 @@ public class Layer {
     private static final double BETA1_MOMENTUM = GlobalConfig.getInstance().getBeta1Momentum();
     private static final double BETA2_RMSPROP = GlobalConfig.getInstance().getBeta2RmsProp();
     private static final double ADAM_MOMENTUM = GlobalConfig.getInstance().getAdamMomentum();
+    private static final double BIAS_L2LAMBDA = GlobalConfig.getInstance().getBiasL2Regularization();
 
     private final List<Neuron> neurons;
     private final Activation activation;
@@ -62,7 +63,8 @@ public class Layer {
                 learningRate,
                 BETA1_MOMENTUM,
                 BETA2_RMSPROP,
-                ADAM_MOMENTUM
+                ADAM_MOMENTUM,
+                BIAS_L2LAMBDA
         );
     }
 
@@ -314,6 +316,34 @@ public class Layer {
 
     public Activation getActivation() {
         return activation;
+    }
+
+    public GradientClipper getGradientClipper() {
+        return gradientClipper;
+    }
+
+    public BatchNormalizer getBatchNormalizer() {
+        return batchNormalizer;
+    }
+
+    public boolean isUseBatchNorm() {
+        return useBatchNorm;
+    }
+
+    public double getLearningRate() {
+        return learningRate;
+    }
+
+    public double[][] getBatchOutputs() {
+        return batchOutputs;
+    }
+
+    public int getSplitIndex() {
+        return splitIndex;
+    }
+
+    public AdamOptimizer getOptimizer() {
+        return optimizer;
     }
 
     /**

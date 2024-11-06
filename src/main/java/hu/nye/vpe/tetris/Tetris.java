@@ -1,7 +1,6 @@
 package hu.nye.vpe.tetris;
 
 import java.awt.Graphics2D;
-import java.util.Arrays;
 
 import hu.nye.vpe.GlobalConfig;
 import hu.nye.vpe.gaming.GameAudio;
@@ -12,7 +11,6 @@ import hu.nye.vpe.gaming.GameState;
 import hu.nye.vpe.gaming.GameTimeTicker;
 import hu.nye.vpe.nn.Activation;
 import hu.nye.vpe.nn.BatchNormParameters;
-import hu.nye.vpe.nn.Layer;
 import hu.nye.vpe.nn.NeuralNetwork;
 import hu.nye.vpe.nn.WeightInitStrategy;
 
@@ -28,16 +26,13 @@ public class Tetris {
     private static final WeightInitStrategy[] WEIGHT_INIT_STRATEGIES = GlobalConfig.getInstance().getWeightInitStrategies();
     private static final BatchNormParameters[] BATCH_NORMS = GlobalConfig.getInstance().getBatchNorms();
     private static final double[] L2_REGULARIZATION = GlobalConfig.getInstance().getL2Regularization();
-    private static final int ROTATION_OUTPUTS = 3;
+    private static final int ROTATION_OUTPUTS = 4;
     private static final long DROP_SPEED = 1L;
     private static final Boolean TEST_ALGORITHM_ONLY = false;
-
     private static final double POINT_FULLROW = GlobalConfig.getInstance().getPointFullRow();
     private static final double POINT_HEIGHTS = GlobalConfig.getInstance().getPointHeights();
     private static final double POINT_HOLES = GlobalConfig.getInstance().getPointHoes();
     private static final double POINT_BUMPINESS = GlobalConfig.getInstance().getPoinBumpiness();
-    private static final double POINT_AVG_DENSITY = GlobalConfig.getInstance().getPoinAvgDensity();
-    private static final double POINT_BLOCKED_ROWS = GlobalConfig.getInstance().getPoinBlockedRows();
 
     private RunMode runMode;
     private NeuralNetwork brain;
@@ -61,6 +56,8 @@ public class Tetris {
     private int[] lastAction;
     private double previousFullRows = 0;
     int[] action;
+    private double allRows;
+    private double allEpoch;
 
     public Tetris(int width, int height, GameInput gameInput, RunMode runMode) {
         this.runMode = runMode;
@@ -69,6 +66,8 @@ public class Tetris {
         tickAnim = new GameTimeTicker((runMode == RunMode.TRAIN_AI) ? 1 : 20);
         starField = new GameStarfield(width, height);
         tickPlay = new GameTimeTicker(speed / 10);
+        allRows = 0;
+        allEpoch = 0;
         initializeComponents();
         this.gameInput = gameInput;
         if (runMode == RunMode.TRAIN_AI) {
@@ -370,21 +369,27 @@ public class Tetris {
         double reward;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
         if (!gameOver) {
-            double rows = stackManager.getGameAllRows() - previousFullRows;
-            previousFullRows = rows;
-            reward = POINT_FULLROW * rows *  ROWS;
-            reward += POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
-            reward += POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
-            reward += POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
-            return reward;
+            double rows = stackManager.getLastFullRows();
+            allRows += rows;
+            reward = 0;
+            if (rows > 0) {
+                reward = rows * ROWS;
+            }
+            reward += allRows;
+            reward -= POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
+            reward -= POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
+            reward -= POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
         } else {
-            previousFullRows = 0;
-            reward = POINT_FULLROW * stackManager.getGameAllRows() *  ROWS;
-            reward += POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
-            reward += POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
-            reward += POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
-            return reward;
+            allRows = 0;
+            reward = -2;
+            reward -= POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
+            reward -= POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
+            reward -= POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
         }
+        if (Double.isNaN(reward) || Double.isInfinite(reward)) {
+            reward = 0;
+        }
+        return reward;
     }
 
     /**
@@ -417,7 +422,6 @@ public class Tetris {
                 result[1] = (int) possibleState[1];
             }
         }
-
         return result;
     }
 

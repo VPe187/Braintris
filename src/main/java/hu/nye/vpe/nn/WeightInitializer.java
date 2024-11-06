@@ -2,11 +2,14 @@ package hu.nye.vpe.nn;
 
 import java.util.Random;
 
+import hu.nye.vpe.GlobalConfig;
+
 /**
  * Weight initalizer class.
  */
 public class WeightInitializer {
     private static final Random RANDOM = new Random();
+    private static final int FEED_DATA_SIZE = GlobalConfig.getInstance().getFeedDataSize();
 
     /**
      * Initialize weights.
@@ -50,8 +53,8 @@ public class WeightInitializer {
     public static double initializeBias(WeightInitStrategy strategy) {
         return switch (strategy) {
             case RANDOM -> RANDOM.nextGaussian() * 0.01;
-            case XAVIER -> RANDOM.nextGaussian() * Math.sqrt(1.0 / (1 + 1));
-            case HE -> RANDOM.nextGaussian() * Math.sqrt(2.0 / (1 + 1));
+            case XAVIER -> RANDOM.nextGaussian() * Math.sqrt(1.0 / FEED_DATA_SIZE);
+            case HE -> RANDOM.nextGaussian() * Math.sqrt(2.0 / FEED_DATA_SIZE);
             case UNIFORM -> {
                 double limit = Math.sqrt(6.0 / 1);
                 yield RANDOM.nextDouble() * 2 * limit - limit;

@@ -66,7 +66,6 @@ public class Neuron {
         }
         this.biasGradient = gradientClipper.clip(biasGradient);
         bias -= learningRate * (biasGradient + lambdaL2 * bias);
-        //bias -= learningRate * biasGradient;
     }
 
     /**
