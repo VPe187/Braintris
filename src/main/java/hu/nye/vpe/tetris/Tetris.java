@@ -54,7 +54,6 @@ public class Tetris {
     private boolean musicOn = true;
     private double[] lastState;
     private int[] lastAction;
-    private double previousFullRows = 0;
     int[] action;
     private double allRows;
     private double allEpoch;
@@ -106,7 +105,7 @@ public class Tetris {
                         L2_REGULARIZATION
                 );
                 brain.loadNetworkStructure("brain_network.json");
-                //brain.loadTrainingState("brain_training.json");
+                brain.loadTrainingState("brain_training.json");
                 System.out.println("Neural Network loaded successfully");
             } catch (Exception e) {
                 System.out.println("Nem sikerült a hálózat betöltése: " + e.getMessage());
@@ -373,18 +372,22 @@ public class Tetris {
             allRows += rows;
             reward = 0;
             if (rows > 0) {
-                reward = rows * ROWS;
+                reward = rows * rows * ROWS;
             }
-            reward += allRows;
+            reward += POINT_FULLROW * reward;
             reward -= POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
             reward -= POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
             reward -= POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
         } else {
-            allRows = 0;
-            reward = -2;
+            /*
+            reward = 0;
+            allRows = stackManager.getAllFullRows();
+            reward += POINT_FULLROW * allRows;
             reward -= POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
             reward -= POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
             reward -= POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
+             */
+            reward = -1;
         }
         if (Double.isNaN(reward) || Double.isInfinite(reward)) {
             reward = 0;

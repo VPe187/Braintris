@@ -129,7 +129,7 @@ public class GlobalConfig {
      * @return layer names
      */
     public String[] getLayerNames() {
-        String namesString = properties.getProperty("NAMES", "INP,H1,H2,H3,H4,OUT");
+        String namesString = properties.getProperty("LAYER_NAMES", "INP,H1,H2,H3,H4,OUT");
         return namesString.split(",");
     }
 

@@ -365,11 +365,14 @@ public class Visualization implements GameElement {
         //String bestReward = String.format("Best episode reward: %.0f", network.getBestReward());
         //g2d.drawString(bestReward, rightColumnX - metrics.stringWidth(bestReward), height - 120);
 
-        String qlearning = String.format("Q learning rate: %.4f", network.getQlearningRate());
-        g2d.drawString(qlearning, rightColumnX - metrics.stringWidth(qlearning), height - 120);
+        //String reward = String.format("Step reward: %.4f",  network.getLastReward());
+        //g2d.drawString(reward, rightColumnX - metrics.stringWidth(reward), height - 120);
 
-        String reward = String.format("Step reward: %.4f",  network.getLastReward());
-        g2d.drawString(reward, rightColumnX - metrics.stringWidth(reward), height - 100);
+        String lossAvg = String.format("Avg loss: %.4f",  network.getAverageDelta());
+        g2d.drawString(lossAvg, rightColumnX - metrics.stringWidth(lossAvg), height - 120);
+
+        String qlearning = String.format("Q learning rate: %.4f", network.getQlearningRate());
+        g2d.drawString(qlearning, rightColumnX - metrics.stringWidth(qlearning), height - 100);
 
         String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
         g2d.drawString(learningRate, rightColumnX - metrics.stringWidth(learningRate), height - 80);

@@ -65,6 +65,7 @@ public class NeuralNetwork {
     private double[][][] weightChanges;
     private double[][][] previousWeights;
     int learnCounter = 0;
+    private double averageDelta;
 
     private final double[] historicalLayerMins;
     private final double[] historicalLayerMaxs;
@@ -197,14 +198,22 @@ public class NeuralNetwork {
 
         /*
         // Gradiens számítás
+        double totalDelta = 0.0;
         for (int i = 0; i < batchSize; i++) {
             for (int j = 0; j < deltas[i].length; j++) {
                 deltas[i][j] = batchTargets[i][j] - currentInputs[i][j];
+                if (Double.isNaN(deltas[i][j]) || Double.isInfinite(deltas[i][j])) {
+                    deltas[i][j] = 0.0;
+                }
+                totalDelta += deltas[i][j];
             }
         }
+        averageDelta = totalDelta / (batchSize * deltas[0].length);
          */
 
+
         // MSE loss függvény gradiens számítása
+        double totalDelta = 0.0;
         for (int i = 0; i < batchSize; i++) {
             for (int j = 0; j < deltas[i].length; j++) {
                 // dE/dy = 2(y - t) ahol E = MSE, y = predikció, t = target
@@ -212,8 +221,10 @@ public class NeuralNetwork {
                 if (Double.isNaN(deltas[i][j]) || Double.isInfinite(deltas[i][j])) {
                     deltas[i][j] = 0.0;
                 }
+                totalDelta += deltas[i][j];
             }
         }
+        averageDelta = totalDelta / (batchSize * deltas[0].length);
 
         // Backpropagation rétegenként
         for (int i = layers.size() - 1; i >= 0; i--) {
@@ -368,12 +379,11 @@ public class NeuralNetwork {
      * @return targetQ Calculated target Q-value
      */
     private double calculateTargetQ(double reward, double maxNextQ, double currentQ, boolean done) {
-        double targetQ;
         if (done) {
-            targetQ = reward;
-        } else {
-            targetQ = currentQ + qlearningRate * (reward + discountFactor * maxNextQ - currentQ);
+            return reward;
         }
+        double targetQ;
+        targetQ = currentQ + qlearningRate * (reward + discountFactor * maxNextQ - currentQ);
         if (Double.isNaN(targetQ) || Double.isInfinite(targetQ)) {
             targetQ = 0.0;
         }
@@ -789,6 +799,10 @@ public class NeuralNetwork {
 
     public double getQlearningRate() {
         return qlearningRate;
+    }
+
+    public double getAverageDelta() {
+        return averageDelta;
     }
 
     public void setDiscountFactor(double discountFactor) {

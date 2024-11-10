@@ -641,9 +641,6 @@ public class StackManager implements StackComponent {
                 state[4] = POINT_BUMPINESS * metrics.getMetricBumpiness();
                 state[5] = POINT_HEIGHTS * metrics.getMetricColumnHeightSum();
 
-                //state[6] = getCurrentTetromino().getId();
-                //state[7] = getNextTetromino().getId();
-
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
                         InputNormalizerMinmax normalizer = new InputNormalizerMinmax(FEED_DATA_SIZE + 2);
