@@ -372,27 +372,24 @@ public class Tetris {
             allRows += rows;
             reward = 0;
             if (rows > 0) {
-                reward = rows * rows * ROWS;
+                reward = (rows * rows * ROWS);
             }
             reward += POINT_FULLROW * reward;
             reward -= POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
             reward -= POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
             reward -= POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
         } else {
-            /*
             reward = 0;
             allRows = stackManager.getAllFullRows();
             reward += POINT_FULLROW * allRows;
             reward -= POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
             reward -= POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
             reward -= POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
-             */
-            reward = -1;
         }
         if (Double.isNaN(reward) || Double.isInfinite(reward)) {
             reward = 0;
         }
-        return reward;
+        return reward / 10;
     }
 
     /**
@@ -415,9 +412,10 @@ public class Tetris {
         int[] result = new int[2];
 
         for (double[] possibleState : possibleStates) {
-            double currentSum = 0;
-            for (int i = 2; i < possibleState.length; i++) {
-                currentSum += possibleState[i];
+            double currentSum;
+            currentSum = possibleState[2];
+            for (int i = 3; i < possibleState.length; i++) {
+                currentSum -= possibleState[i];
             }
             if (currentSum > maxSum) {
                 maxSum = currentSum;

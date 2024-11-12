@@ -630,16 +630,25 @@ public class StackManager implements StackComponent {
                 }
                 while (!moveTetrominoDown(simStack, simTetromino, true)) {
                 }
-
                 double[] state = new double[FEED_DATA_SIZE + 2];
-
                 metrics.calculateGameMetrics(simStack);
+
+                double divider = 8;
+
                 state[0] = x;
                 state[1] = rot;
-                state[2] = POINT_FULLROW * simFullRows;
-                state[3] = POINT_HOLES * metrics.getMetricColumnHoleSum();
-                state[4] = POINT_BUMPINESS * metrics.getMetricBumpiness();
-                state[5] = POINT_HEIGHTS * metrics.getMetricColumnHeightSum();
+                state[2] = POINT_FULLROW * (simFullRows / divider);
+                state[3] = POINT_HOLES * (metrics.getMetricColumnHoleSum() / divider);
+                state[4] = POINT_BUMPINESS * (metrics.getMetricBumpiness() / divider);
+                state[5] = POINT_HEIGHTS * (metrics.getMetricColumnHeightSum() / divider);
+
+                state[5] = getCurrentTetromino().getId() / divider;
+                state[6] = getNextTetromino().getId() / divider;
+
+                double[] columns = metrics.getMetricColumnHeights();
+                for (int i = 0; i < columns.length; i++) {
+                    state[7 + i] = columns[i] / divider;
+                }
 
                 if (NORMALIZE_FEED_DATA) {
                     if (Objects.equals(FEED_DATA_NORMALIZER, "MINMAX")) {
