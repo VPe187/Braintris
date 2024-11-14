@@ -2,6 +2,7 @@ package hu.nye.vpe.nn;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import hu.nye.vpe.GlobalConfig;
 
@@ -24,16 +25,22 @@ public class Layer {
     private double[][] batchOutputs;
     private int splitIndex;
     private final AdamOptimizer optimizer;
+    private final double dropoutRate;
+    private boolean[] dropoutMask;
+    private final Random random = new Random();
+
 
     public Layer(String name, int inputSize, int outputSize, Activation activation, WeightInitStrategy initStrategy,
                  GradientClipper gradientClipper, double lambdaL2, BatchNormParameters batchNormParameters,
-                 double learningRate) {
+                 double learningRate, double dropoutRate) {
         this.name = name;
         this.neurons = new ArrayList<>();
         this.activation = activation;
         this.gradientClipper = gradientClipper;
         this.useBatchNorm = batchNormParameters.useBatchNorm;
         this.learningRate = learningRate;
+        this.dropoutRate = dropoutRate;
+        this.dropoutMask = new boolean[outputSize];
 
         for (int i = 0; i < outputSize; i++) {
             neurons.add(new Neuron(inputSize, outputSize, activation, initStrategy, gradientClipper, lambdaL2));
@@ -99,6 +106,21 @@ public class Layer {
             }
         }
 
+        // Apply Dropout during training
+        if (dropoutRate > 0) {
+            if (isTraining) {
+                // Generate new dropout mask for each forward pass during training
+                for (int i = 0; i < dropoutMask.length; i++) {
+                    dropoutMask[i] = random.nextDouble() > dropoutRate;
+                    if (dropoutMask[i]) {
+                        // Scale up the outputs that survive dropout by 1/(1-dropoutRate)
+                        activatedOutputs[i] *= (1.0 / (1.0 - dropoutRate));
+                    } else {
+                        activatedOutputs[i] = 0.0;
+                    }
+                }
+            }
+        }
         return activatedOutputs;
     }
 
@@ -139,6 +161,28 @@ public class Layer {
             for (int b = 0; b < batchSize; b++) {
                 for (int i = 0; i < neurons.size(); i++) {
                     outputs[b][i] = neurons.get(i).activate(linearOutputs[b][i]);
+                }
+            }
+        }
+
+        // Apply Dropout during training
+        if (dropoutRate > 0) {
+            if (isTraining) {
+                // Generate new dropout mask for each batch
+                for (int i = 0; i < dropoutMask.length; i++) {
+                    dropoutMask[i] = random.nextDouble() > dropoutRate;
+                }
+
+                // Apply mask to each instance in the batch
+                for (int b = 0; b < outputs.length; b++) {
+                    for (int i = 0; i < outputs[b].length; i++) {
+                        if (dropoutMask[i]) {
+                            // Scale up the outputs that survive dropout by 1/(1-dropoutRate)
+                            outputs[b][i] *= (1.0 / (1.0 - dropoutRate));
+                        } else {
+                            outputs[b][i] = 0.0;
+                        }
+                    }
                 }
             }
         }
@@ -196,6 +240,27 @@ public class Layer {
                 processStandardGradients(b, inputSize, outputSize, inputs,
                         nextLayerDeltas, derivativeValues,
                         weightGradients, inputGradients, biasGradients);
+            }
+
+            // Apply dropout mask to gradients during backpropagation
+            if (dropoutRate > 0) {
+                for (int i = 0; i < outputSize; i++) {
+                    if (!dropoutMask[i]) {
+                        // Zero out gradients for dropped neurons
+                        for (int j = 0; j < inputSize; j++) {
+                            weightGradients[i][j] = 0.0;
+                        }
+                        biasGradients[i] = 0.0;
+                        inputGradients[b][i] = 0.0;
+                    } else {
+                        // Scale gradients for active neurons
+                        for (int j = 0; j < inputSize; j++) {
+                            weightGradients[i][j] *= (1.0 / (1.0 - dropoutRate));
+                        }
+                        biasGradients[i] *= (1.0 / (1.0 - dropoutRate));
+                        inputGradients[b][i] *= (1.0 / (1.0 - dropoutRate));
+                    }
+                }
             }
         }
 

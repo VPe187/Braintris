@@ -406,6 +406,11 @@ public class GlobalConfig {
         return getDouble("POINT_BLOCKED_ROWS", -1);
     }
 
+    public double getDropoutRate() {
+        return getDouble("DROPOUT_RATE", 0.0);
+    }
+
+
     /**
      * Get run mode from configuration.
      *

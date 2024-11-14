@@ -37,6 +37,7 @@ public class NeuralNetwork {
     private static final int ROTATION_OUTPUTS = 4;
     private static final int MINIMUM_BATCH_SIZE = GlobalConfig.getInstance().getMinimumBatchSize();
     private static final int FEED_DATA_SIZE = GlobalConfig.getInstance().getFeedDataSize();
+    private static final double DROPOUT_RATE = GlobalConfig.getInstance().getDropoutRate();
 
     private final List<Layer> layers;
     private double learningRate;
@@ -99,8 +100,15 @@ public class NeuralNetwork {
             int inputSize = layerSizes[i];
             int outputSize = layerSizes[i + 1];
 
+            double dropoutRate;
+            if (i == 0 || i == layerSizes.length - 2) {
+                dropoutRate = 0.0;
+            } else {
+                dropoutRate = DROPOUT_RATE;
+            }
+
             layers.add(new Layer(names[i], inputSize, outputSize, activations[i], initStrategies[i],
-                    gradientClipper, l2[i], batchNormParameters[i], learningRate));
+                    gradientClipper, l2[i], batchNormParameters[i], learningRate, dropoutRate));
         }
 
         this.discountFactor = INITIAL_DISCOUNT_FACTOR;

@@ -55,8 +55,6 @@ public class Tetris {
     private double[] lastState;
     private int[] lastAction;
     int[] action;
-    private double allRows;
-    private double allEpoch;
 
     public Tetris(int width, int height, GameInput gameInput, RunMode runMode) {
         this.runMode = runMode;
@@ -65,8 +63,6 @@ public class Tetris {
         tickAnim = new GameTimeTicker((runMode == RunMode.TRAIN_AI) ? 1 : 20);
         starField = new GameStarfield(width, height);
         tickPlay = new GameTimeTicker(speed / 10);
-        allRows = 0;
-        allEpoch = 0;
         initializeComponents();
         this.gameInput = gameInput;
         if (runMode == RunMode.TRAIN_AI) {
@@ -365,26 +361,16 @@ public class Tetris {
     }
 
     private double calculateReward(Boolean gameOver) {
-        double reward;
+        double reward = 0;
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
         if (!gameOver) {
             double rows = stackManager.getLastFullRows();
-            allRows += rows;
-            reward = 0;
-            if (rows > 0) {
-                reward = (rows * rows * ROWS);
-            }
-            reward += POINT_FULLROW * reward;
-            reward -= POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
-            reward -= POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
-            reward -= POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
+            reward += POINT_FULLROW * (1 + (rows * rows) * ROWS);
+            reward -= 2 * POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
+            reward -= 2 * POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
+            reward -= 2 * POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
         } else {
-            reward = 0;
-            allRows = stackManager.getAllFullRows();
-            reward += POINT_FULLROW * allRows;
-            reward -= POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
-            reward -= POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
-            reward -= POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
+            reward = -20;
         }
         if (Double.isNaN(reward) || Double.isInfinite(reward)) {
             reward = 0;

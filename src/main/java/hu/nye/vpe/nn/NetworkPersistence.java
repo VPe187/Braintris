@@ -329,7 +329,9 @@ public class NetworkPersistence {
                         gradientClipper,
                         l2,
                         batchNormParams,
-                        network.getLearningRate()
+                        network.getLearningRate(),
+                        0.0 // Ezt javítani kell
+
                 );
 
                 List<Neuron> neurons = layer.getNeurons();
