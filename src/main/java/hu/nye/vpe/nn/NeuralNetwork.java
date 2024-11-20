@@ -522,7 +522,6 @@ public class NeuralNetwork {
 
     private void calculateLayerStatistics() {
         for (int i = 0; i < lastActivations.length; i++) {
-            // Az aktuális aktivációk statisztikái
             double currentMin = Double.POSITIVE_INFINITY;
             double currentMax = Double.NEGATIVE_INFINITY;
             double sum = 0;
@@ -533,13 +532,11 @@ public class NeuralNetwork {
                 sum += activation;
             }
 
-            // Történeti értékek frissítése
             historicalLayerMins[i] = Math.min(historicalLayerMins[i], currentMin);
             historicalLayerMaxs[i] = Math.max(historicalLayerMaxs[i], currentMax);
             historicalLayerSums[i] += sum;
             layerActivationCounts[i] += lastActivations[i].length;
 
-            // A megjelenítendő értékek frissítése
             layerMins[i] = historicalLayerMins[i];
             layerMaxs[i] = historicalLayerMaxs[i];
             layerMeans[i] = historicalLayerSums[i] / layerActivationCounts[i];

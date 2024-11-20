@@ -10,7 +10,7 @@ public class Neuron {
     private final WeightInitStrategy initStrategy;
     private final GradientClipper gradientClipper;
     private double lambdaL2;
-    private double[] weightGradients; // New field
+    private double[] weightGradients;
     private double biasGradient;
 
     public Neuron(int inputSize, int outputSize, Activation activation, WeightInitStrategy initStrategy,

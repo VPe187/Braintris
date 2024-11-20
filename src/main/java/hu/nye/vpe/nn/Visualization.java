@@ -307,7 +307,6 @@ public class Visualization implements GameElement {
     }
 
     private void drawLeftColumn(Graphics2D g2d) {
-        //String maxQ = String.format("Max RMS: %.8f", network.getMaxRMS());
         String nextQ = String.format("NextQ: %.4f", network.getNextQ());
         g2d.drawString(nextQ, STAT_X, height - 9 * Y_OFFSET);
 
@@ -361,12 +360,6 @@ public class Visualization implements GameElement {
         }
         g2d.drawString(movingAverage, rightColumnX - metrics.stringWidth(movingAverage), height - 140);
         g2d.setColor(FONT_COLOR);
-
-        //String bestReward = String.format("Best episode reward: %.0f", network.getBestReward());
-        //g2d.drawString(bestReward, rightColumnX - metrics.stringWidth(bestReward), height - 120);
-
-        //String reward = String.format("Step reward: %.4f",  network.getLastReward());
-        //g2d.drawString(reward, rightColumnX - metrics.stringWidth(reward), height - 120);
 
         String lossAvg = String.format("Avg loss: %.4f",  network.getAverageDelta());
         g2d.drawString(lossAvg, rightColumnX - metrics.stringWidth(lossAvg), height - 120);

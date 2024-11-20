@@ -128,13 +128,13 @@ public class NetworkPersistence {
     }
 
     private void packTrainingState(NeuralNetwork network, Map<String, Object> stateData) {
-        // Alap tanulási paraméterek
+        // Default learning parameters
         stateData.put("learningRate", network.getLearningRate());
         stateData.put("discountFactor", network.getDiscountFactor());
         stateData.put("epsilon", network.getEpsilon());
         stateData.put("episodeCount", network.getEpisodeCount());
 
-        // L2 regularizáció
+        // L2 regularization
         double[] l2Values = new double[network.getLayers().size()];
         for (int i = 0; i < network.getLayers().size(); i++) {
             Neuron neuron = network.getLayers().get(i).getNeurons().get(0); // Minden neuronnak ugyanaz az L2 értéke egy rétegben
@@ -142,22 +142,22 @@ public class NetworkPersistence {
         }
         stateData.put("l2Regularization", l2Values);
 
-        // Jutalmak és átlagok
+        // Rewards and averages
         stateData.put("bestReward", network.getBestReward());
         stateData.put("lastReward", network.getLastReward());
         stateData.put("movingAverage", network.getMovingAverage());
         stateData.put("maxMovingAverage", network.getMaxMovingAverage());
         stateData.put("recentRewards", network.getRecentRewards());
 
-        // RMS értékek
+        // RMS
         stateData.put("rms", network.getRMS());
         stateData.put("maxRms", network.getMaxRMS());
 
-        // Q értékek
+        // Q
         stateData.put("maxQ", network.getMaxQ());
         stateData.put("nextQ", network.getNextQ());
 
-        // Layer statisztikák
+        // Layer statistics
         stateData.put("layerMins", network.getLayerMins());
         stateData.put("layerMaxs", network.getLayerMaxs());
         stateData.put("layerMeans", network.getLayerMeans());
@@ -166,7 +166,7 @@ public class NetworkPersistence {
         stateData.put("historicalLayerSums", network.getHistoricalLayerSums());
         stateData.put("layerActivationCounts", network.getLayerActivationCounts());
 
-        // Experience Replay adatok
+        // Experience Replay
         if (network.getExperienceReplay() != null) {
             stateData.put("experiences", network.getExperienceReplay().getExperiences());
         }
@@ -191,13 +191,13 @@ public class NetworkPersistence {
     }
 
     private void unpackTrainingState(NeuralNetwork network, Map<String, Object> stateData) {
-        // Alap tanulási paraméterek
+        // Default learning parameters
         network.setLearningRate(getDoubleOrDefault(stateData, "learningRate", initalLearningRate));
         network.setDiscountFactor(getDoubleOrDefault(stateData, "discountFactor", initialDiscountFactor));
         network.setEpsilon(getDoubleOrDefault(stateData, "epsilon", initalEpsilon));
         network.setEpisodeCount(getIntOrDefault(stateData, "episodeCount", 0));
 
-        // L2 regularizáció betöltése
+        // L2 regularization
         List<Number> l2Values = (List<Number>) stateData.get("l2Regularization");
         if (l2Values != null) {
             for (int i = 0; i < network.getLayers().size() && i < l2Values.size(); i++) {
@@ -208,27 +208,27 @@ public class NetworkPersistence {
             }
         }
 
-        // Jutalmak és átlagok
+        // Rewards and averages
         network.setBestReward(getDoubleOrDefault(stateData, "bestReward", Double.NEGATIVE_INFINITY));
         network.setLastReward(getDoubleOrDefault(stateData, "lastReward", 0.0));
         network.setMovingAverage(getDoubleOrDefault(stateData, "movingAverage", Double.NEGATIVE_INFINITY));
         network.setMaxMovingAverage(getDoubleOrDefault(stateData, "maxMovingAverage", Double.NEGATIVE_INFINITY));
 
-        // RecentRewards lista betöltése
+        // RecentRewards
         List<Double> loadedRewards = (List<Double>) stateData.get("recentRewards");
         if (loadedRewards != null) {
             network.setRecentRewards(new ArrayList<>(loadedRewards));
         }
 
-        // RMS értékek
+        // RMS
         network.setRMS(getDoubleOrDefault(stateData, "rms", 0.0));
         network.setMaxRMS(getDoubleOrDefault(stateData, "maxRms", 0.0));
 
-        // Q értékek
+        // Q
         network.setMaxQ(getDoubleOrDefault(stateData, "maxQ", 0.0));
         network.setNextQ(getDoubleOrDefault(stateData, "nextQ", 0.0));
 
-        // Layer statisztikák
+        // Layer statistics
         loadDoubleArrayInto(stateData, "layerMins", network.getLayerMins());
         loadDoubleArrayInto(stateData, "layerMaxs", network.getLayerMaxs());
         loadDoubleArrayInto(stateData, "layerMeans", network.getLayerMeans());
@@ -246,7 +246,7 @@ public class NetworkPersistence {
             network.setLayerActivationCounts(counts);
         }
 
-        // Experience Replay adatok
+        // Experience Replay
         List<Map<String, Object>> experiences = (List<Map<String, Object>>) stateData.get("experiences");
         if (experiences != null && network.getExperienceReplay() != null) {
             ExperienceReplay experienceReplay = network.getExperienceReplay();
@@ -272,21 +272,20 @@ public class NetworkPersistence {
                 Map<String, Object> optimizerState = layerOptimizerStates.get(i);
                 AdamOptimizer optimizer = layers.get(i).getOptimizer();
 
-                // Momentum és velocity mátrixok betöltése
+                // Momentum and velocity matrices loading
                 List<List<Number>> mmeanData = (List<List<Number>>) optimizerState.get("mmean");
                 List<List<Number>> vmeanData = (List<List<Number>>) optimizerState.get("vmean");
                 List<Number> mbiasData = (List<Number>) optimizerState.get("mbias");
                 List<Number> vbiasData = (List<Number>) optimizerState.get("vbias");
 
-                // 2D tömb konvertálása mmean és vmean számára
+                // 2D array converting for mmean and vmean
                 double[][] mmean = convert2DArrayFromList(mmeanData);
                 double[][] vmean = convert2DArrayFromList(vmeanData);
 
-                // 1D tömb konvertálása mbias és vbias számára
+                // 1D array conversion for mbias and vbias
                 double[] mbias = convert1DArrayFromList(mbiasData);
                 double[] vbias = convert1DArrayFromList(vbiasData);
 
-                // Az új setter metódusokkal beállítjuk az állapotokat
                 optimizer.setMmean(mmean);
                 optimizer.setVmean(vmean);
                 optimizer.setMbias(mbias);
@@ -377,7 +376,7 @@ public class NetworkPersistence {
             int[] action = new int[actionList.size()];
             double[] nextState = nextStateList != null ? new double[nextStateList.size()] : null;
 
-            // Manuális konverzió az autoboxing elkerülésére
+            // Manual conversion to avoid autoboxing
             for (int i = 0; i < state.length; i++) {
                 state[i] = stateList.get(i).doubleValue();
             }
@@ -406,7 +405,7 @@ public class NetworkPersistence {
         }
         int size = list.size();
         double[] result = new double[size];
-        for (int i = 0; i < size; i++) { // size változó cache-elése
+        for (int i = 0; i < size; i++) { // cache size variable
             result[i] = list.get(i).doubleValue();
         }
         return result;

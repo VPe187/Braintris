@@ -57,8 +57,6 @@ public class ExperienceReplay implements Serializable {
             }
 
         }
-        //int index = random.nextInt(memory.size());
-        //batch.add(memory.get(index));
         return batch;
     }
 
@@ -80,7 +78,6 @@ public class ExperienceReplay implements Serializable {
                                 (maxCurrentPriority - minCurrentPriority);
             }
         } else {
-            // If all priorities are the same, set them to the minPriority
             for (Experience experience : memory) {
                 experience.priority = minPriority;
             }

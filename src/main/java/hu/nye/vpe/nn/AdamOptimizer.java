@@ -12,10 +12,10 @@ public class AdamOptimizer implements Serializable {
     private final double beta1;
     private final double beta2;
     private final double epsilon;
-    private double[][] mmean; // Első mozgóátlag a súlyokhoz
-    private double[][] vmean; // Második mozgóátlag a súlyokhoz
-    private double[] mbias; // Első mozgóátlag a bias-hoz
-    private double[] vbias; // Második mozgóátlag a bias-hoz
+    private double[][] mmean; // First moving average for weights
+    private double[][] vmean; // Second moving average for weights
+    private double[] mbias; // First moving average for biases
+    private double[] vbias; // Second moving average for biases
     private final double lambdaL2;
     private int iter;
 
@@ -52,7 +52,7 @@ public class AdamOptimizer implements Serializable {
             double[] weightUpdates = new double[weightGradients[i].length];
             GradientClipper clipper = neuron.getGradientClipper();
 
-            // Súlyok frissítése
+            // Update weights
             for (int j = 0; j < weightUpdates.length; j++) {
                 double clippedGradient = clipper.clip(weightGradients[i][j]);
 
@@ -71,11 +71,11 @@ public class AdamOptimizer implements Serializable {
                     vhat = epsilon;
                 }
 
-                // Súlyok átírása
+                // Rewrite weights
                 weightUpdates[j] = clipper.clip(learningRate * mhat / (Math.sqrt(vhat) + epsilon));
             }
 
-            // Bias update számítása
+            // Calculate bias update
             double clippedBiasGradient = clipper.clip(biasGradients[i]);
             mbias[i] = beta1 * mbias[i] + (1 - beta1) * clippedBiasGradient;
             vbias[i] = beta2 * vbias[i] + (1 - beta2) * (clippedBiasGradient * clippedBiasGradient);
