@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 import hu.nye.vpe.GlobalConfig;
 import hu.nye.vpe.gaming.GameAudio;
 import hu.nye.vpe.gaming.GameColorPalette;
+import hu.nye.vpe.gaming.GameConstans;
 import hu.nye.vpe.gaming.GameInput;
 import hu.nye.vpe.gaming.GameStarfield;
 import hu.nye.vpe.gaming.GameState;
@@ -36,8 +37,8 @@ public class Tetris {
 
     private RunMode runMode;
     private NeuralNetwork brain;
-    private static final long speed = 1000L;
-    private final long learningSpeed = 1L;
+    private static final long speed = GameConstans.START_SPEED;
+    private final long learningSpeed = GameConstans.LEARNING_START_SPEED;
     private Tetromino nextTetromino = null;
     private static final TetrominoFactory sf = TetrominoFactory.getInstance();
     private StackUI stackUI;
@@ -55,6 +56,7 @@ public class Tetris {
     private double[] lastState;
     private int[] lastAction;
     int[] action;
+    int lastGameLevel;
 
     public Tetris(int width, int height, GameInput gameInput, RunMode runMode) {
         this.runMode = runMode;
@@ -64,6 +66,7 @@ public class Tetris {
         starField = new GameStarfield(width, height);
         tickPlay = new GameTimeTicker(speed / 10);
         initializeComponents();
+        this.lastGameLevel = 0;
         this.gameInput = gameInput;
         if (runMode == RunMode.TRAIN_AI) {
             try {
@@ -127,6 +130,8 @@ public class Tetris {
         stackManager.nextIteration();
         if (runMode == RunMode.TRAIN_AI) {
             stackManager.setCurrentSpeed(learningSpeed);
+        } else if (runMode == RunMode.PLAY_AI) {
+            stackManager.setCurrentSpeed(learningSpeed * 10);
         } else {
             stackManager.setCurrentSpeed(speed);
         }
@@ -213,6 +218,7 @@ public class Tetris {
                 }
             }
             stackManager.moveTetrominoDown(stackManager.getStackArea(), stackManager.getCurrentTetromino(), false);
+
         }
 
         if (stackManager.getGameState() == GameState.GAMEOVER) {
@@ -226,20 +232,25 @@ public class Tetris {
                             true,
                             null
                     );
-
-                    try {
-                        if (brain.getEpisodeCount() % 100 == 0) {
-                            brain.saveNetworkStructure("brain_network.json");
-                            brain.saveTrainingState("brain_training.json");
-                        }
-                    } catch (Exception e) {
-                        System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());
+                    int gameLevel = stackManager.getGameLevel();
+                    if (gameLevel > lastGameLevel) {
+                        lastGameLevel = gameLevel;
+                        saveNetwork();
                     }
                     lastState = null;
                     lastAction = null;
                 }
                 start();
             }
+        }
+    }
+
+    private void saveNetwork() {
+        try {
+            brain.saveNetworkStructure("brain_network.json");
+            brain.saveTrainingState("brain_training.json");
+        } catch (Exception e) {
+            System.out.println("Error saving Q-Learning Neural Network: " + e.getMessage());
         }
     }
 
@@ -365,10 +376,10 @@ public class Tetris {
         stackMetrics.calculateGameMetrics(stackManager.getStackArea());
         if (!gameOver) {
             double rows = stackManager.getLastFullRows();
-            reward += POINT_FULLROW * (1 + (rows * rows) * ROWS);
-            reward -= 2 * POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
-            reward -= 2 * POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
-            reward -= 2 * POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
+            reward += POINT_FULLROW * (1 + rows * ROWS);
+            reward -= POINT_HOLES * stackMetrics.getMetricColumnHoleSum();
+            reward -= POINT_HEIGHTS * stackMetrics.getMetricColumnHeightSum();
+            reward -= POINT_BUMPINESS * stackMetrics.getMetricBumpiness();
         } else {
             reward = -20;
         }

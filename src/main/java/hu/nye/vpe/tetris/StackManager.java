@@ -78,7 +78,7 @@ public class StackManager implements StackComponent {
         droppedElements = 0;
         gameState = GameState.RUNNING;
         startTime = System.currentTimeMillis();
-        currentSpeed = runMode == RunMode.TRAIN_AI ? LEARNING_START_SPEED : START_SPEED * (runMode == RunMode.PLAY_AI  ? 10 : 1);
+        currentSpeed = runMode == RunMode.HUMAN ? START_SPEED : LEARNING_START_SPEED;
     }
 
     private void initializeStack() {
@@ -414,10 +414,9 @@ public class StackManager implements StackComponent {
     }
 
     protected void nextLevel() {
-        allFullRows = 0; // Szint váltásnál lenullázódik a sorok száma, ez az AI-nek baj lehet
-        if (currentSpeed >= SPEED_ACCELERATION) {
-            currentSpeed -= SPEED_ACCELERATION * (runMode == RunMode.PLAY_AI ? 100 : 1);
-        }
+        allFullRows = 0;
+        currentSpeed -= SPEED_ACCELERATION;
+        currentSpeed = Math.max(currentSpeed, 10);
         gameLevel++;
         noFullRows = 0;
         if (runMode != RunMode.TRAIN_AI) {
@@ -633,7 +632,7 @@ public class StackManager implements StackComponent {
                 double[] state = new double[FEED_DATA_SIZE + 2];
                 metrics.calculateGameMetrics(simStack);
 
-                double divider = 8;
+                double divider = 10;
 
                 state[0] = x;
                 state[1] = rot;
@@ -731,6 +730,7 @@ public class StackManager implements StackComponent {
     public GameState getGameState() {
         return gameState;
     }
+
 
     public static int getIteration() {
         return iteration;
