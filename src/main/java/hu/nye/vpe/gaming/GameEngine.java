@@ -12,7 +12,7 @@ import hu.nye.vpe.tetris.Tetris;
  * Game class. Runnable.
  */
 public class GameEngine implements Runnable {
-    public static final int FPS = 60;
+    public static final int FPS = 24;
     private final GameDisplay gameDisplay;
     private final int gameWidth;
     private final int fullWidth;
