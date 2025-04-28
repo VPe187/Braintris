@@ -3,6 +3,7 @@ package hu.nye.vpe.nn;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -10,6 +11,8 @@ import java.util.Map;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+
 
 /**
  * Neural network persistence handler class.
@@ -171,23 +174,46 @@ public class NetworkPersistence {
             stateData.put("experiences", network.getExperienceReplay().getExperiences());
         }
 
+        // Adam Optimizer State Saving
         List<Map<String, Object>> layerOptimizerStates = new ArrayList<>();
         for (Layer layer : network.getLayers()) {
             AdamOptimizer optimizer = layer.getOptimizer();
-            Map<String, Object> optimizerState = new HashMap<>();
-
-            optimizerState.put("mmean", optimizer.getMmean());
-            optimizerState.put("vmean", optimizer.getVmean());
-            optimizerState.put("mbias", optimizer.getMbias());
-            optimizerState.put("vbias", optimizer.getVbias());
-            optimizerState.put("iter", optimizer.getIter());
-            optimizerState.put("beta1", optimizer.getBeta1());
-            optimizerState.put("beta2", optimizer.getBeta2());
-            optimizerState.put("epsilon", optimizer.getEpsilon());
-            optimizerState.put("learningRate", optimizer.getLearningRate());
-
-            layerOptimizerStates.add(optimizerState);
+            if (optimizer != null) {
+                Map<String, Object> optimizerState = new HashMap<>();
+                optimizerState.put("mmean", optimizer.getMmean());
+                optimizerState.put("vmean", optimizer.getVmean());
+                optimizerState.put("mbias", optimizer.getMbias());
+                optimizerState.put("vbias", optimizer.getVbias());
+                optimizerState.put("iter", optimizer.getIter());
+                // optimizerState.put("beta1", optimizer.getBeta1());
+                // optimizerState.put("beta2", optimizer.getBeta2());
+                // optimizerState.put("epsilon", optimizer.getEpsilon());
+                // optimizerState.put("learningRate", optimizer.getLearningRate());
+                layerOptimizerStates.add(optimizerState);
+            } else {
+                layerOptimizerStates.add(new HashMap<>());
+            }
         }
+        stateData.put("adamOptimizerStates", layerOptimizerStates);
+
+        // Batch Normalization State Saving
+        List<Map<String, Object>> batchNormStates = new ArrayList<>();
+        for (Layer layer : network.getLayers()) {
+            if (layer.isUseBatchNorm() && layer.getBatchNormalizer() != null) {
+                Map<String, Object> bnState = new HashMap<>();
+                BatchNormalizer bn = layer.getBatchNormalizer();
+                bnState.put("runningMean", bn.getRunningMean());
+                bnState.put("runningVariance", bn.getRunningVariance());
+                // Esetleg a gamma és beta is menthető lenne, ha taníthatóak lennének
+                // bnState.put("gamma", bn.getGamma());
+                // bnState.put("beta", bn.getBeta());
+                batchNormStates.add(bnState);
+            } else {
+                // Ha egy réteg nem használ BN-t, üres map-et adunk hozzá, hogy a betöltésnél az indexek stimmeljenek
+                batchNormStates.add(new HashMap<>());
+            }
+        }
+        stateData.put("batchNormStates", batchNormStates);
     }
 
     private void unpackTrainingState(NeuralNetwork network, Map<String, Object> stateData) {
@@ -246,6 +272,23 @@ public class NetworkPersistence {
             network.setLayerActivationCounts(counts);
         }
 
+        List<Map<String, Object>> batchNormStates = (List<Map<String, Object>>) stateData.get("batchNormStates");
+        if (batchNormStates != null) {
+            List<Layer> layers = network.getLayers();
+            for (int i = 0; i < layers.size() && i < batchNormStates.size(); i++) {
+                Layer layer = layers.get(i);
+                Map<String, Object> bnState = batchNormStates.get(i);
+                if (layer.isUseBatchNorm() && layer.getBatchNormalizer() != null && !bnState.isEmpty()) {
+                    BatchNormalizer bn = layer.getBatchNormalizer();
+                    double[] runningMean = convertToDoubleArray((List<Number>) bnState.get("runningMean"));
+                    double[] runningVariance = convertToDoubleArray((List<Number>) bnState.get("runningVariance"));
+                    bn.setRunningMean(runningMean);
+                    bn.setRunningVariance(runningVariance);
+                    // Esetleg gamma és beta betöltése
+                }
+            }
+        }
+
         // Experience Replay
         List<Map<String, Object>> experiences = (List<Map<String, Object>>) stateData.get("experiences");
         if (experiences != null && network.getExperienceReplay() != null) {
@@ -264,6 +307,7 @@ public class NetworkPersistence {
             layer.setLearningRate(network.getLearningRate());
         }
 
+        Type double2DListType = new TypeToken<List<List<Number>>>() {}.getType();
         List<Map<String, Object>> layerOptimizerStates =
                 (List<Map<String, Object>>) stateData.get("adamOptimizerStates");
         if (layerOptimizerStates != null) {
@@ -272,25 +316,33 @@ public class NetworkPersistence {
                 Map<String, Object> optimizerState = layerOptimizerStates.get(i);
                 AdamOptimizer optimizer = layers.get(i).getOptimizer();
 
-                // Momentum and velocity matrices loading
-                List<List<Number>> mmeanData = (List<List<Number>>) optimizerState.get("mmean");
-                List<List<Number>> vmeanData = (List<List<Number>>) optimizerState.get("vmean");
-                List<Number> mbiasData = (List<Number>) optimizerState.get("mbias");
-                List<Number> vbiasData = (List<Number>) optimizerState.get("vbias");
+                if (optimizer != null && !optimizerState.isEmpty()) {
+                    // Momentum and velocity matrices loading
+                    List<List<Number>> mmeanData = (List<List<Number>>) optimizerState.get("mmean");
+                    List<List<Number>> vmeanData = (List<List<Number>>) optimizerState.get("vmean");
+                    List<Number> mbiasData = (List<Number>) optimizerState.get("mbias");
+                    List<Number> vbiasData = (List<Number>) optimizerState.get("vbias");
 
-                // 2D array converting for mmean and vmean
-                double[][] mmean = convert2DArrayFromList(mmeanData);
-                double[][] vmean = convert2DArrayFromList(vmeanData);
+                    // 2D array converting for mmean and vmean
+                    double[][] mmean = convert2DArrayFromList(mmeanData);
+                    double[][] vmean = convert2DArrayFromList(vmeanData);
 
-                // 1D array conversion for mbias and vbias
-                double[] mbias = convert1DArrayFromList(mbiasData);
-                double[] vbias = convert1DArrayFromList(vbiasData);
+                    // 1D array conversion for mbias and vbias
+                    double[] mbias = convert1DArrayFromList(mbiasData);
+                    double[] vbias = convert1DArrayFromList(vbiasData);
 
-                optimizer.setMmean(mmean);
-                optimizer.setVmean(vmean);
-                optimizer.setMbias(mbias);
-                optimizer.setVbias(vbias);
-                optimizer.setIter(((Number) optimizerState.get("iter")).intValue());
+                    optimizer.setMmean(mmean);
+                    optimizer.setVmean(vmean);
+                    optimizer.setMbias(mbias);
+                    optimizer.setVbias(vbias);
+                    //optimizer.setIter(((Number) optimizerState.get("iter")).intValue());
+                    Object iterObj = optimizerState.get("iter");
+                    if (iterObj instanceof Number) {
+                        optimizer.setIter(((Number) iterObj).intValue());
+                    } else {
+                        System.err.println("Warning: Could not load Adam optimizer iteration count for layer " + i);
+                    }
+                }
             }
         }
     }
@@ -551,4 +603,19 @@ public class NetworkPersistence {
         return result;
     }
 
+    private double[] convertToDoubleArrayFromDoubleList(List<Double> list) {
+        if (list == null) {
+            return null;
+        }
+        return list.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+
+    private double[][] convert2DDoubleArrayFromList(List<List<Double>> list) {
+        if (list == null) {
+            return null;
+        }
+        return list.stream()
+                .map(innerList -> innerList.stream().mapToDouble(Double::doubleValue).toArray())
+                .toArray(double[][]::new);
+    }
 }

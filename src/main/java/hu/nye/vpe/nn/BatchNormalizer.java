@@ -275,6 +275,40 @@ public class BatchNormalizer implements Serializable {
         return gradient * gradientScale;
     }
 
+    public double[] getRunningMean() {
+        return runningMean;
+    }
+
+    /**
+     * Set runningMean.
+     *
+     * @param runningMean Current running mean.
+     */
+    public void setRunningMean(double[] runningMean) {
+        if (runningMean != null && runningMean.length == this.size) {
+            System.arraycopy(runningMean, 0, this.runningMean, 0, this.size);
+        } else {
+            System.err.println("Error setting runningMean: Invalid array provided.");
+        }
+    }
+
+    public double[] getRunningVariance() {
+        return runningVariance;
+    }
+
+    /**
+     * Setter of running variance.
+     *
+     * @param runningVariance running variance.
+     */
+    public void setRunningVariance(double[] runningVariance) {
+        if (runningVariance != null && runningVariance.length == this.size) {
+            System.arraycopy(runningVariance, 0, this.runningVariance, 0, this.size);
+        } else {
+            System.err.println("Error setting runningVariance: Invalid array provided.");
+        }
+    }
+
     public void setLearningRate(double learningRate) {
         this.learningRate = learningRate;
     }

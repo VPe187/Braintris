@@ -105,9 +105,9 @@ public class Tetris {
                 );
                 brain.loadNetworkStructure("brain_network.json");
                 brain.loadTrainingState("brain_training.json");
-                System.out.println("Neural Network loaded successfully");
+                System.out.println("Neural Network for inference loaded successfully");
             } catch (Exception e) {
-                System.out.println("Nem sikerült a hálózat betöltése: " + e.getMessage());
+                System.out.println("Nem sikerült a hálózat betöltése inferenciához: " + e.getMessage());
                 e.printStackTrace();
             }
         }

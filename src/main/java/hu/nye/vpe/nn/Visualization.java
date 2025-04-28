@@ -364,16 +364,16 @@ public class Visualization implements GameElement {
         String lossAvg = String.format("Avg loss: %.4f",  network.getAverageDelta());
         g2d.drawString(lossAvg, rightColumnX - metrics.stringWidth(lossAvg), height - 120);
 
-        String qlearning = String.format("Q learning rate: %.4f", network.getQlearningRate());
+        String qlearning = String.format("Q learning rate: %.5f", network.getQlearningRate());
         g2d.drawString(qlearning, rightColumnX - metrics.stringWidth(qlearning), height - 100);
 
-        String learningRate = String.format("Learning Rate: %.4f", network.getLearningRate());
+        String learningRate = String.format("Learning Rate: %.6f", network.getLearningRate());
         g2d.drawString(learningRate, rightColumnX - metrics.stringWidth(learningRate), height - 80);
 
-        String epsilon = String.format("Epsilon: %.4f", network.getEpsilon());
+        String epsilon = String.format("Epsilon: %.5f", network.getEpsilon());
         g2d.drawString(epsilon, rightColumnX - metrics.stringWidth(epsilon), height - 60);
 
-        String discountFactor = String.format("Discount Factor: %.4f", network.getDiscountFactor());
+        String discountFactor = String.format("Discount Factor: %.5f", network.getDiscountFactor());
         g2d.drawString(discountFactor, rightColumnX - metrics.stringWidth(discountFactor), height - 40);
 
         String avgWeightChange = String.format("Avg Weight Change: %.8f", this.averageWeightChange);
